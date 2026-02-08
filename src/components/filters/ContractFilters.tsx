@@ -1,0 +1,154 @@
+"use client";
+
+import { CONTRACT_TYPES, PROCEDURE_TYPES } from "@/config/constants";
+
+interface Props {
+  filters: {
+    year: string;
+    tipus_contracte: string;
+    procediment: string;
+    amountMin: string;
+    amountMax: string;
+    nom_organ: string;
+    search: string;
+  };
+  onChange: (key: string, value: string) => void;
+  onReset: () => void;
+}
+
+const YEARS = Array.from({ length: 12 }, (_, i) => String(2015 + i));
+
+export default function ContractFilters({ filters, onChange, onReset }: Props) {
+  const hasFilters = Object.values(filters).some((v) => v !== "");
+
+  return (
+    <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold text-gray-900">Filtres</h3>
+        {hasFilters && (
+          <button
+            onClick={onReset}
+            className="text-xs text-red-600 hover:underline"
+          >
+            Esborra filtres
+          </button>
+        )}
+      </div>
+
+      {/* Search */}
+      <div>
+        <label className="block text-xs font-medium text-gray-500 mb-1">
+          Cerca per contracte, empresa o NIF
+        </label>
+        <input
+          type="text"
+          value={filters.search}
+          onChange={(e) => onChange("search", e.target.value)}
+          placeholder="Ex.: COMSA, B-12345678, manteniment..."
+          className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+        />
+      </div>
+
+      {/* Year */}
+      <div>
+        <label className="block text-xs font-medium text-gray-500 mb-1">
+          Any
+        </label>
+        <select
+          value={filters.year}
+          onChange={(e) => onChange("year", e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+        >
+          <option value="">Tots els anys</option>
+          {YEARS.map((y) => (
+            <option key={y} value={y}>
+              {y}
+            </option>
+          )).reverse()}
+        </select>
+      </div>
+
+      {/* Contract type */}
+      <div>
+        <label className="block text-xs font-medium text-gray-500 mb-1">
+          Tipus de contracte
+        </label>
+        <select
+          value={filters.tipus_contracte}
+          onChange={(e) => onChange("tipus_contracte", e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+        >
+          <option value="">Tots els tipus</option>
+          {CONTRACT_TYPES.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Procedure */}
+      <div>
+        <label className="block text-xs font-medium text-gray-500 mb-1">
+          Procediment
+        </label>
+        <select
+          value={filters.procediment}
+          onChange={(e) => onChange("procediment", e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+        >
+          <option value="">Tots els procediments</option>
+          {PROCEDURE_TYPES.map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Amount range */}
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">
+            Import mínim (EUR)
+          </label>
+          <input
+            type="number"
+            value={filters.amountMin}
+            onChange={(e) => onChange("amountMin", e.target.value)}
+            placeholder="0"
+            min="0"
+            className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">
+            Import màxim (EUR)
+          </label>
+          <input
+            type="number"
+            value={filters.amountMax}
+            onChange={(e) => onChange("amountMax", e.target.value)}
+            placeholder="Sense límit"
+            min="0"
+            className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+          />
+        </div>
+      </div>
+
+      {/* Organ */}
+      <div>
+        <label className="block text-xs font-medium text-gray-500 mb-1">
+          Òrgan de contractació
+        </label>
+        <input
+          type="text"
+          value={filters.nom_organ}
+          onChange={(e) => onChange("nom_organ", e.target.value)}
+          placeholder="Cerca per nom..."
+          className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+        />
+      </div>
+    </div>
+  );
+}
