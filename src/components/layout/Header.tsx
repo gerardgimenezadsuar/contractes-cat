@@ -28,21 +28,29 @@ export default function Header() {
           </Link>
 
           {/* Desktop nav */}
-          <nav className="hidden md:flex items-center gap-1">
-            {NAV_ITEMS.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                prefetch
-                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  pathname === item.href
-                    ? "text-gray-900 border-b-2 border-gray-900"
-                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                }`}
-              >
-                {item.label}
-              </Link>
-            ))}
+          <nav className="hidden md:flex items-center h-full gap-1">
+            {NAV_ITEMS.map((item) => {
+              const isActive = pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  prefetch
+                  className={`relative px-4 py-2 text-sm transition-colors ${
+                    isActive
+                      ? "text-indigo-600 font-semibold"
+                      : "text-gray-500 font-medium hover:text-gray-900"
+                  }`}
+                >
+                  {item.label}
+                  <span
+                    className={`absolute bottom-0 left-1/2 -translate-x-1/2 h-[3px] rounded-full bg-indigo-500 transition-all duration-200 ${
+                      isActive ? "w-5/6" : "w-0 group-hover:w-1/2"
+                    }`}
+                  />
+                </Link>
+              );
+            })}
           </nav>
 
           {/* Mobile menu button */}
@@ -64,21 +72,24 @@ export default function Header() {
         {/* Mobile nav */}
         {mobileOpen && (
           <nav className="md:hidden pb-4 space-y-1">
-            {NAV_ITEMS.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                prefetch
-                onClick={() => setMobileOpen(false)}
-                className={`block px-3 py-2 rounded-md text-sm font-medium ${
-                  pathname === item.href
-                    ? "text-gray-900 bg-gray-50 border-l-2 border-gray-900"
-                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                }`}
-              >
-                {item.label}
-              </Link>
-            ))}
+            {NAV_ITEMS.map((item) => {
+              const isActive = pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  prefetch
+                  onClick={() => setMobileOpen(false)}
+                  className={`block px-3 py-2 rounded-md text-sm ${
+                    isActive
+                      ? "text-indigo-600 font-semibold bg-indigo-50 border-l-[3px] border-indigo-500"
+                      : "text-gray-500 font-medium hover:text-gray-900 hover:bg-gray-50"
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
           </nav>
         )}
       </div>

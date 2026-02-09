@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { SITE_NAME, GITHUB_URL, SOCRATA_DATASET_URL, CREATOR_NAME, CREATOR_URL } from "@/config/constants";
 import SharePageButton from "@/components/ui/SharePageButton";
 
@@ -108,6 +109,25 @@ export default function AboutPage() {
           legal de 15.000 EUR (sense IVA) per a contractes de serveis i
           subministraments. La distribució mostra la concentració de contractes
           en rangs de 500 EUR per identificar possibles patrons.
+        </p>
+      </section>
+
+      {/* Privacy and legal */}
+      <section className="mb-8">
+        <h2 className="text-xl font-bold text-gray-900 mb-3">
+          Privacitat i avís legal
+        </h2>
+        <p className="text-gray-600 mb-4">
+          Utilitzem analítica agregada per entendre l&apos;ús general del web i
+          millorar-lo tècnicament. No fem perfilat personal ni publicitat
+          dirigida.
+        </p>
+        <p className="text-gray-600">
+          Pots consultar el detall complet a{" "}
+          <Link href="/legal" className="text-blue-600 hover:underline">
+            l&apos;avís legal i política de privacitat
+          </Link>
+          .
         </p>
       </section>
 

@@ -36,6 +36,11 @@ export default function Footer() {
                   Sobre el projecte
                 </Link>
               </li>
+              <li>
+                <Link href="/legal" prefetch className="text-gray-600 hover:text-gray-900">
+                  Avís legal i privacitat
+                </Link>
+              </li>
             </ul>
           </div>
           <div>
@@ -76,11 +81,6 @@ export default function Footer() {
               {CREATOR_NAME}
             </a>
             , empresa d&apos;enginyeria d&apos;IA a Barcelona, Catalunya.
-          </p>
-          <p>
-            Les dades provenen del conjunt &quot;Contractació pública a
-            Catalunya&quot; de la Plataforma de Transparència i pot no incloure la
-            totalitat dels contractes públics.
           </p>
         </div>
       </div>

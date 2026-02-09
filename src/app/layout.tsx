@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import Disclaimer from "@/components/layout/Disclaimer";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/config/constants";
 
 const geistSans = Geist({
@@ -24,9 +24,9 @@ export const metadata: Metadata = {
   description: SITE_DESCRIPTION,
   metadataBase: new URL(SITE_URL),
   icons: {
-    icon: "/contractes-logo.png",
-    shortcut: "/contractes-logo.png",
-    apple: "/contractes-logo.png",
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/contractes-logo-final.png",
   },
   openGraph: {
     title: SITE_NAME,
@@ -48,10 +48,10 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col`}
       >
-        <Disclaimer />
         <Header />
         <main className="flex-1">{children}</main>
         <Footer />
+        <Analytics />
       </body>
     </html>
   );
