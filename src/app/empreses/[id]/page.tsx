@@ -29,9 +29,38 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const decodedId = decodeURIComponent(id);
   const { company } = await fetchCompanyDetail(decodedId);
+  const companyName = company?.denominacio_adjudicatari || decodedId;
+  const totalAmount = parseFloat(company?.total || "0");
+  const totalContracts = parseInt(company?.num_contracts || "0", 10);
+  const description = company
+    ? `${formatCompactNumber(totalAmount)} adjudicats en ${formatNumber(
+        totalContracts
+      )} contractes públics a ${companyName}.`
+    : `Detall dels contractes públics adjudicats a ${companyName}.`;
+  const imageUrl = `/empreses/${encodeURIComponent(decodedId)}/opengraph-image`;
+
   return {
-    title: company?.denominacio_adjudicatari || decodedId,
-    description: `Detall dels contractes públics adjudicats a ${company?.denominacio_adjudicatari || decodedId}`,
+    title: companyName,
+    description,
+    openGraph: {
+      title: companyName,
+      description,
+      type: "article",
+      images: [
+        {
+          url: imageUrl,
+          width: 1200,
+          height: 630,
+          alt: `Resum de contractació pública de ${companyName}`,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: companyName,
+      description,
+      images: [imageUrl],
+    },
   };
 }
 
