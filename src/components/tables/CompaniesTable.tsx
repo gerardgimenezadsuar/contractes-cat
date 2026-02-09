@@ -152,16 +152,16 @@ export default function CompaniesTable({
               <th className="w-12 text-left py-3 px-4 font-medium text-gray-500">#</th>
               <th className="text-left py-3 px-4 font-medium text-gray-500">Empresa</th>
               <th className="w-44 text-left py-3 px-4 font-medium text-gray-500">NIF</th>
-              <th className="w-36 text-right py-3 px-4 font-medium text-gray-500">Import total</th>
+              <th className="w-36 text-right py-3 px-4 font-medium text-gray-500">Import {new Date().getFullYear()}</th>
+              <th className="w-36 text-right py-3 px-4 font-medium text-gray-500">Import històric</th>
               <th className="w-28 text-right py-3 px-4 font-medium text-gray-500">Contractes</th>
-              <th className="w-32 text-right py-3 px-4 font-medium text-gray-500">Mitjana</th>
             </tr>
           </thead>
           <tbody>
             {data.map((company, idx) => {
               const totalAmount = parseFloat(company.total);
+              const currentYearAmount = parseFloat(company.total_current_year || "0");
               const numContracts = parseInt(company.num_contracts, 10);
-              const avg = numContracts > 0 ? totalAmount / numContracts : 0;
               const rank = (page - 1) * DEFAULT_PAGE_SIZE + idx + 1;
               const nifs = parseNifs(company.identificacio_adjudicatari);
               const names = company.denominacio_adjudicatari.split("||").map((n: string) => n.trim()).filter(Boolean);
@@ -222,13 +222,13 @@ export default function CompaniesTable({
                     </div>
                   </td>
                   <td className="py-3 px-4 text-right font-medium">
+                    {formatCurrency(currentYearAmount)}
+                  </td>
+                  <td className="py-3 px-4 text-right font-medium">
                     {formatCurrency(totalAmount)}
                   </td>
                   <td className="py-3 px-4 text-right">
                     {formatNumber(numContracts)}
-                  </td>
-                  <td className="py-3 px-4 text-right text-gray-500">
-                    {formatCurrency(avg)}
                   </td>
                 </tr>
               );
@@ -247,8 +247,8 @@ export default function CompaniesTable({
       <div className={`md:hidden space-y-2 transition-opacity ${loading ? "opacity-50" : ""}`}>
         {data.map((company, idx) => {
           const totalAmount = parseFloat(company.total);
+          const currentYearAmount = parseFloat(company.total_current_year || "0");
           const numContracts = parseInt(company.num_contracts, 10);
-          const avg = numContracts > 0 ? totalAmount / numContracts : 0;
           const rank = (page - 1) * DEFAULT_PAGE_SIZE + idx + 1;
           const nifs = parseNifs(company.identificacio_adjudicatari);
           const names = company.denominacio_adjudicatari.split("||").map((n: string) => n.trim()).filter(Boolean);
@@ -294,16 +294,16 @@ export default function CompaniesTable({
 
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div>
-                  <p className="text-gray-500">Import total</p>
+                  <p className="text-gray-500">Import {new Date().getFullYear()}</p>
+                  <p className="font-medium text-gray-900">{formatCurrency(currentYearAmount)}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500">Import històric</p>
                   <p className="font-medium text-gray-900">{formatCurrency(totalAmount)}</p>
                 </div>
                 <div>
                   <p className="text-gray-500">Contractes</p>
                   <p className="font-medium text-gray-900">{formatNumber(numContracts)}</p>
-                </div>
-                <div className="col-span-2">
-                  <p className="text-gray-500">Mitjana</p>
-                  <p className="font-medium text-gray-900">{formatCurrency(avg)}</p>
                 </div>
               </div>
             </article>

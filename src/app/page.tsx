@@ -18,18 +18,22 @@ import CompanySearch from "@/components/ui/CompanySearch";
 import SharePageButton from "@/components/ui/SharePageButton";
 
 export default async function HomePage() {
+  const currentYear = new Date().getFullYear();
+  const topCompaniesMinYear = currentYear - 2;
   const [totalContracts, totalAmount, uniqueCompanies, topCompanies, yearlyTrend, contractTypes, cpvSectors] =
     await Promise.all([
       fetchTotalContracts(),
       fetchTotalAmount(),
       fetchUniqueCompanies(),
-      fetchTopCompanies(10),
+      fetchTopCompanies(10, { minYear: topCompaniesMinYear, maxYear: currentYear }),
       fetchYearlyTrend(),
       fetchContractTypeDistribution(),
       fetchCpvDistribution(10),
     ]);
 
-  const avgContract = totalContracts > 0 ? totalAmount / totalContracts : 0;
+  const currentYearRow = yearlyTrend.find((row) => parseInt(row.year, 10) === currentYear);
+  const currentYearContracts = currentYearRow ? parseInt(currentYearRow.num_contracts, 10) || 0 : 0;
+  const currentYearAmount = currentYearRow ? parseFloat(currentYearRow.total) || 0 : 0;
 
   const typeChartData = contractTypes.map((d) => ({
     name: d.tipus_contracte,
@@ -66,30 +70,37 @@ export default async function HomePage() {
       {/* KPI Cards */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
         <StatCard
-          title="Total contractes al dataset"
-          value={formatNumber(totalContracts)}
-          subtitle="Publicats a la plataforma"
+          title={`Contractes ${currentYear}`}
+          value={formatNumber(currentYearContracts)}
+          subtitle={`Total dataset: ${formatNumber(totalContracts)}`}
         />
         <StatCard
-          title="Import total adjudicat"
-          value={formatCompactNumber(totalAmount)}
+          title={`Import adjudicat ${currentYear}`}
+          value={formatCompactNumber(currentYearAmount)}
+          subtitle={`Total dataset: ${formatCompactNumber(totalAmount)}`}
         />
         <StatCard
           title="Empreses adjudicatàries"
           value={formatNumber(uniqueCompanies)}
         />
         <StatCard
-          title="Import mitjà per contracte"
-          value={formatCompactNumber(avgContract)}
+          title="Total contractes al dataset"
+          value={formatNumber(totalContracts)}
+          subtitle="Publicats a la plataforma"
         />
       </section>
 
       {/* Top Companies */}
       <section className="mb-12">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold text-gray-900">
-            Top 10 empreses per import adjudicat
-          </h2>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">
+              Top 10 empreses per import adjudicat ({topCompaniesMinYear}-{currentYear})
+            </h2>
+            <p className="text-xs text-gray-500 mt-1">
+              Basat en la data d&apos;adjudicació del contracte.
+            </p>
+          </div>
           <Link
             href="/empreses"
             className="text-sm text-gray-600 hover:text-gray-900 underline"

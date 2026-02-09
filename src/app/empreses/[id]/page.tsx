@@ -89,7 +89,16 @@ export default async function CompanyDetailPage({ params }: Props) {
 
   const totalAmount = parseFloat(company.total);
   const numContracts = parseInt(company.num_contracts, 10);
-  const avg = numContracts > 0 ? totalAmount / numContracts : 0;
+  const currentYear = new Date().getFullYear();
+  const currentYearRow = yearly.find((row) => parseInt(row.year, 10) === currentYear);
+  const currentYearContracts = currentYearRow ? parseInt(currentYearRow.num_contracts, 10) || 0 : 0;
+  const currentYearAmount = currentYearRow ? parseFloat(currentYearRow.total) || 0 : 0;
+  const currentYearContractsSubtitle = currentYearRow
+    ? `Total històric: ${formatNumber(numContracts)}`
+    : `Sense dades ${currentYear}. Total històric: ${formatNumber(numContracts)}`;
+  const currentYearAmountSubtitle = currentYearRow
+    ? `Total històric: ${formatCompactNumber(totalAmount)}`
+    : `Sense dades ${currentYear}. Total històric: ${formatCompactNumber(totalAmount)}`;
 
   const hasMeaningfulText = (value?: string) => {
     const normalized = (value || "").trim().toUpperCase();
@@ -138,18 +147,16 @@ export default async function CompanyDetailPage({ params }: Props) {
       </p>
 
       {/* Stats */}
-      <section className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-12">
+      <section className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-12">
         <StatCard
-          title="Import total adjudicat"
-          value={formatCompactNumber(totalAmount)}
+          title={`Import adjudicat ${currentYear}`}
+          value={formatCompactNumber(currentYearAmount)}
+          subtitle={currentYearAmountSubtitle}
         />
         <StatCard
-          title="Total contractes"
-          value={formatNumber(numContracts)}
-        />
-        <StatCard
-          title="Import mitjà"
-          value={formatCurrency(avg)}
+          title={`Contractes ${currentYear}`}
+          value={formatNumber(currentYearContracts)}
+          subtitle={currentYearContractsSubtitle}
         />
       </section>
 

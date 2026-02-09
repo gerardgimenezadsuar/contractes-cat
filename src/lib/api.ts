@@ -33,6 +33,18 @@ const ANALYSIS_MIN_AMOUNT = 500;
 const ANALYSIS_BASE_SENSE_WHERE = `${CLEAN_AMOUNT_SENSE_FILTER} AND import_adjudicacio_sense IS NOT NULL AND import_adjudicacio_sense::number >= ${ANALYSIS_MIN_AMOUNT}`;
 const MINOR_15K_BASE_WHERE = `procediment='Contracte menor' AND ${ANALYSIS_BASE_SENSE_WHERE} AND import_adjudicacio_sense::number < 15000`;
 
+function parseNonNegativeNumber(value: string): number | null {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
+function parseYearFilter(value: string): number | null {
+  if (!/^\d{4}$/.test(value)) return null;
+  const parsed = Number(value);
+  const currentYear = new Date().getFullYear();
+  return parsed >= 2000 && parsed <= currentYear + 1 ? parsed : null;
+}
+
 function getContractsFutureCutoffIso(): string {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() + 7);
@@ -116,25 +128,39 @@ export async function fetchUniqueCompanies(): Promise<number> {
 function mergeByNif(rows: CompanyAggregation[]): CompanyAggregation[] {
   const map = new Map<
     string,
-    { name: string; total: number; contracts: number; bestTotal: number }
+    {
+      name: string;
+      total: number;
+      contracts: number;
+      totalCurrentYear: number;
+      bestTotal: number;
+    }
   >();
 
   for (const row of rows) {
     const nif = row.identificacio_adjudicatari;
     const total = parseFloat(row.total) || 0;
     const contracts = parseInt(row.num_contracts, 10) || 0;
+    const totalCurrentYear = parseFloat(row.total_current_year || "0") || 0;
     const existing = map.get(nif);
 
     if (existing) {
       existing.total += total;
       existing.contracts += contracts;
+      existing.totalCurrentYear += totalCurrentYear;
       // Keep the name from the sub-group with the highest total (most-used name)
       if (total > existing.bestTotal) {
         existing.name = row.denominacio_adjudicatari;
         existing.bestTotal = total;
       }
     } else {
-      map.set(nif, { name: row.denominacio_adjudicatari, total, contracts, bestTotal: total });
+      map.set(nif, {
+        name: row.denominacio_adjudicatari,
+        total,
+        contracts,
+        totalCurrentYear,
+        bestTotal: total,
+      });
     }
   }
 
@@ -144,19 +170,37 @@ function mergeByNif(rows: CompanyAggregation[]): CompanyAggregation[] {
       denominacio_adjudicatari: data.name,
       total: String(data.total),
       num_contracts: String(data.contracts),
+      total_current_year: String(data.totalCurrentYear),
     }))
     .sort((a, b) => parseFloat(b.total) - parseFloat(a.total));
 }
 
 // Top companies (merged by NIF)
 export async function fetchTopCompanies(
-  limit = 10
+  limit = 10,
+  options?: { minYear?: number; maxYear?: number }
 ): Promise<CompanyAggregation[]> {
+  const conditions = [
+    CLEAN_AMOUNT_FILTER,
+    "import_adjudicacio_amb_iva IS NOT NULL",
+    "denominacio_adjudicatari IS NOT NULL",
+    "identificacio_adjudicatari IS NOT NULL",
+  ];
+  if (options?.minYear !== undefined || options?.maxYear !== undefined) {
+    conditions.push("data_adjudicacio_contracte IS NOT NULL");
+  }
+  if (options?.minYear !== undefined) {
+    conditions.push(`date_extract_y(data_adjudicacio_contracte) >= ${options.minYear}`);
+  }
+  if (options?.maxYear !== undefined) {
+    conditions.push(`date_extract_y(data_adjudicacio_contracte) <= ${options.maxYear}`);
+  }
+
   // Over-fetch to account for name variations, then merge
   const raw = await soqlFetch<CompanyAggregation>({
     $select:
       "identificacio_adjudicatari, denominacio_adjudicatari, sum(import_adjudicacio_amb_iva::number) as total, count(*) as num_contracts",
-    $where: `${CLEAN_AMOUNT_FILTER} AND import_adjudicacio_amb_iva IS NOT NULL AND denominacio_adjudicatari IS NOT NULL AND identificacio_adjudicatari IS NOT NULL`,
+    $where: conditions.join(" AND "),
     $group: "identificacio_adjudicatari, denominacio_adjudicatari",
     $order: "total DESC",
     $limit: String(limit * 8),
@@ -187,6 +231,7 @@ export async function fetchCompanies(
   limit = DEFAULT_PAGE_SIZE,
   search?: string
 ): Promise<CompanyAggregation[]> {
+  const currentYear = new Date().getFullYear();
   const conditions = [
     CLEAN_AMOUNT_FILTER,
     "import_adjudicacio_amb_iva IS NOT NULL",
@@ -212,7 +257,28 @@ export async function fetchCompanies(
   });
 
   const merged = mergeByNif(raw);
-  return merged.slice(offset, offset + limit);
+  const pageRows = merged.slice(offset, offset + limit);
+  if (pageRows.length === 0) return pageRows;
+
+  const escapedNifs = pageRows
+    .map((row) => `'${row.identificacio_adjudicatari.replace(/'/g, "''")}'`)
+    .join(", ");
+  const currentYearRows = await soqlFetch<{ identificacio_adjudicatari: string; total_current_year: string }>({
+    $select:
+      "identificacio_adjudicatari, sum(import_adjudicacio_amb_iva::number) as total_current_year",
+    $where: `${conditions.join(" AND ")} AND data_adjudicacio_contracte IS NOT NULL AND date_extract_y(data_adjudicacio_contracte)=${currentYear} AND identificacio_adjudicatari IN (${escapedNifs})`,
+    $group: "identificacio_adjudicatari",
+    $limit: String(limit),
+  });
+
+  const currentYearMap = new Map(
+    currentYearRows.map((row) => [row.identificacio_adjudicatari, row.total_current_year || "0"])
+  );
+
+  return pageRows.map((row) => ({
+    ...row,
+    total_current_year: currentYearMap.get(row.identificacio_adjudicatari) || "0",
+  }));
 }
 
 export async function fetchCompaniesCount(search?: string): Promise<number> {
@@ -242,6 +308,7 @@ export async function fetchOrgans(
   limit = DEFAULT_PAGE_SIZE,
   search?: string
 ): Promise<OrganAggregation[]> {
+  const currentYear = new Date().getFullYear();
   const conditions = [
     CLEAN_AMOUNT_FILTER,
     "import_adjudicacio_amb_iva IS NOT NULL",
@@ -253,7 +320,7 @@ export async function fetchOrgans(
     conditions.push(`upper(nom_organ) like upper('%${safe}%')`);
   }
 
-  return soqlFetch<OrganAggregation>({
+  const rows = await soqlFetch<OrganAggregation>({
     $select:
       "nom_organ, sum(import_adjudicacio_amb_iva::number) as total, count(*) as num_contracts",
     $where: conditions.join(" AND "),
@@ -262,6 +329,27 @@ export async function fetchOrgans(
     $limit: String(limit),
     $offset: String(offset),
   });
+
+  if (rows.length === 0) return rows;
+
+  const escapedNames = rows
+    .map((row) => `'${row.nom_organ.replace(/'/g, "''")}'`)
+    .join(", ");
+  const currentYearRows = await soqlFetch<{ nom_organ: string; total_current_year: string }>({
+    $select: "nom_organ, sum(import_adjudicacio_amb_iva::number) as total_current_year",
+    $where: `${conditions.join(" AND ")} AND data_adjudicacio_contracte IS NOT NULL AND date_extract_y(data_adjudicacio_contracte)=${currentYear} AND nom_organ IN (${escapedNames})`,
+    $group: "nom_organ",
+    $limit: String(limit),
+  });
+
+  const currentYearMap = new Map(
+    currentYearRows.map((row) => [row.nom_organ, row.total_current_year || "0"])
+  );
+
+  return rows.map((row) => ({
+    ...row,
+    total_current_year: currentYearMap.get(row.nom_organ) || "0",
+  }));
 }
 
 export async function fetchOrgansCount(search?: string): Promise<number> {
@@ -502,9 +590,10 @@ export async function fetchContracts(
     conditions.push(`identificacio_adjudicatari='${nif.replace(/'/g, "''")}'`);
   }
   if (year) {
-    conditions.push(
-      `date_extract_y(data_adjudicacio_contracte)=${year}`
-    );
+    const parsedYear = parseYearFilter(year);
+    if (parsedYear !== null) {
+      conditions.push(`date_extract_y(data_adjudicacio_contracte)=${parsedYear}`);
+    }
   }
   if (tipus_contracte) {
     conditions.push(`tipus_contracte='${tipus_contracte.replace(/'/g, "''")}'`);
@@ -513,14 +602,20 @@ export async function fetchContracts(
     conditions.push(`procediment='${procediment.replace(/'/g, "''")}'`);
   }
   if (amountMin) {
-    conditions.push(
-      `${CLEAN_AMOUNT_SENSE_FILTER} AND import_adjudicacio_sense::number >= ${parseFloat(amountMin)}`
-    );
+    const parsedAmountMin = parseNonNegativeNumber(amountMin);
+    if (parsedAmountMin !== null) {
+      conditions.push(
+        `${CLEAN_AMOUNT_SENSE_FILTER} AND import_adjudicacio_sense::number >= ${parsedAmountMin}`
+      );
+    }
   }
   if (amountMax) {
-    conditions.push(
-      `${CLEAN_AMOUNT_SENSE_FILTER} AND import_adjudicacio_sense::number <= ${parseFloat(amountMax)}`
-    );
+    const parsedAmountMax = parseNonNegativeNumber(amountMax);
+    if (parsedAmountMax !== null) {
+      conditions.push(
+        `${CLEAN_AMOUNT_SENSE_FILTER} AND import_adjudicacio_sense::number <= ${parsedAmountMax}`
+      );
+    }
   }
   if (nom_organ) {
     conditions.push(
@@ -564,7 +659,10 @@ export async function fetchContractsCount(
     conditions.push(`identificacio_adjudicatari='${nif.replace(/'/g, "''")}'`);
   }
   if (year) {
-    conditions.push(`date_extract_y(data_adjudicacio_contracte)=${year}`);
+    const parsedYear = parseYearFilter(year);
+    if (parsedYear !== null) {
+      conditions.push(`date_extract_y(data_adjudicacio_contracte)=${parsedYear}`);
+    }
   }
   if (tipus_contracte) {
     conditions.push(`tipus_contracte='${tipus_contracte.replace(/'/g, "''")}'`);
@@ -573,14 +671,20 @@ export async function fetchContractsCount(
     conditions.push(`procediment='${procediment.replace(/'/g, "''")}'`);
   }
   if (amountMin) {
-    conditions.push(
-      `${CLEAN_AMOUNT_SENSE_FILTER} AND import_adjudicacio_sense::number >= ${parseFloat(amountMin)}`
-    );
+    const parsedAmountMin = parseNonNegativeNumber(amountMin);
+    if (parsedAmountMin !== null) {
+      conditions.push(
+        `${CLEAN_AMOUNT_SENSE_FILTER} AND import_adjudicacio_sense::number >= ${parsedAmountMin}`
+      );
+    }
   }
   if (amountMax) {
-    conditions.push(
-      `${CLEAN_AMOUNT_SENSE_FILTER} AND import_adjudicacio_sense::number <= ${parseFloat(amountMax)}`
-    );
+    const parsedAmountMax = parseNonNegativeNumber(amountMax);
+    if (parsedAmountMax !== null) {
+      conditions.push(
+        `${CLEAN_AMOUNT_SENSE_FILTER} AND import_adjudicacio_sense::number <= ${parsedAmountMax}`
+      );
+    }
   }
   if (nom_organ) {
     conditions.push(`upper(nom_organ) like upper('%${nom_organ.replace(/'/g, "''")}%')`);

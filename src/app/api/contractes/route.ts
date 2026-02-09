@@ -75,6 +75,8 @@ export async function GET(request: NextRequest) {
   const format = searchParams.get("format");
   const sortKey = searchParams.get("sort") || undefined;
   const sortOpts = sortKey ? SORT_MAP[sortKey] : undefined;
+  const parsedPage = parseInt(searchParams.get("page") || "1", 10);
+  const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
 
   const filters = {
     year: searchParams.get("year") || undefined,
@@ -85,7 +87,7 @@ export async function GET(request: NextRequest) {
     nom_organ: searchParams.get("nom_organ") || undefined,
     search: searchParams.get("search") || undefined,
     nif: searchParams.get("nif") || undefined,
-    page: parseInt(searchParams.get("page") || "1", 10),
+    page,
     ...(sortOpts && { orderBy: sortOpts.orderBy, orderDir: sortOpts.orderDir }),
   };
 

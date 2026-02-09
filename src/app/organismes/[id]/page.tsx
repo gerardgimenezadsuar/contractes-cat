@@ -81,7 +81,16 @@ export default async function OrganDetailPage({ params }: Props) {
 
   const totalAmount = parseFloat(organ.total);
   const numContracts = parseInt(organ.num_contracts, 10);
-  const avg = numContracts > 0 ? totalAmount / numContracts : 0;
+  const currentYear = new Date().getFullYear();
+  const currentYearRow = yearly.find((row) => parseInt(row.year, 10) === currentYear);
+  const currentYearContracts = currentYearRow ? parseInt(currentYearRow.num_contracts, 10) || 0 : 0;
+  const currentYearAmount = currentYearRow ? parseFloat(currentYearRow.total) || 0 : 0;
+  const currentYearContractsSubtitle = currentYearRow
+    ? `Total històric: ${formatNumber(numContracts)}`
+    : `Sense dades ${currentYear}. Total històric: ${formatNumber(numContracts)}`;
+  const currentYearAmountSubtitle = currentYearRow
+    ? `Total històric: ${formatCompactNumber(totalAmount)}`
+    : `Sense dades ${currentYear}. Total històric: ${formatCompactNumber(totalAmount)}`;
 
   const lastAwardDate = getBestAvailableContractDate(
     recentContracts[0]?.data_adjudicacio_contracte,
@@ -101,10 +110,17 @@ export default async function OrganDetailPage({ params }: Props) {
       </div>
       <p className="text-gray-500 mb-8">Organisme contractant</p>
 
-      <section className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-12">
-        <StatCard title="Import total adjudicat" value={formatCompactNumber(totalAmount)} />
-        <StatCard title="Total contractes" value={formatNumber(numContracts)} />
-        <StatCard title="Import mitjà" value={formatCurrency(avg)} />
+      <section className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-12">
+        <StatCard
+          title={`Import adjudicat ${currentYear}`}
+          value={formatCompactNumber(currentYearAmount)}
+          subtitle={currentYearAmountSubtitle}
+        />
+        <StatCard
+          title={`Contractes ${currentYear}`}
+          value={formatNumber(currentYearContracts)}
+          subtitle={currentYearContractsSubtitle}
+        />
       </section>
 
       <section className="mb-12">

@@ -24,7 +24,8 @@ export async function GET(request: NextRequest) {
   const rawSearch = (searchParams.get("search") || "").trim();
   const search = rawSearch.length >= 2 ? rawSearch : "";
   const includeTotal = searchParams.get("includeTotal") !== "0";
-  const page = parseInt(searchParams.get("page") || "1", 10);
+  const parsedPage = parseInt(searchParams.get("page") || "1", 10);
+  const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
   const offset = (page - 1) * DEFAULT_PAGE_SIZE;
 
   if (format === "csv") {
