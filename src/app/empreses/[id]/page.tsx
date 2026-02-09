@@ -168,13 +168,12 @@ export default async function CompanyDetailPage({ params }: Props) {
                 Darrera adjudicació: <span className="font-medium text-gray-700">{formatDate(lastAwardDate)}</span>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full table-fixed text-sm">
+                <table className="min-w-[520px] w-full table-auto text-sm">
                   <thead>
                     <tr className="border-b border-gray-100 bg-gray-50">
-                      <th className="w-[40%] text-left py-2.5 px-4 font-medium text-gray-500">Denominació</th>
-                      <th className="w-[30%] text-left py-2.5 px-4 font-medium text-gray-500">Òrgan</th>
-                      <th className="w-[15%] text-left py-2.5 px-4 font-medium text-gray-500">Data ref.</th>
-                      <th className="w-[15%] text-right py-2.5 px-4 font-medium text-gray-500">Import (sense IVA)</th>
+                      <th className="w-[50%] text-left py-2.5 px-3 md:px-4 font-medium text-gray-500">Òrgan</th>
+                      <th className="w-[20%] text-left py-2.5 px-3 md:px-4 font-medium text-gray-500 whitespace-nowrap">Data ref.</th>
+                      <th className="w-[30%] text-right py-2.5 px-3 md:px-4 font-medium text-gray-500 whitespace-nowrap">Import (sense IVA)</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -187,34 +186,28 @@ export default async function CompanyDetailPage({ params }: Props) {
                       const publicationUrl = getPublicationUrl(contract.enllac_publicacio);
                       return (
                         <tr key={`${contract.codi_expedient}-mini-${idx}`} className="border-b border-gray-100 last:border-b-0">
-                          <td className="py-2.5 px-4 align-top">
+                          <td className="py-2.5 px-3 md:px-4 align-top text-gray-700">
                             {publicationUrl ? (
                               <a
                                 href={publicationUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                title={contract.denominacio || ""}
-                                className="line-clamp-2 break-words text-gray-900 hover:underline"
+                                title={contract.nom_organ || ""}
+                                className="block line-clamp-2 break-words leading-6 hover:underline"
                               >
-                                {contract.denominacio || "—"}
+                                {contract.nom_organ || "—"}
                               </a>
                             ) : (
                               <span
-                                title={contract.denominacio || ""}
-                                className="line-clamp-2 break-words text-gray-900"
+                                title={contract.nom_organ || ""}
+                                className="block line-clamp-2 break-words leading-6"
                               >
-                                {contract.denominacio || "—"}
+                                {contract.nom_organ || "—"}
                               </span>
                             )}
                           </td>
-                          <td
-                            title={contract.nom_organ || ""}
-                            className="py-2.5 px-4 align-top line-clamp-2 break-words text-gray-700"
-                          >
-                            {contract.nom_organ || "—"}
-                          </td>
-                          <td className="py-2.5 px-4 align-top whitespace-nowrap text-gray-700">{formatDate(bestDate.date)}</td>
-                          <td className="py-2.5 px-4 align-top text-right whitespace-nowrap font-mono text-gray-900">
+                          <td className="py-2.5 px-3 md:px-4 align-top whitespace-nowrap text-gray-700">{formatDate(bestDate.date)}</td>
+                          <td className="py-2.5 px-3 md:px-4 align-top text-right whitespace-nowrap text-gray-900 tabular-nums">
                             {contract.import_adjudicacio_sense
                               ? formatCurrency(contract.import_adjudicacio_sense)
                               : "—"}
