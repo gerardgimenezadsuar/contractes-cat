@@ -77,9 +77,11 @@ export async function GET(request: NextRequest) {
   const sortOpts = sortKey ? SORT_MAP[sortKey] : undefined;
   const parsedPage = parseInt(searchParams.get("page") || "1", 10);
   const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+  const nearDirectAwardOnly = searchParams.get("near_direct_award") === "1";
 
   const filters = {
     year: searchParams.get("year") || undefined,
+    nearDirectAwardOnly,
     tipus_contracte: searchParams.get("tipus_contracte") || undefined,
     procediment: searchParams.get("procediment") || undefined,
     amountMin: searchParams.get("amountMin") || undefined,

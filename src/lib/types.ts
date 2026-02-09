@@ -92,6 +92,7 @@ export interface CpvAggregation {
 
 export interface ContractFilters {
   year?: string;
+  nearDirectAwardOnly?: boolean;
   tipus_contracte?: string;
   procediment?: string;
   amountMin?: string;

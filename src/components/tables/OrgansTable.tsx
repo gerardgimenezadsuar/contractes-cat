@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import Link from "next/link";
 import type { OrganAggregation } from "@/lib/types";
 import { formatCurrency, formatNumber } from "@/lib/utils";
@@ -15,6 +15,42 @@ interface Props {
   initialPage: number;
 }
 
+type OrganSortField = "name" | "currentYearAmount" | "totalAmount" | "contracts";
+type SortDirection = "asc" | "desc";
+
+function SortIcon({
+  active,
+  direction,
+}: {
+  active: boolean;
+  direction: SortDirection;
+}) {
+  if (!active) {
+    return (
+      <span aria-hidden className="inline-flex h-3 w-3 items-center justify-center text-gray-400">
+        <svg viewBox="0 0 12 12" className="h-3 w-3 fill-current">
+          <path d="M6 1.5L4.2 3.8H7.8L6 1.5Z" />
+          <path d="M6 10.5L7.8 8.2H4.2L6 10.5Z" />
+        </svg>
+      </span>
+    );
+  }
+
+  return direction === "desc" ? (
+    <span aria-hidden className="inline-flex h-3 w-3 items-center justify-center text-gray-700">
+      <svg viewBox="0 0 12 12" className="h-3 w-3 fill-current">
+        <path d="M6 10.5L8.6 7.2H3.4L6 10.5Z" />
+      </svg>
+    </span>
+  ) : (
+    <span aria-hidden className="inline-flex h-3 w-3 items-center justify-center text-gray-700">
+      <svg viewBox="0 0 12 12" className="h-3 w-3 fill-current">
+        <path d="M6 1.5L3.4 4.8H8.6L6 1.5Z" />
+      </svg>
+    </span>
+  );
+}
+
 export default function OrgansTable({
   initialData,
   initialTotal,
@@ -26,6 +62,8 @@ export default function OrgansTable({
   const [search, setSearch] = useState(initialSearch);
   const [page, setPage] = useState(initialPage);
   const [loading, setLoading] = useState(false);
+  const [sortField, setSortField] = useState<OrganSortField | null>("totalAmount");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const abortRef = useRef<AbortController | null>(null);
   const totalDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -92,6 +130,36 @@ export default function OrgansTable({
     [fetchData, search, updateUrl]
   );
 
+  const handleSort = useCallback((field: OrganSortField) => {
+    if (sortField === field) {
+      setSortDirection((previousDirection) => (previousDirection === "asc" ? "desc" : "asc"));
+      return;
+    }
+
+    setSortField(field);
+    setSortDirection(field === "name" ? "asc" : "desc");
+  }, [sortField]);
+
+  const sortedData = useMemo(() => {
+    if (!sortField) return data;
+
+    const getNumericValue = (organ: OrganAggregation) => {
+      if (sortField === "currentYearAmount") return parseFloat(organ.total_current_year || "0");
+      if (sortField === "totalAmount") return parseFloat(organ.total || "0");
+      return parseInt(organ.num_contracts, 10) || 0;
+    };
+
+    return [...data].sort((a, b) => {
+      if (sortField === "name") {
+        const comparison = a.nom_organ.localeCompare(b.nom_organ, "ca", { sensitivity: "base" });
+        return sortDirection === "asc" ? comparison : -comparison;
+      }
+
+      const comparison = getNumericValue(a) - getNumericValue(b);
+      return sortDirection === "asc" ? comparison : -comparison;
+    });
+  }, [data, sortDirection, sortField]);
+
   useEffect(() => {
     return () => {
       if (totalDebounceRef.current) clearTimeout(totalDebounceRef.current);
@@ -129,14 +197,50 @@ export default function OrgansTable({
           <thead>
             <tr className="border-b border-gray-200 bg-gray-50">
               <th className="w-12 text-left py-3 px-4 font-medium text-gray-500">#</th>
-              <th className="text-left py-3 px-4 font-medium text-gray-500">Organisme</th>
-              <th className="w-36 text-right py-3 px-4 font-medium text-gray-500">Import {new Date().getFullYear()}</th>
-              <th className="w-36 text-right py-3 px-4 font-medium text-gray-500">Import històric</th>
-              <th className="w-28 text-right py-3 px-4 font-medium text-gray-500">Contractes</th>
+              <th className="text-left py-3 px-4 font-medium text-gray-500">
+                <button
+                  type="button"
+                  onClick={() => handleSort("name")}
+                  className="inline-flex items-center gap-2 cursor-pointer hover:text-gray-700 transition-colors"
+                >
+                  <span>Organisme</span>
+                  <SortIcon active={sortField === "name"} direction={sortDirection} />
+                </button>
+              </th>
+              <th className="w-36 text-right py-3 px-4 font-medium text-gray-500">
+                <button
+                  type="button"
+                  onClick={() => handleSort("currentYearAmount")}
+                  className="inline-flex w-full items-center justify-end gap-2 cursor-pointer hover:text-gray-700 transition-colors"
+                >
+                  <span>Import {new Date().getFullYear()}</span>
+                  <SortIcon active={sortField === "currentYearAmount"} direction={sortDirection} />
+                </button>
+              </th>
+              <th className="w-36 text-right py-3 px-4 font-medium text-gray-500">
+                <button
+                  type="button"
+                  onClick={() => handleSort("totalAmount")}
+                  className="inline-flex w-full items-center justify-end gap-2 cursor-pointer hover:text-gray-700 transition-colors"
+                >
+                  <span>Import històric</span>
+                  <SortIcon active={sortField === "totalAmount"} direction={sortDirection} />
+                </button>
+              </th>
+              <th className="w-28 text-right py-3 px-4 font-medium text-gray-500">
+                <button
+                  type="button"
+                  onClick={() => handleSort("contracts")}
+                  className="inline-flex w-full items-center justify-end gap-2 cursor-pointer hover:text-gray-700 transition-colors"
+                >
+                  <span>Contractes</span>
+                  <SortIcon active={sortField === "contracts"} direction={sortDirection} />
+                </button>
+              </th>
             </tr>
           </thead>
           <tbody>
-            {data.map((organ, idx) => {
+            {sortedData.map((organ, idx) => {
               const totalAmount = parseFloat(organ.total);
               const currentYearAmount = parseFloat(organ.total_current_year || "0");
               const numContracts = parseInt(organ.num_contracts, 10);
@@ -159,7 +263,7 @@ export default function OrgansTable({
                 </tr>
               );
             })}
-            {data.length === 0 && !loading && (
+            {sortedData.length === 0 && !loading && (
               <tr>
                 <td colSpan={5} className="py-8 text-center text-gray-500">
                   No s&apos;han trobat resultats.
@@ -171,7 +275,7 @@ export default function OrgansTable({
       </div>
 
       <div className={`md:hidden space-y-2 transition-opacity ${loading ? "opacity-50" : ""}`}>
-        {data.map((organ, idx) => {
+        {sortedData.map((organ, idx) => {
           const totalAmount = parseFloat(organ.total);
           const currentYearAmount = parseFloat(organ.total_current_year || "0");
           const numContracts = parseInt(organ.num_contracts, 10);
@@ -208,7 +312,7 @@ export default function OrgansTable({
             </article>
           );
         })}
-        {data.length === 0 && !loading && (
+        {sortedData.length === 0 && !loading && (
           <div className="py-8 text-center text-sm text-gray-500">No s&apos;han trobat resultats.</div>
         )}
       </div>

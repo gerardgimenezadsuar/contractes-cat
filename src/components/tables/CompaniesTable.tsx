@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import Link from "next/link";
 import type { CompanyAggregation } from "@/lib/types";
 import { formatCurrency, formatNumber } from "@/lib/utils";
@@ -13,6 +13,42 @@ interface Props {
   initialTotal: number;
   initialSearch: string;
   initialPage: number;
+}
+
+type CompanySortField = "name" | "currentYearAmount" | "totalAmount" | "contracts";
+type SortDirection = "asc" | "desc";
+
+function SortIcon({
+  active,
+  direction,
+}: {
+  active: boolean;
+  direction: SortDirection;
+}) {
+  if (!active) {
+    return (
+      <span aria-hidden className="inline-flex h-3 w-3 items-center justify-center text-gray-400">
+        <svg viewBox="0 0 12 12" className="h-3 w-3 fill-current">
+          <path d="M6 1.5L4.2 3.8H7.8L6 1.5Z" />
+          <path d="M6 10.5L7.8 8.2H4.2L6 10.5Z" />
+        </svg>
+      </span>
+    );
+  }
+
+  return direction === "desc" ? (
+    <span aria-hidden className="inline-flex h-3 w-3 items-center justify-center text-gray-700">
+      <svg viewBox="0 0 12 12" className="h-3 w-3 fill-current">
+        <path d="M6 10.5L8.6 7.2H3.4L6 10.5Z" />
+      </svg>
+    </span>
+  ) : (
+    <span aria-hidden className="inline-flex h-3 w-3 items-center justify-center text-gray-700">
+      <svg viewBox="0 0 12 12" className="h-3 w-3 fill-current">
+        <path d="M6 1.5L3.4 4.8H8.6L6 1.5Z" />
+      </svg>
+    </span>
+  );
 }
 
 function parseNifs(raw: string): string[] {
@@ -45,7 +81,9 @@ export default function CompaniesTable({
   const [search, setSearch] = useState(initialSearch);
   const [page, setPage] = useState(initialPage);
   const [loading, setLoading] = useState(false);
-  const [expandedNifs, setExpandedNifs] = useState<Set<number>>(new Set());
+  const [expandedNifs, setExpandedNifs] = useState<Set<string>>(new Set());
+  const [sortField, setSortField] = useState<CompanySortField | null>("totalAmount");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const abortRef = useRef<AbortController | null>(null);
   const totalDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -113,6 +151,42 @@ export default function CompaniesTable({
     [fetchData, search, updateUrl]
   );
 
+  const handleSort = useCallback((field: CompanySortField) => {
+    if (sortField === field) {
+      setSortDirection((previousDirection) => (previousDirection === "asc" ? "desc" : "asc"));
+      return;
+    }
+
+    setSortField(field);
+    setSortDirection(field === "name" ? "asc" : "desc");
+  }, [sortField]);
+
+  const sortedData = useMemo(() => {
+    if (!sortField) return data;
+
+    const getNumericValue = (company: CompanyAggregation) => {
+      if (sortField === "currentYearAmount") return parseFloat(company.total_current_year || "0");
+      if (sortField === "totalAmount") return parseFloat(company.total || "0");
+      return parseInt(company.num_contracts, 10) || 0;
+    };
+
+    return [...data].sort((a, b) => {
+      if (sortField === "name") {
+        const aName = a.denominacio_adjudicatari.split("||")[0]?.trim() || a.denominacio_adjudicatari;
+        const bName = b.denominacio_adjudicatari.split("||")[0]?.trim() || b.denominacio_adjudicatari;
+        const comparison = aName.localeCompare(bName, "ca", { sensitivity: "base" });
+        return sortDirection === "asc" ? comparison : -comparison;
+      }
+
+      const comparison = getNumericValue(a) - getNumericValue(b);
+      return sortDirection === "asc" ? comparison : -comparison;
+    });
+  }, [data, sortDirection, sortField]);
+
+  useEffect(() => {
+    setExpandedNifs(new Set());
+  }, [data]);
+
   useEffect(() => {
     return () => {
       if (totalDebounceRef.current) clearTimeout(totalDebounceRef.current);
@@ -150,27 +224,64 @@ export default function CompaniesTable({
           <thead>
             <tr className="border-b border-gray-200 bg-gray-50">
               <th className="w-12 text-left py-3 px-4 font-medium text-gray-500">#</th>
-              <th className="text-left py-3 px-4 font-medium text-gray-500">Empresa</th>
+              <th className="text-left py-3 px-4 font-medium text-gray-500">
+                <button
+                  type="button"
+                  onClick={() => handleSort("name")}
+                  className="inline-flex items-center gap-2 cursor-pointer hover:text-gray-700 transition-colors"
+                >
+                  <span>Empresa</span>
+                  <SortIcon active={sortField === "name"} direction={sortDirection} />
+                </button>
+              </th>
               <th className="w-44 text-left py-3 px-4 font-medium text-gray-500">NIF</th>
-              <th className="w-36 text-right py-3 px-4 font-medium text-gray-500">Import {new Date().getFullYear()}</th>
-              <th className="w-36 text-right py-3 px-4 font-medium text-gray-500">Import històric</th>
-              <th className="w-28 text-right py-3 px-4 font-medium text-gray-500">Contractes</th>
+              <th className="w-36 text-right py-3 px-4 font-medium text-gray-500">
+                <button
+                  type="button"
+                  onClick={() => handleSort("currentYearAmount")}
+                  className="inline-flex w-full items-center justify-end gap-2 cursor-pointer hover:text-gray-700 transition-colors"
+                >
+                  <span>Import {new Date().getFullYear()}</span>
+                  <SortIcon active={sortField === "currentYearAmount"} direction={sortDirection} />
+                </button>
+              </th>
+              <th className="w-36 text-right py-3 px-4 font-medium text-gray-500">
+                <button
+                  type="button"
+                  onClick={() => handleSort("totalAmount")}
+                  className="inline-flex w-full items-center justify-end gap-2 cursor-pointer hover:text-gray-700 transition-colors"
+                >
+                  <span>Import històric</span>
+                  <SortIcon active={sortField === "totalAmount"} direction={sortDirection} />
+                </button>
+              </th>
+              <th className="w-28 text-right py-3 px-4 font-medium text-gray-500">
+                <button
+                  type="button"
+                  onClick={() => handleSort("contracts")}
+                  className="inline-flex w-full items-center justify-end gap-2 cursor-pointer hover:text-gray-700 transition-colors"
+                >
+                  <span>Contractes</span>
+                  <SortIcon active={sortField === "contracts"} direction={sortDirection} />
+                </button>
+              </th>
             </tr>
           </thead>
           <tbody>
-            {data.map((company, idx) => {
+            {sortedData.map((company, idx) => {
               const totalAmount = parseFloat(company.total);
               const currentYearAmount = parseFloat(company.total_current_year || "0");
               const numContracts = parseInt(company.num_contracts, 10);
               const rank = (page - 1) * DEFAULT_PAGE_SIZE + idx + 1;
+              const companyKey = `${company.identificacio_adjudicatari}-${company.denominacio_adjudicatari}`;
               const nifs = parseNifs(company.identificacio_adjudicatari);
               const names = company.denominacio_adjudicatari.split("||").map((n: string) => n.trim()).filter(Boolean);
               const isUte = nifs.length > 1 || names.length > 1;
-              const isExpanded = expandedNifs.has(rank);
+              const isExpanded = expandedNifs.has(companyKey);
 
               return (
                 <tr
-                  key={`${company.identificacio_adjudicatari}-${company.denominacio_adjudicatari}-${idx}`}
+                  key={`${companyKey}-${idx}`}
                   className="border-b border-gray-100 hover:bg-gray-50"
                 >
                   <td className="py-3 px-4 text-gray-400">{rank}</td>
@@ -183,18 +294,18 @@ export default function CompaniesTable({
                     </Link>
                     {isUte && !isExpanded && (
                       <button
-                        onClick={() => setExpandedNifs((prev) => new Set(prev).add(rank))}
+                        onClick={() => setExpandedNifs((prev) => new Set(prev).add(companyKey))}
                         className="ml-2 inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 hover:bg-blue-100 transition-colors cursor-pointer align-middle"
-                        title={`UTE amb ${names.length} empreses — clic per expandir`}
+                        title={`UTE amb ${names.length} empreses - clic per expandir`}
                       >
-                        UTE · +{names.length - 1}
+                        UTE +{names.length - 1}
                       </button>
                     )}
                     {isUte && isExpanded && (
                       <button
                         onClick={() => setExpandedNifs((prev) => {
                           const next = new Set(prev);
-                          next.delete(rank);
+                          next.delete(companyKey);
                           return next;
                         })}
                         className="ml-2 inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 hover:bg-blue-100 transition-colors cursor-pointer align-middle"
@@ -212,7 +323,7 @@ export default function CompaniesTable({
                       ) : (
                         nifs.map((nif) => (
                           <span
-                            key={`${company.identificacio_adjudicatari}-${nif}`}
+                            key={`${companyKey}-${nif}`}
                             className="inline-flex rounded-md bg-gray-100 px-2 py-1 text-[11px] font-mono text-gray-700"
                           >
                             {nif}
@@ -233,7 +344,7 @@ export default function CompaniesTable({
                 </tr>
               );
             })}
-            {data.length === 0 && !loading && (
+            {sortedData.length === 0 && !loading && (
               <tr>
                 <td colSpan={6} className="py-8 text-center text-gray-500">
                   No s&apos;han trobat resultats.
@@ -245,18 +356,19 @@ export default function CompaniesTable({
       </div>
 
       <div className={`md:hidden space-y-2 transition-opacity ${loading ? "opacity-50" : ""}`}>
-        {data.map((company, idx) => {
+        {sortedData.map((company, idx) => {
           const totalAmount = parseFloat(company.total);
           const currentYearAmount = parseFloat(company.total_current_year || "0");
           const numContracts = parseInt(company.num_contracts, 10);
           const rank = (page - 1) * DEFAULT_PAGE_SIZE + idx + 1;
+          const companyKey = `${company.identificacio_adjudicatari}-${company.denominacio_adjudicatari}`;
           const nifs = parseNifs(company.identificacio_adjudicatari);
           const names = company.denominacio_adjudicatari.split("||").map((n: string) => n.trim()).filter(Boolean);
           const isUte = nifs.length > 1 || names.length > 1;
 
           return (
             <article
-              key={`m-${company.identificacio_adjudicatari}-${company.denominacio_adjudicatari}-${idx}`}
+              key={`m-${companyKey}-${idx}`}
               className="rounded-lg border border-gray-200 bg-white p-3"
             >
               <div className="mb-2 flex items-start justify-between gap-3">
@@ -269,7 +381,7 @@ export default function CompaniesTable({
                   </Link>
                   {isUte && (
                     <span className="ml-2 inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 align-middle">
-                      UTE · {names.length} empreses
+                      UTE {names.length} empreses
                     </span>
                   )}
                 </div>
@@ -280,7 +392,7 @@ export default function CompaniesTable({
 
               <div className="mb-3 flex flex-wrap gap-1.5">
                 <span
-                  key={`m-${company.identificacio_adjudicatari}-${nifs[0]}`}
+                  key={`m-${companyKey}-${nifs[0]}`}
                   className="inline-flex rounded-md bg-gray-100 px-2 py-1 text-[11px] font-mono text-gray-700"
                 >
                   {nifs[0]}
@@ -309,7 +421,7 @@ export default function CompaniesTable({
             </article>
           );
         })}
-        {data.length === 0 && !loading && (
+        {sortedData.length === 0 && !loading && (
           <div className="py-8 text-center text-sm text-gray-500">
             No s&apos;han trobat resultats.
           </div>

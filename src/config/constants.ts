@@ -18,6 +18,8 @@ export const API_ROUTE_STALE_WHILE_REVALIDATE_SECONDS = 86400; // 24 hours
 export const DEFAULT_PAGE_SIZE = 50;
 
 export const MINOR_CONTRACT_THRESHOLD = 15000;
+export const DIRECT_AWARD_NEAR_LIMIT_MIN = 14500;
+export const DIRECT_AWARD_NEAR_LIMIT_MAX = 15000;
 
 export const CONTRACT_TYPES = [
   "Serveis",
