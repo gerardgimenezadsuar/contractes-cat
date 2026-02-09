@@ -13,17 +13,11 @@ interface Props {
   params: Promise<{ id: string }> | { id: string };
 }
 
-function truncate(text: string, maxLength: number): string {
-  if (text.length <= maxLength) return text;
-  return `${text.slice(0, maxLength - 1)}…`;
-}
-
 export default async function Image({ params }: Props) {
   const { id } = await Promise.resolve(params);
   const decodedId = decodeURIComponent(id);
   const { company, yearly } = await fetchCompanyDetail(decodedId);
 
-  const companyName = company?.denominacio_adjudicatari || decodedId;
   const totalAmount = parseFloat(company?.total || "0");
   const totalContracts = parseInt(company?.num_contracts || "0", 10);
 
@@ -45,10 +39,9 @@ export default async function Image({ params }: Props) {
           height: "100%",
           display: "flex",
           flexDirection: "column",
-          background:
-            "linear-gradient(135deg, #0f172a 0%, #111827 42%, #1d4ed8 100%)",
-          color: "#f8fafc",
-          padding: "48px",
+          background: "#ffffff",
+          color: "#0a0a0a",
+          padding: "44px 52px",
           fontFamily:
             "ui-sans-serif, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial",
         }}
@@ -58,54 +51,50 @@ export default async function Image({ params }: Props) {
           <div
             style={{
               display: "flex",
-              fontSize: 20,
-              color: "#cbd5e1",
-              border: "1px solid rgba(203, 213, 225, 0.4)",
+              fontSize: 18,
+              color: "#404040",
+              border: "1px solid #d4d4d4",
               borderRadius: 999,
-              padding: "8px 16px",
+              padding: "8px 14px",
             }}
           >
             Perfil empresa
           </div>
         </div>
 
-        <div style={{ display: "flex", marginTop: 30, fontSize: 56, fontWeight: 700, lineHeight: 1.08 }}>
-          {truncate(companyName, 52)}
-        </div>
-        <div style={{ display: "flex", marginTop: 8, fontSize: 24, color: "#cbd5e1" }}>
-          NIF: {decodedId}
-        </div>
-
-        <div style={{ display: "flex", gap: 20, marginTop: 36 }}>
+        <div style={{ display: "flex", gap: 20, marginTop: 28 }}>
           <div
             style={{
               display: "flex",
               flexDirection: "column",
               flex: 1,
-              background: "rgba(15, 23, 42, 0.5)",
-              border: "1px solid rgba(148, 163, 184, 0.35)",
-              borderRadius: 18,
-              padding: "22px 24px",
+              background: "#fafafa",
+              border: "1px solid #e5e5e5",
+              borderRadius: 16,
+              padding: "20px 22px",
             }}
           >
-            <div style={{ display: "flex", fontSize: 20, color: "#93c5fd" }}>Import total adjudicat</div>
-            <div style={{ display: "flex", marginTop: 8, fontSize: 44, fontWeight: 700 }}>
+            <div style={{ display: "flex", fontSize: 21, color: "#404040" }}>Import total adjudicat</div>
+            <div style={{ display: "flex", marginTop: 10, fontSize: 52, fontWeight: 700, lineHeight: 1 }}>
               {formatCompactNumber(totalAmount)}
+            </div>
+            <div style={{ display: "flex", marginTop: 10, fontSize: 18, color: "#737373" }}>
+              Dades agregades del perfil compartit
             </div>
           </div>
           <div
             style={{
               display: "flex",
               flexDirection: "column",
-              width: 320,
-              background: "rgba(15, 23, 42, 0.5)",
-              border: "1px solid rgba(148, 163, 184, 0.35)",
-              borderRadius: 18,
-              padding: "22px 24px",
+              width: 230,
+              background: "#fafafa",
+              border: "1px solid #e5e5e5",
+              borderRadius: 16,
+              padding: "20px 22px",
             }}
           >
-            <div style={{ display: "flex", fontSize: 20, color: "#93c5fd" }}>Contractes</div>
-            <div style={{ display: "flex", marginTop: 8, fontSize: 44, fontWeight: 700 }}>
+            <div style={{ display: "flex", fontSize: 21, color: "#404040" }}>Contractes</div>
+            <div style={{ display: "flex", marginTop: 10, fontSize: 52, fontWeight: 700, lineHeight: 1 }}>
               {formatNumber(totalContracts)}
             </div>
           </div>
@@ -114,33 +103,49 @@ export default async function Image({ params }: Props) {
         <div
           style={{
             display: "flex",
-            gap: 12,
+            flexDirection: "column",
             marginTop: "auto",
-            alignItems: "flex-end",
-            height: 120,
+            height: 245,
+            border: "1px solid #d4d4d4",
+            borderRadius: 16,
+            padding: "18px 16px 14px 16px",
           }}
         >
+          <div style={{ display: "flex", fontSize: 20, color: "#404040", marginBottom: 12 }}>
+            Evolució anual (últims 6 anys)
+          </div>
           {yearlyPoints.length > 0 ? (
-            yearlyPoints.map((row) => {
-              const pct = maxYearly > 0 ? row.total / maxYearly : 0;
-              const barHeight = Math.max(12, Math.round(pct * 88));
-              return (
-                <div key={row.year} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      width: 34,
-                      height: barHeight,
-                      borderRadius: 8,
-                      background: "linear-gradient(180deg, #60a5fa 0%, #1d4ed8 100%)",
-                    }}
-                  />
-                  <div style={{ display: "flex", fontSize: 14, color: "#bfdbfe" }}>{row.year}</div>
-                </div>
-              );
-            })
+            <div
+              style={{
+                display: "flex",
+                gap: 16,
+                alignItems: "flex-end",
+                height: 165,
+                borderLeft: "2px solid #0a0a0a",
+                borderBottom: "2px solid #0a0a0a",
+                padding: "8px 10px 10px 12px",
+              }}
+            >
+              {yearlyPoints.map((row) => {
+                const pct = maxYearly > 0 ? row.total / maxYearly : 0;
+                const barHeight = Math.max(10, Math.round(pct * 132));
+                return (
+                  <div key={row.year} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        width: 44,
+                        height: barHeight,
+                        background: "#111111",
+                      }}
+                    />
+                    <div style={{ display: "flex", fontSize: 15, color: "#525252" }}>{row.year}</div>
+                  </div>
+                );
+              })}
+            </div>
           ) : (
-            <div style={{ display: "flex", fontSize: 18, color: "#cbd5e1" }}>
+            <div style={{ display: "flex", fontSize: 18, color: "#525252" }}>
               Sense prou dades anuals per visualitzar la sèrie.
             </div>
           )}
