@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
 import type { OrganAggregation } from "@/lib/types";
 import { formatCurrency, formatNumber } from "@/lib/utils";
@@ -27,8 +27,9 @@ export default function OrgansTable({
   const [page, setPage] = useState(initialPage);
   const [loading, setLoading] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const totalDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
-  const fetchData = useCallback(async (s: string, p: number) => {
+  const fetchData = useCallback(async (s: string, p: number, includeTotal = true) => {
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -38,13 +39,14 @@ export default function OrgansTable({
       const params = new URLSearchParams();
       if (s) params.set("search", s);
       params.set("page", String(p));
+      if (!includeTotal) params.set("includeTotal", "0");
 
       const res = await fetch(`/api/organismes?${params.toString()}`, {
         signal: controller.signal,
       });
       const json = await res.json();
       setData(json.data);
-      setTotal(json.total);
+      if (typeof json.total === "number") setTotal(json.total);
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
       console.error("Error fetching organismes:", err);
@@ -67,7 +69,15 @@ export default function OrgansTable({
       setSearch(value);
       setPage(1);
       updateUrl(value, 1);
-      fetchData(value, 1);
+      if (totalDebounceRef.current) clearTimeout(totalDebounceRef.current);
+
+      // Fast path while typing: fetch rows only.
+      fetchData(value, 1, false);
+
+      // Settled path: fetch accurate total once user pauses.
+      totalDebounceRef.current = setTimeout(() => {
+        fetchData(value, 1, true);
+      }, 700);
     },
     [fetchData, updateUrl]
   );
@@ -76,10 +86,18 @@ export default function OrgansTable({
     (p: number) => {
       setPage(p);
       updateUrl(search, p);
-      fetchData(search, p);
+      if (totalDebounceRef.current) clearTimeout(totalDebounceRef.current);
+      fetchData(search, p, true);
     },
     [fetchData, search, updateUrl]
   );
+
+  useEffect(() => {
+    return () => {
+      if (totalDebounceRef.current) clearTimeout(totalDebounceRef.current);
+      abortRef.current?.abort();
+    };
+  }, []);
 
   return (
     <div>
@@ -88,6 +106,9 @@ export default function OrgansTable({
           placeholder="Cerca organisme..."
           value={search}
           onChange={handleSearch}
+          debounceMs={550}
+          loading={loading}
+          loadingText="Filtrant organismes..."
         />
       </div>
       <div className="mb-4 flex justify-end">

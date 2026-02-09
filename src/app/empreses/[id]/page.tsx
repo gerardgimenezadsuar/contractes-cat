@@ -197,41 +197,28 @@ export default async function CompanyDetailPage({ params }: Props) {
                       return (
                         <tr key={`${contract.codi_expedient}-mini-${idx}`} className="border-b border-gray-100 last:border-b-0">
                           <td className="py-2.5 px-3 md:px-4 align-top text-gray-700">
-                            {publicationUrl ? (
-                              <a
-                                href={publicationUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                title={contract.nom_organ || ""}
-                                className="block line-clamp-2 break-words leading-6 hover:underline"
-                              >
-                                {contract.nom_organ ? (
-                                  <Link
-                                    href={`/organismes/${encodeURIComponent(contract.nom_organ)}`}
-                                    className="hover:underline"
-                                  >
-                                    {contract.nom_organ}
-                                  </Link>
-                                ) : (
-                                  "—"
-                                )}
-                              </a>
+                            {contract.nom_organ ? (
+                              publicationUrl ? (
+                                <a
+                                  href={publicationUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  title={contract.nom_organ}
+                                  className="block line-clamp-2 break-words leading-6 hover:underline"
+                                >
+                                  {contract.nom_organ}
+                                </a>
+                              ) : (
+                                <Link
+                                  href={`/organismes/${encodeURIComponent(contract.nom_organ)}`}
+                                  title={contract.nom_organ}
+                                  className="block line-clamp-2 break-words leading-6 hover:underline"
+                                >
+                                  {contract.nom_organ}
+                                </Link>
+                              )
                             ) : (
-                              <span
-                                title={contract.nom_organ || ""}
-                                className="block line-clamp-2 break-words leading-6"
-                              >
-                                {contract.nom_organ ? (
-                                  <Link
-                                    href={`/organismes/${encodeURIComponent(contract.nom_organ)}`}
-                                    className="hover:underline"
-                                  >
-                                    {contract.nom_organ}
-                                  </Link>
-                                ) : (
-                                  "—"
-                                )}
-                              </span>
+                              <span className="block leading-6">—</span>
                             )}
                           </td>
                           <td className="py-2.5 px-3 md:px-4 align-top whitespace-nowrap text-gray-700">{formatDate(bestDate.date)}</td>

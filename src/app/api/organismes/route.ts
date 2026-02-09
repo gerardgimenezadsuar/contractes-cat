@@ -21,7 +21,9 @@ function toOrgansCsv(rows: Awaited<ReturnType<typeof fetchOrgans>>): string {
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const format = searchParams.get("format");
-  const search = searchParams.get("search") || "";
+  const rawSearch = (searchParams.get("search") || "").trim();
+  const search = rawSearch.length >= 2 ? rawSearch : "";
+  const includeTotal = searchParams.get("includeTotal") !== "0";
   const page = parseInt(searchParams.get("page") || "1", 10);
   const offset = (page - 1) * DEFAULT_PAGE_SIZE;
 
@@ -38,10 +40,20 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  const [data, total] = await Promise.all([
-    fetchOrgans(offset, DEFAULT_PAGE_SIZE, search || undefined),
-    fetchOrgansCount(search || undefined),
-  ]);
+  const data = await fetchOrgans(offset, DEFAULT_PAGE_SIZE, search || undefined);
+
+  if (!includeTotal) {
+    return NextResponse.json(
+      { data },
+      {
+        headers: {
+          "Cache-Control": `public, s-maxage=${API_ROUTE_S_MAXAGE_SECONDS}, stale-while-revalidate=${API_ROUTE_STALE_WHILE_REVALIDATE_SECONDS}`,
+        },
+      }
+    );
+  }
+
+  const total = await fetchOrgansCount(search || undefined);
 
   return NextResponse.json(
     { data, total },

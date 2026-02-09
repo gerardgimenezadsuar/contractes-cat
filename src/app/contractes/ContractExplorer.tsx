@@ -199,6 +199,7 @@ export default function ContractExplorer({
             filters={filters}
             onChange={handleFilterChange}
             onReset={handleReset}
+            loading={loading}
           />
         </div>
       </aside>

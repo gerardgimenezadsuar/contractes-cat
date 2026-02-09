@@ -1,6 +1,7 @@
 "use client";
 
 import { CONTRACT_TYPES, PROCEDURE_TYPES } from "@/config/constants";
+import SearchLoadingIndicator from "@/components/ui/SearchLoadingIndicator";
 
 interface Props {
   filters: {
@@ -14,11 +15,17 @@ interface Props {
   };
   onChange: (key: string, value: string) => void;
   onReset: () => void;
+  loading?: boolean;
 }
 
 const YEARS = Array.from({ length: 12 }, (_, i) => String(2015 + i));
 
-export default function ContractFilters({ filters, onChange, onReset }: Props) {
+export default function ContractFilters({
+  filters,
+  onChange,
+  onReset,
+  loading = false,
+}: Props) {
   const hasFilters = Object.values(filters).some((v) => v !== "");
 
   return (
@@ -34,19 +41,30 @@ export default function ContractFilters({ filters, onChange, onReset }: Props) {
           </button>
         )}
       </div>
+      {loading && (
+        <SearchLoadingIndicator text="Filtrant tots els registres..." />
+      )}
 
       {/* Search */}
       <div>
         <label className="block text-xs font-medium text-gray-500 mb-1">
           Cerca per contracte, empresa o NIF
         </label>
-        <input
-          type="text"
-          value={filters.search}
-          onChange={(e) => onChange("search", e.target.value)}
-          placeholder="Ex.: COMSA, B-12345678, manteniment..."
-          className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-        />
+        <div className="relative">
+          <input
+            type="text"
+            value={filters.search}
+            onChange={(e) => onChange("search", e.target.value)}
+            placeholder="Ex.: COMSA, B-12345678, manteniment..."
+            aria-busy={loading}
+            className={`w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 ${
+              loading ? "pr-10" : ""
+            }`}
+          />
+          {loading && (
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600" />
+          )}
+        </div>
       </div>
 
       {/* Year */}
@@ -141,13 +159,21 @@ export default function ContractFilters({ filters, onChange, onReset }: Props) {
         <label className="block text-xs font-medium text-gray-500 mb-1">
           Òrgan de contractació
         </label>
-        <input
-          type="text"
-          value={filters.nom_organ}
-          onChange={(e) => onChange("nom_organ", e.target.value)}
-          placeholder="Cerca per nom..."
-          className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-        />
+        <div className="relative">
+          <input
+            type="text"
+            value={filters.nom_organ}
+            onChange={(e) => onChange("nom_organ", e.target.value)}
+            placeholder="Cerca per nom..."
+            aria-busy={loading}
+            className={`w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 ${
+              loading ? "pr-10" : ""
+            }`}
+          />
+          {loading && (
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600" />
+          )}
+        </div>
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
 import type { CompanyAggregation } from "@/lib/types";
 import { formatCompactNumber, formatNumber } from "@/lib/utils";
+import SearchLoadingIndicator from "@/components/ui/SearchLoadingIndicator";
 
 export default function CompanySearch() {
   const [query, setQuery] = useState("");
@@ -80,11 +81,13 @@ export default function CompanySearch() {
           onChange={handleInput}
           onFocus={() => results.length > 0 && setOpen(true)}
           placeholder="Cerca una empresa per nom o NIF..."
-          className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent focus:shadow-md transition-shadow bg-white"
+          className={`w-full pl-12 py-3 border border-gray-300 rounded-xl text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent focus:shadow-md transition-shadow bg-white ${
+            loading ? "pr-28" : "pr-4"
+          }`}
         />
         {loading && (
           <div className="absolute right-4 top-1/2 -translate-y-1/2">
-            <div className="animate-spin h-4 w-4 border-2 border-gray-300 border-t-gray-900 rounded-full" />
+            <SearchLoadingIndicator text="Cercant..." />
           </div>
         )}
       </div>
