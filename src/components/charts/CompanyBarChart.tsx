@@ -66,8 +66,9 @@ export default function CompanyBarChart({ data }: Props) {
           labelFormatter={(_label, payload) =>
             payload?.[0]?.payload?.fullName || _label
           }
+          contentStyle={{ borderRadius: "8px", border: "1px solid #e5e7eb", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.07)" }}
         />
-        <Bar dataKey="total" fill="#1f2937" radius={[0, 4, 4, 0]} />
+        <Bar dataKey="total" fill="#1e3a5f" radius={[0, 4, 4, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );

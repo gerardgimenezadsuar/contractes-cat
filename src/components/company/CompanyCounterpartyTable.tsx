@@ -50,10 +50,10 @@ export default function CompanyCounterpartyTable({
         />
       </div>
 
-      <div className="bg-white rounded-lg border border-gray-200 overflow-x-auto">
+      <div className="bg-white rounded-lg border border-gray-100 shadow-sm overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-gray-200">
+            <tr className="border-b border-gray-200 bg-gray-50">
               <th className="text-left py-3 px-4 font-medium text-gray-500">Òrgan</th>
               <th className="text-right py-3 px-4 font-medium text-gray-500">Import</th>
               <th className="text-right py-3 px-4 font-medium text-gray-500">Contractes</th>

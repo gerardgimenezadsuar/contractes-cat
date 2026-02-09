@@ -126,7 +126,7 @@ export default function ContractsTable({
       <div className="hidden lg:block overflow-x-hidden">
         <table className="w-full table-fixed text-sm">
           <thead>
-            <tr className="border-b border-gray-200">
+            <tr className="border-b border-gray-200 bg-gray-50">
               <th className="w-[32%] xl:w-[25%] text-left py-3 px-4 font-medium text-gray-500">Denominació</th>
               <th className="w-[12%] xl:w-[10%] text-left py-3 px-4 font-medium text-gray-500">Tipus</th>
               <th className="hidden xl:table-cell xl:w-[10%] text-left py-3 px-4 font-medium text-gray-500">Procediment</th>

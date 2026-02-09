@@ -32,13 +32,14 @@ export default function MinorShareTrendChart({ data }: Props) {
             `${Number(value).toFixed(1)}%`,
             name,
           ]}
+          contentStyle={{ borderRadius: "8px", border: "1px solid #e5e7eb", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.07)" }}
         />
         <Legend />
         <Line
           type="monotone"
           dataKey="minor_contracts_share"
           name="% contractes menors"
-          stroke="#dc2626"
+          stroke="#e11d48"
           strokeWidth={2}
           dot={{ r: 3 }}
           activeDot={{ r: 5 }}
@@ -47,7 +48,7 @@ export default function MinorShareTrendChart({ data }: Props) {
           type="monotone"
           dataKey="minor_amount_share"
           name="% import en contractes menors"
-          stroke="#1f2937"
+          stroke="#64748b"
           strokeWidth={2}
           dot={{ r: 3 }}
           activeDot={{ r: 5 }}

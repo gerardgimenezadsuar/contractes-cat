@@ -100,7 +100,7 @@ export default function ContractTypeChart({ data }: Props) {
           <button
             type="button"
             onClick={() => setScaleMode("linear")}
-            className={`rounded px-2 py-1 ${
+            className={`rounded px-2 py-1 transition-all duration-150 ${
               scaleMode === "linear" ? "bg-white text-gray-900 shadow-sm" : "text-gray-600"
             }`}
           >
@@ -109,7 +109,7 @@ export default function ContractTypeChart({ data }: Props) {
           <button
             type="button"
             onClick={() => setScaleMode("log")}
-            className={`rounded px-2 py-1 ${
+            className={`rounded px-2 py-1 transition-all duration-150 ${
               scaleMode === "log" ? "bg-white text-gray-900 shadow-sm" : "text-gray-600"
             }`}
           >
@@ -153,10 +153,11 @@ export default function ContractTypeChart({ data }: Props) {
               if (!entry) return _label;
               return `${entry.fullName} — ${formatCompactNumber(entry.amount)}`;
             }}
+            contentStyle={{ borderRadius: "8px", border: "1px solid #e5e7eb", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.07)" }}
           />
           <Bar
             dataKey="value"
-            fill="#1f2937"
+            fill="#1e3a5f"
             radius={[0, 4, 4, 0]}
           />
         </BarChart>

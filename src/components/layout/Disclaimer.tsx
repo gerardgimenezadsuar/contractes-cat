@@ -8,8 +8,8 @@ export default function Disclaimer() {
   if (!visible) return null;
 
   return (
-    <div className="bg-amber-50 border-b border-amber-200 text-amber-900 text-sm">
-      <div className="max-w-7xl mx-auto px-4 py-2 flex items-center justify-center gap-2">
+    <div className="text-amber-900 text-sm">
+      <div className="max-w-7xl mx-auto mt-2 mx-4 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 flex items-center justify-center gap-2">
         <p className="text-center flex-1">
           <strong>Avís:</strong> Aquesta no és una web oficial del govern. Les dades
           provenen del conjunt &quot;Contractació pública a Catalunya&quot; de la{" "}
@@ -21,7 +21,7 @@ export default function Disclaimer() {
           >
             Plataforma de Transparència
           </a>{" "}
-          i no inclouen la totalitat dels contractes públics de Catalunya.
+          i pot no incloure la totalitat dels contractes públics de Catalunya.
         </p>
         <button
           onClick={() => setVisible(false)}

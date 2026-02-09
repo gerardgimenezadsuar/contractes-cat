@@ -1,4 +1,4 @@
-# Contractes.cat
+# contractes.cat
 
 Anàlisi independent de la contractació pública a Catalunya.
 

@@ -79,7 +79,7 @@ export default function Footer() {
           </p>
           <p>
             Les dades provenen del conjunt &quot;Contractació pública a
-            Catalunya&quot; de la Plataforma de Transparència i no inclouen la
+            Catalunya&quot; de la Plataforma de Transparència i pot no incloure la
             totalitat dels contractes públics.
           </p>
         </div>

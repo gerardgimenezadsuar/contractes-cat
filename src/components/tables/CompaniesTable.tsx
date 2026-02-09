@@ -45,6 +45,7 @@ export default function CompaniesTable({
   const [search, setSearch] = useState(initialSearch);
   const [page, setPage] = useState(initialPage);
   const [loading, setLoading] = useState(false);
+  const [expandedNifs, setExpandedNifs] = useState<Set<number>>(new Set());
   const abortRef = useRef<AbortController | null>(null);
 
   const fetchData = useCallback(async (s: string, p: number) => {
@@ -126,7 +127,7 @@ export default function CompaniesTable({
       <div className={`hidden md:block transition-opacity ${loading ? "opacity-50" : ""}`}>
         <table className="w-full table-fixed text-sm">
           <thead>
-            <tr className="border-b border-gray-200">
+            <tr className="border-b border-gray-200 bg-gray-50">
               <th className="w-12 text-left py-3 px-4 font-medium text-gray-500">#</th>
               <th className="text-left py-3 px-4 font-medium text-gray-500">Empresa</th>
               <th className="w-44 text-left py-3 px-4 font-medium text-gray-500">NIF</th>
@@ -141,6 +142,10 @@ export default function CompaniesTable({
               const numContracts = parseInt(company.num_contracts, 10);
               const avg = numContracts > 0 ? totalAmount / numContracts : 0;
               const rank = (page - 1) * DEFAULT_PAGE_SIZE + idx + 1;
+              const nifs = parseNifs(company.identificacio_adjudicatari);
+              const names = company.denominacio_adjudicatari.split("||").map((n: string) => n.trim()).filter(Boolean);
+              const isUte = nifs.length > 1 || names.length > 1;
+              const isExpanded = expandedNifs.has(rank);
 
               return (
                 <tr
@@ -153,20 +158,46 @@ export default function CompaniesTable({
                       href={`/empreses/${encodeURIComponent(company.identificacio_adjudicatari)}`}
                       className="text-gray-900 hover:underline font-medium break-words"
                     >
-                      {company.denominacio_adjudicatari}
+                      {isUte && !isExpanded ? names[0] : company.denominacio_adjudicatari}
                     </Link>
+                    {isUte && !isExpanded && (
+                      <button
+                        onClick={() => setExpandedNifs((prev) => new Set(prev).add(rank))}
+                        className="ml-2 inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 hover:bg-blue-100 transition-colors cursor-pointer align-middle"
+                        title={`UTE amb ${names.length} empreses — clic per expandir`}
+                      >
+                        UTE · +{names.length - 1}
+                      </button>
+                    )}
+                    {isUte && isExpanded && (
+                      <button
+                        onClick={() => setExpandedNifs((prev) => {
+                          const next = new Set(prev);
+                          next.delete(rank);
+                          return next;
+                        })}
+                        className="ml-2 inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 hover:bg-blue-100 transition-colors cursor-pointer align-middle"
+                      >
+                        Redueix
+                      </button>
+                    )}
                   </td>
                   <td className="py-3 px-4">
-                    <div className="flex flex-wrap gap-1.5">
-                      {parseNifs(company.identificacio_adjudicatari).map((nif) => (
-                        <span
-                          key={`${company.identificacio_adjudicatari}-${nif}`}
-                          className="inline-flex rounded-md bg-gray-100 px-2 py-1 text-[11px] font-mono text-gray-700"
-                          title={nif}
-                        >
-                          {nif}
+                    <div className="flex flex-wrap gap-1.5 items-center">
+                      {isUte && !isExpanded ? (
+                        <span className="inline-flex rounded-md bg-gray-100 px-2 py-1 text-[11px] font-mono text-gray-700">
+                          {nifs[0]}
                         </span>
-                      ))}
+                      ) : (
+                        nifs.map((nif) => (
+                          <span
+                            key={`${company.identificacio_adjudicatari}-${nif}`}
+                            className="inline-flex rounded-md bg-gray-100 px-2 py-1 text-[11px] font-mono text-gray-700"
+                          >
+                            {nif}
+                          </span>
+                        ))
+                      )}
                     </div>
                   </td>
                   <td className="py-3 px-4 text-right font-medium">
@@ -199,6 +230,8 @@ export default function CompaniesTable({
           const avg = numContracts > 0 ? totalAmount / numContracts : 0;
           const rank = (page - 1) * DEFAULT_PAGE_SIZE + idx + 1;
           const nifs = parseNifs(company.identificacio_adjudicatari);
+          const names = company.denominacio_adjudicatari.split("||").map((n: string) => n.trim()).filter(Boolean);
+          const isUte = nifs.length > 1 || names.length > 1;
 
           return (
             <article
@@ -206,30 +239,34 @@ export default function CompaniesTable({
               className="rounded-lg border border-gray-200 bg-white p-3"
             >
               <div className="mb-2 flex items-start justify-between gap-3">
-                <Link
-                  href={`/empreses/${encodeURIComponent(company.identificacio_adjudicatari)}`}
-                  className="min-w-0 text-sm font-semibold text-gray-900 hover:underline break-words"
-                >
-                  {company.denominacio_adjudicatari}
-                </Link>
+                <div className="min-w-0">
+                  <Link
+                    href={`/empreses/${encodeURIComponent(company.identificacio_adjudicatari)}`}
+                    className="text-sm font-semibold text-gray-900 hover:underline break-words"
+                  >
+                    {names[0]}
+                  </Link>
+                  {isUte && (
+                    <span className="ml-2 inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 align-middle">
+                      UTE · {names.length} empreses
+                    </span>
+                  )}
+                </div>
                 <span className="shrink-0 rounded bg-gray-50 px-2 py-0.5 text-xs text-gray-500">
                   #{rank}
                 </span>
               </div>
 
               <div className="mb-3 flex flex-wrap gap-1.5">
-                {nifs.slice(0, 3).map((nif) => (
-                  <span
-                    key={`m-${company.identificacio_adjudicatari}-${nif}`}
-                    className="inline-flex rounded-md bg-gray-100 px-2 py-1 text-[11px] font-mono text-gray-700"
-                    title={nif}
-                  >
-                    {nif}
-                  </span>
-                ))}
-                {nifs.length > 3 && (
+                <span
+                  key={`m-${company.identificacio_adjudicatari}-${nifs[0]}`}
+                  className="inline-flex rounded-md bg-gray-100 px-2 py-1 text-[11px] font-mono text-gray-700"
+                >
+                  {nifs[0]}
+                </span>
+                {nifs.length > 1 && (
                   <span className="inline-flex rounded-md bg-gray-100 px-2 py-1 text-[11px] text-gray-600">
-                    +{nifs.length - 3}
+                    +{nifs.length - 1}
                   </span>
                 )}
               </div>

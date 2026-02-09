@@ -98,7 +98,7 @@ export const CPV_DIVISIONS: Record<string, string> = {
   "98": "Altres serveis comunitaris",
 };
 
-export const SITE_NAME = "Contractes.cat";
+export const SITE_NAME = "contractes.cat";
 export const SITE_DESCRIPTION =
   "Anàlisi de la contractació pública a Catalunya. Dades obertes de la Plataforma de serveis de contractació pública.";
 export const SITE_URL = "https://contractes.cat";

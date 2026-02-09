@@ -5,7 +5,7 @@ import SharePageButton from "@/components/ui/SharePageButton";
 export const metadata: Metadata = {
   title: "Sobre el projecte",
   description:
-    "Informació sobre Contractes.cat, les dades, la metodologia i l'avís legal.",
+    "Informació sobre contractes.cat, les dades, la metodologia i l'avís legal.",
 };
 
 export default function AboutPage() {
@@ -73,7 +73,7 @@ export default function AboutPage() {
         <p className="text-gray-600 mb-4">
           El conjunt de dades conté les publicacions de l&apos;activitat
           contractual dels òrgans de contractació que publiquen a la Plataforma
-          de serveis de contractació pública de Catalunya. <strong>No inclou la
+          de serveis de contractació pública de Catalunya. <strong>Pot no incloure la
           totalitat dels contractes públics de Catalunya</strong>, ja que no totes
           les administracions i entitats públiques publiquen els seus contractes
           en aquesta plataforma.

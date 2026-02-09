@@ -174,7 +174,7 @@ export default async function AnalisiPage() {
           />
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
           <ThresholdChart data={thresholdData} />
         </div>
         <p className="text-xs text-gray-500 mt-2">
@@ -206,13 +206,13 @@ export default async function AnalisiPage() {
         </p>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white rounded-lg border border-gray-200 overflow-x-auto">
+          <div className="bg-white rounded-lg border border-gray-100 shadow-sm overflow-x-auto">
             <div className="px-4 py-3 border-b border-gray-200">
               <h3 className="font-semibold text-gray-900">Top organismes</h3>
             </div>
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-200">
+                <tr className="border-b border-gray-200 bg-gray-50">
                   <th className="text-left py-3 px-4 font-medium text-gray-500">#</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-500">Organisme</th>
                   <th className="text-right py-3 px-4 font-medium text-gray-500">Contractes</th>
@@ -243,13 +243,13 @@ export default async function AnalisiPage() {
             </table>
           </div>
 
-          <div className="bg-white rounded-lg border border-gray-200 overflow-x-auto">
+          <div className="bg-white rounded-lg border border-gray-100 shadow-sm overflow-x-auto">
             <div className="px-4 py-3 border-b border-gray-200">
               <h3 className="font-semibold text-gray-900">Top empreses</h3>
             </div>
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-200">
+                <tr className="border-b border-gray-200 bg-gray-50">
                   <th className="text-left py-3 px-4 font-medium text-gray-500">#</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-500">Empresa</th>
                   <th className="text-right py-3 px-4 font-medium text-gray-500">Contractes</th>
@@ -334,7 +334,7 @@ export default async function AnalisiPage() {
           />
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
           <MinorShareTrendChart data={minorShareYearlyComplete} />
         </div>
 

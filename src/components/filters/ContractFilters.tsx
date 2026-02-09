@@ -22,7 +22,7 @@ export default function ContractFilters({ filters, onChange, onReset }: Props) {
   const hasFilters = Object.values(filters).some((v) => v !== "");
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-4">
+    <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="font-semibold text-gray-900">Filtres</h3>
         {hasFilters && (

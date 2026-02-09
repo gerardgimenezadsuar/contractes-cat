@@ -338,12 +338,16 @@ export async function fetchContracts(
     amountMax,
     nom_organ,
     search,
+    nif,
     page = 1,
     pageSize = DEFAULT_PAGE_SIZE,
     orderBy = BEST_AVAILABLE_CONTRACT_DATE_EXPR,
     orderDir = "DESC",
   } = filters;
 
+  if (nif) {
+    conditions.push(`identificacio_adjudicatari='${nif.replace(/'/g, "''")}'`);
+  }
   if (year) {
     conditions.push(
       `date_extract_y(data_adjudicacio_contracte)=${year}`
@@ -400,8 +404,11 @@ export async function fetchContractsCount(
 ): Promise<number> {
   const conditions: string[] = [];
   const futureCutoffIso = getContractsFutureCutoffIso();
-  const { year, tipus_contracte, procediment, amountMin, amountMax, nom_organ, search } = filters;
+  const { year, tipus_contracte, procediment, amountMin, amountMax, nom_organ, search, nif } = filters;
 
+  if (nif) {
+    conditions.push(`identificacio_adjudicatari='${nif.replace(/'/g, "''")}'`);
+  }
   if (year) {
     conditions.push(`date_extract_y(data_adjudicacio_contracte)=${year}`);
   }

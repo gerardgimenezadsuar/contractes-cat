@@ -182,7 +182,7 @@ export default function ContractExplorer({
         {/* Mobile filter toggle */}
         <button
           onClick={() => setFiltersOpen(!filtersOpen)}
-          className="lg:hidden w-full flex items-center justify-between bg-white rounded-lg border border-gray-200 px-4 py-3 mb-2 text-sm font-medium text-gray-700"
+          className="lg:hidden w-full flex items-center justify-between bg-white rounded-lg border border-gray-100 shadow-sm px-4 py-3 mb-2 text-sm font-medium text-gray-700"
         >
           <span>Filtres{hasActiveFilters ? " (actius)" : ""}</span>
           <svg
@@ -228,7 +228,7 @@ export default function ContractExplorer({
         </p>
 
         <div
-          className={`bg-white rounded-lg border border-gray-200 ${
+          className={`bg-white rounded-lg border border-gray-100 shadow-sm ${
             loading ? "opacity-50" : ""
           }`}
         >

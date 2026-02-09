@@ -38,28 +38,31 @@ export default async function HomePage() {
   }));
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
+    <div>
       {/* Hero + Search */}
-      <section className="mb-12">
-        <div className="mb-4 flex items-start justify-between gap-3">
-          <h1 className="text-4xl font-bold text-gray-900">
-            Contractació pública a Catalunya
-          </h1>
-          <SharePageButton className="shrink-0" />
+      <section className="bg-gradient-to-b from-gray-50 to-white mb-12">
+        <div className="max-w-7xl mx-auto px-4 pt-8 pb-0">
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <h1 className="text-4xl font-bold text-gray-900">
+              Contractació pública a Catalunya
+            </h1>
+            <SharePageButton className="shrink-0" />
+          </div>
+          <p className="text-lg text-gray-600 max-w-3xl mb-6">
+            Anàlisi independent de les dades obertes de la Plataforma de serveis
+            de contractació pública de Catalunya. Explora qui rep els contractes
+            públics, per quin import i amb quins procediments.
+          </p>
+          <CompanySearch />
+          <p className="text-xs text-gray-400 mt-2">
+            Dades del conjunt &quot;Contractació pública a Catalunya&quot; publicat
+            a la Plataforma de Transparència. Pot no incloure tots els contractes
+            públics de Catalunya.
+          </p>
         </div>
-        <p className="text-lg text-gray-600 max-w-3xl mb-6">
-          Anàlisi independent de les dades obertes de la Plataforma de serveis
-          de contractació pública de Catalunya. Explora qui rep els contractes
-          públics, per quin import i amb quins procediments.
-        </p>
-        <CompanySearch />
-        <p className="text-xs text-gray-400 mt-2">
-          Dades del conjunt &quot;Contractació pública a Catalunya&quot; publicat
-          a la Plataforma de Transparència. No inclou tots els contractes
-          públics de Catalunya.
-        </p>
       </section>
 
+      <div className="max-w-7xl mx-auto px-4 pb-8">
       {/* KPI Cards */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
         <StatCard
@@ -94,7 +97,7 @@ export default async function HomePage() {
             Veure totes
           </Link>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
           <CompanyBarChart data={topCompanies} />
         </div>
       </section>
@@ -105,15 +108,18 @@ export default async function HomePage() {
           <h2 className="text-2xl font-bold text-gray-900 mb-4">
             Evolució anual
           </h2>
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
             <YearlyTrendChart data={yearlyTrend} />
           </div>
+          <p className="text-xs text-gray-400 mt-2">
+            L&apos;increment dels primers anys reflecteix l&apos;adopció progressiva del registre digital, no un augment real de la despesa. Les dades dels últims 5 anys són les més representatives.
+          </p>
         </div>
         <div>
           <h2 className="text-2xl font-bold text-gray-900 mb-4">
             Per tipus de contracte
           </h2>
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
             <ContractTypeChart data={typeChartData} />
           </div>
         </div>
@@ -132,7 +138,7 @@ export default async function HomePage() {
             Veure anàlisi completa
           </Link>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
           <CpvSectorChart data={cpvSectors} />
         </div>
         <p className="text-xs text-gray-400 mt-2">
@@ -145,7 +151,7 @@ export default async function HomePage() {
       <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Link
           href="/empreses"
-          className="bg-white rounded-lg border border-gray-200 p-6 hover:border-gray-400 transition-colors"
+          className="bg-white rounded-lg border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all"
         >
           <h3 className="text-lg font-semibold text-gray-900 mb-2">
             Empreses
@@ -157,7 +163,7 @@ export default async function HomePage() {
         </Link>
         <Link
           href="/contractes"
-          className="bg-white rounded-lg border border-gray-200 p-6 hover:border-gray-400 transition-colors"
+          className="bg-white rounded-lg border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all"
         >
           <h3 className="text-lg font-semibold text-gray-900 mb-2">
             Contractes
@@ -169,7 +175,7 @@ export default async function HomePage() {
         </Link>
         <Link
           href="/analisi"
-          className="bg-white rounded-lg border border-gray-200 p-6 hover:border-gray-400 transition-colors"
+          className="bg-white rounded-lg border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all"
         >
           <h3 className="text-lg font-semibold text-gray-900 mb-2">
             Anàlisi
@@ -180,6 +186,7 @@ export default async function HomePage() {
           </p>
         </Link>
       </section>
+      </div>
     </div>
   );
 }

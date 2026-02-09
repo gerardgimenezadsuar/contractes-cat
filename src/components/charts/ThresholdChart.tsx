@@ -40,6 +40,7 @@ export default function ThresholdChart({ data }: Props) {
         <Tooltip
           formatter={(value) => [formatNumber(value as number), "Contractes"]}
           labelFormatter={(label) => `Rang: ${label} EUR (sense IVA)`}
+          contentStyle={{ borderRadius: "8px", border: "1px solid #e5e7eb", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.07)" }}
         />
         <ReferenceLine
           x="14.5k-15.0k"
@@ -51,7 +52,7 @@ export default function ThresholdChart({ data }: Props) {
           {data.map((entry, index) => (
             <Cell
               key={index}
-              fill={entry.range_start >= 14500 ? "#dc2626" : "#1f2937"}
+              fill={entry.range_start >= 14500 ? "#dc2626" : "#1e3a5f"}
               fillOpacity={entry.range_start >= 14500 ? 1 : 0.8}
             />
           ))}

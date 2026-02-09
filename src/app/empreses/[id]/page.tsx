@@ -17,7 +17,7 @@ import {
 } from "@/lib/utils";
 import StatCard from "@/components/ui/StatCard";
 import YearlyTrendChart from "@/components/charts/YearlyTrendChart";
-import ContractsTable from "@/components/tables/ContractsTable";
+import CompanyContractsExplorer from "@/components/company/CompanyContractsExplorer";
 import SharePageButton from "@/components/ui/SharePageButton";
 import CompanyCounterpartyTable from "@/components/company/CompanyCounterpartyTable";
 
@@ -121,7 +121,7 @@ export default async function CompanyDetailPage({ params }: Props) {
             <h2 className="text-2xl font-bold text-gray-900 mb-4">
               Evolució anual
             </h2>
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
               {yearly.length > 0 ? (
                 <YearlyTrendChart data={yearly} />
               ) : (
@@ -134,14 +134,14 @@ export default async function CompanyDetailPage({ params }: Props) {
             <h2 className="text-2xl font-bold text-gray-900 mb-4">
               Contractes recents
             </h2>
-            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <div className="bg-white rounded-lg border border-gray-100 shadow-sm overflow-hidden">
               <div className="border-b border-gray-100 px-4 py-3 text-xs text-gray-500">
                 Darrera adjudicació: <span className="font-medium text-gray-700">{formatDate(lastAwardDate)}</span>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full table-fixed text-sm">
                   <thead>
-                    <tr className="border-b border-gray-100">
+                    <tr className="border-b border-gray-100 bg-gray-50">
                       <th className="w-[40%] text-left py-2.5 px-4 font-medium text-gray-500">Denominació</th>
                       <th className="w-[30%] text-left py-2.5 px-4 font-medium text-gray-500">Òrgan</th>
                       <th className="w-[15%] text-left py-2.5 px-4 font-medium text-gray-500">Data ref.</th>
@@ -210,29 +210,13 @@ export default async function CompanyDetailPage({ params }: Props) {
         />
       )}
 
-      {/* Full contracts */}
+      {/* Full contracts with pagination */}
       <section>
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">
-          Contractes ({formatNumber(contractsCount)})
-        </h2>
-        <div className="bg-white rounded-lg border border-gray-200">
-          <ContractsTable
-            contracts={contracts}
-            enableDateSort
-            enableAmountSort
-            enableOrganFilter
-            initialDateSort="desc"
-          />
-        </div>
-        {contractsCount > 50 && (
-          <p className="text-sm text-gray-500 mt-2">
-            Es mostren 50 contractes, ordenables per data o import i filtrables per òrgan. Utilitza la pàgina de{" "}
-            <Link href={`/contractes?search=${encodeURIComponent(company.denominacio_adjudicatari)}`} className="underline">
-              contractes
-            </Link>{" "}
-            per veure&apos;ls tots amb filtres.
-          </p>
-        )}
+        <CompanyContractsExplorer
+          nif={company.identificacio_adjudicatari}
+          initialContracts={contracts}
+          totalContracts={contractsCount}
+        />
       </section>
     </div>
   );
