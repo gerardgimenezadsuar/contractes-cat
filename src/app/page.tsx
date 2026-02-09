@@ -148,7 +148,7 @@ export default async function HomePage() {
       </section>
 
       {/* Quick Links */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Link
           href="/empreses"
           className="bg-white rounded-lg border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all"
@@ -159,6 +159,18 @@ export default async function HomePage() {
           <p className="text-sm text-gray-600">
             Rànquing d&apos;empreses per import total de contractes adjudicats.
             Cerca per nom o NIF.
+          </p>
+        </Link>
+        <Link
+          href="/organismes"
+          className="bg-white rounded-lg border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all"
+        >
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            Organismes
+          </h3>
+          <p className="text-sm text-gray-600">
+            Rànquing d&apos;organismes per import adjudicat, amb detall anual i
+            contractes recents.
           </p>
         </Link>
         <Link

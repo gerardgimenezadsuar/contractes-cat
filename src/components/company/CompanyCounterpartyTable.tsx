@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/utils";
 
 interface CounterpartyRow {
@@ -35,7 +36,7 @@ export default function CompanyCounterpartyTable({
           Principals òrgans contractants (a aquesta empresa)
         </h2>
         <div className="text-xs text-gray-500">
-          Darrera data d&apos;adjudicació:{" "}
+          Darrera data ref.:{" "}
           <span className="font-medium text-gray-700">{formatDate(lastAwardDate)}</span>
         </div>
       </div>
@@ -70,7 +71,14 @@ export default function CompanyCounterpartyTable({
                   key={organ.nom_organ}
                   className="border-b border-gray-100 last:border-b-0"
                 >
-                  <td className="py-3 px-4">{organ.nom_organ}</td>
+                  <td className="py-3 px-4">
+                    <Link
+                      href={`/organismes/${encodeURIComponent(organ.nom_organ)}`}
+                      className="hover:underline text-gray-900"
+                    >
+                      {organ.nom_organ}
+                    </Link>
+                  </td>
                   <td className="py-3 px-4 text-right font-medium">
                     {formatCurrency(organTotal)}
                   </td>

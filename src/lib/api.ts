@@ -8,8 +8,10 @@ import {
 import type {
   Contract,
   CompanyAggregation,
+  OrganAggregation,
   YearlyAggregation,
   CompanyYearAggregation,
+  OrganYearAggregation,
   ProcedureAggregation,
   ContractTypeAggregation,
   CpvAggregation,
@@ -23,6 +25,10 @@ import { CPV_DIVISIONS } from "@/config/constants";
 
 const BEST_AVAILABLE_CONTRACT_DATE_EXPR =
   "coalesce(data_adjudicacio_contracte, data_formalitzacio_contracte, data_publicacio_anunci)";
+const MISSING_TEXT_VALUES_SQL =
+  "('', '-', '--', '*', '/', 'NULL', 'N/A', 'NA', 'S/D', 'N.D.', 'ND', 'SENSE ADJUDICAR', 'PENDENT D''ADJUDICACIO', 'PENDENT D''ADJUDICACIÓ', 'PENDENT')";
+const AWARDED_CONTRACT_WHERE =
+  `upper(coalesce(denominacio_adjudicatari,'')) not in ${MISSING_TEXT_VALUES_SQL} AND upper(coalesce(identificacio_adjudicatari,'')) not in ${MISSING_TEXT_VALUES_SQL} AND ${CLEAN_AMOUNT_SENSE_FILTER} AND import_adjudicacio_sense IS NOT NULL AND import_adjudicacio_sense::number > 0`;
 const ANALYSIS_MIN_AMOUNT = 500;
 const ANALYSIS_BASE_SENSE_WHERE = `${CLEAN_AMOUNT_SENSE_FILTER} AND import_adjudicacio_sense IS NOT NULL AND import_adjudicacio_sense::number >= ${ANALYSIS_MIN_AMOUNT}`;
 const MINOR_15K_BASE_WHERE = `procediment='Contracte menor' AND ${ANALYSIS_BASE_SENSE_WHERE} AND import_adjudicacio_sense::number < 15000`;
@@ -230,6 +236,152 @@ export async function fetchCompaniesCount(search?: string): Promise<number> {
   return parseInt(data[0]?.total || "0", 10);
 }
 
+// Organismes list (paginated)
+export async function fetchOrgans(
+  offset = 0,
+  limit = DEFAULT_PAGE_SIZE,
+  search?: string
+): Promise<OrganAggregation[]> {
+  const conditions = [
+    CLEAN_AMOUNT_FILTER,
+    "import_adjudicacio_amb_iva IS NOT NULL",
+    "nom_organ IS NOT NULL",
+  ];
+
+  if (search) {
+    const safe = search.replace(/'/g, "''");
+    conditions.push(`upper(nom_organ) like upper('%${safe}%')`);
+  }
+
+  return soqlFetch<OrganAggregation>({
+    $select:
+      "nom_organ, sum(import_adjudicacio_amb_iva::number) as total, count(*) as num_contracts",
+    $where: conditions.join(" AND "),
+    $group: "nom_organ",
+    $order: "total DESC",
+    $limit: String(limit),
+    $offset: String(offset),
+  });
+}
+
+export async function fetchOrgansCount(search?: string): Promise<number> {
+  const conditions = [
+    CLEAN_AMOUNT_FILTER,
+    "import_adjudicacio_amb_iva IS NOT NULL",
+    "nom_organ IS NOT NULL",
+  ];
+
+  if (search) {
+    const safe = search.replace(/'/g, "''");
+    conditions.push(`upper(nom_organ) like upper('%${safe}%')`);
+  }
+
+  const data = await soqlFetch<{ total: string }>({
+    $select: "count(distinct nom_organ) as total",
+    $where: conditions.join(" AND "),
+  });
+
+  return parseInt(data[0]?.total || "0", 10);
+}
+
+export async function fetchOrganDetail(
+  organName: string
+): Promise<{ organ?: OrganAggregation; yearly: OrganYearAggregation[] }> {
+  const safeName = organName.replace(/'/g, "''");
+
+  const [organRows, yearlyRows] = await Promise.all([
+    soqlFetch<OrganAggregation>({
+      $select:
+        "nom_organ, sum(import_adjudicacio_amb_iva::number) as total, count(*) as num_contracts",
+      $where: `nom_organ='${safeName}' AND ${CLEAN_AMOUNT_FILTER} AND import_adjudicacio_amb_iva IS NOT NULL`,
+      $group: "nom_organ",
+      $limit: "1",
+    }),
+    soqlFetch<OrganYearAggregation>({
+      $select:
+        "nom_organ, date_extract_y(data_adjudicacio_contracte) as year, sum(import_adjudicacio_amb_iva::number) as total, count(*) as num_contracts",
+      $where: `nom_organ='${safeName}' AND ${CLEAN_AMOUNT_FILTER} AND import_adjudicacio_amb_iva IS NOT NULL AND data_adjudicacio_contracte IS NOT NULL`,
+      $group: "nom_organ, year",
+      $order: "year ASC",
+      $limit: "500",
+    }),
+  ]);
+
+  const organ = organRows[0];
+  const yearly = yearlyRows.filter((d) => {
+    const y = parseInt(d.year, 10);
+    return y >= 2015 && y <= new Date().getFullYear() + 1;
+  });
+
+  return { organ, yearly };
+}
+
+export async function fetchOrganContracts(
+  organName: string,
+  offset = 0,
+  limit = DEFAULT_PAGE_SIZE
+): Promise<Contract[]> {
+  const safeName = organName.replace(/'/g, "''");
+  return soqlFetch<Contract>({
+    $where: `nom_organ='${safeName}' AND ${AWARDED_CONTRACT_WHERE} AND (${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) IS NOT NULL`,
+    $order: `${BEST_AVAILABLE_CONTRACT_DATE_EXPR} DESC`,
+    $limit: String(limit),
+    $offset: String(offset),
+  });
+}
+
+export async function fetchOrganRecentContracts(
+  organName: string,
+  limit = 10
+): Promise<Contract[]> {
+  const safeName = organName.replace(/'/g, "''");
+  const futureCutoffIso = getContractsFutureCutoffIso();
+  return soqlFetch<Contract>({
+    $select:
+      "codi_expedient, denominacio_adjudicatari, import_adjudicacio_sense, data_adjudicacio_contracte, data_formalitzacio_contracte, data_publicacio_anunci, enllac_publicacio",
+    $where: `nom_organ='${safeName}' AND ${AWARDED_CONTRACT_WHERE} AND (${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) IS NOT NULL AND (${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) <= '${futureCutoffIso}'`,
+    $order: `${BEST_AVAILABLE_CONTRACT_DATE_EXPR} DESC`,
+    $limit: String(limit),
+  });
+}
+
+export async function fetchOrganContractsCount(organName: string): Promise<number> {
+  const safeName = organName.replace(/'/g, "''");
+  const data = await soqlFetch<{ total: string }>({
+    $select: "count(*) as total",
+    $where: `nom_organ='${safeName}' AND ${AWARDED_CONTRACT_WHERE} AND (${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) IS NOT NULL`,
+  });
+  return parseInt(data[0]?.total || "0", 10);
+}
+
+export async function fetchOrganLastAwardDate(
+  organName: string
+): Promise<string | undefined> {
+  const safeName = organName.replace(/'/g, "''");
+  const futureCutoffIso = getContractsFutureCutoffIso();
+  const data = await soqlFetch<{ last_date?: string }>({
+    $select: `max(${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) as last_date`,
+    $where: `nom_organ='${safeName}' AND ${AWARDED_CONTRACT_WHERE} AND (${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) IS NOT NULL AND (${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) <= '${futureCutoffIso}'`,
+  });
+  return data[0]?.last_date;
+}
+
+export async function fetchOrganTopCompanies(
+  organName: string,
+  limit = 10
+): Promise<CompanyAggregation[]> {
+  const safeName = organName.replace(/'/g, "''");
+  const raw = await soqlFetch<CompanyAggregation>({
+    $select:
+      "identificacio_adjudicatari, denominacio_adjudicatari, sum(import_adjudicacio_amb_iva::number) as total, count(*) as num_contracts",
+    $where: `nom_organ='${safeName}' AND ${CLEAN_AMOUNT_FILTER} AND import_adjudicacio_amb_iva IS NOT NULL AND denominacio_adjudicatari IS NOT NULL AND identificacio_adjudicatari IS NOT NULL`,
+    $group: "identificacio_adjudicatari, denominacio_adjudicatari",
+    $order: "total DESC",
+    $limit: String(limit * 8),
+  });
+  return mergeByNif(raw).slice(0, limit);
+}
+
 // Company detail (merged by NIF across name variations)
 export async function fetchCompanyDetail(
   id: string
@@ -299,8 +451,8 @@ export async function fetchCompanyContracts(
 ): Promise<Contract[]> {
   const safeId = id.replace(/'/g, "''");
   return soqlFetch<Contract>({
-    $where: `identificacio_adjudicatari='${safeId}'`,
-    $order: "data_adjudicacio_contracte DESC",
+    $where: `identificacio_adjudicatari='${safeId}' AND ${AWARDED_CONTRACT_WHERE} AND (${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) IS NOT NULL`,
+    $order: `${BEST_AVAILABLE_CONTRACT_DATE_EXPR} DESC`,
     $limit: String(limit),
     $offset: String(offset),
   });
@@ -310,16 +462,17 @@ export async function fetchCompanyContractsCount(id: string): Promise<number> {
   const safeId = id.replace(/'/g, "''");
   const data = await soqlFetch<{ total: string }>({
     $select: "count(*) as total",
-    $where: `identificacio_adjudicatari='${safeId}'`,
+    $where: `identificacio_adjudicatari='${safeId}' AND ${AWARDED_CONTRACT_WHERE} AND (${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) IS NOT NULL`,
   });
   return parseInt(data[0]?.total || "0", 10);
 }
 
 export async function fetchCompanyLastAwardDate(id: string): Promise<string | undefined> {
   const safeId = id.replace(/'/g, "''");
+  const futureCutoffIso = getContractsFutureCutoffIso();
   const data = await soqlFetch<{ last_date?: string }>({
-    $select: "max(data_adjudicacio_contracte) as last_date",
-    $where: `identificacio_adjudicatari='${safeId}' AND data_adjudicacio_contracte IS NOT NULL`,
+    $select: `max(${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) as last_date`,
+    $where: `identificacio_adjudicatari='${safeId}' AND ${AWARDED_CONTRACT_WHERE} AND (${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) IS NOT NULL AND (${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) <= '${futureCutoffIso}'`,
   });
   return data[0]?.last_date;
 }
@@ -385,6 +538,7 @@ export async function fetchContracts(
   }
   conditions.push(`(${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) IS NOT NULL`);
   conditions.push(`(${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) <= '${futureCutoffIso}'`);
+  conditions.push(AWARDED_CONTRACT_WHERE);
 
   const params: Record<string, string> = {
     $order: `${orderBy} ${orderDir}`,
@@ -442,6 +596,7 @@ export async function fetchContractsCount(
   }
   conditions.push(`(${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) IS NOT NULL`);
   conditions.push(`(${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) <= '${futureCutoffIso}'`);
+  conditions.push(AWARDED_CONTRACT_WHERE);
 
   const params: Record<string, string> = {
     $select: "count(*) as total",

@@ -36,6 +36,12 @@ export interface CompanyAggregation {
   num_contracts: string;
 }
 
+export interface OrganAggregation {
+  nom_organ: string;
+  total: string;
+  num_contracts: string;
+}
+
 export interface YearlyAggregation {
   year: string;
   total: string;
@@ -45,6 +51,13 @@ export interface YearlyAggregation {
 export interface CompanyYearAggregation {
   denominacio_adjudicatari: string;
   identificacio_adjudicatari: string;
+  year: string;
+  total: string;
+  num_contracts: string;
+}
+
+export interface OrganYearAggregation {
+  nom_organ: string;
   year: string;
   total: string;
   num_contracts: string;

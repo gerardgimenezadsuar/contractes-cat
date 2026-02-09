@@ -8,6 +8,7 @@ import { SITE_NAME } from "@/config/constants";
 const NAV_ITEMS = [
   { href: "/", label: "Inici" },
   { href: "/empreses", label: "Empreses" },
+  { href: "/organismes", label: "Organismes" },
   { href: "/contractes", label: "Contractes" },
   { href: "/analisi", label: "Anàlisi" },
   { href: "/about", label: "Sobre" },
@@ -30,7 +31,9 @@ export default function Header() {
           {/* Desktop nav */}
           <nav className="hidden md:flex items-center h-full gap-1">
             {NAV_ITEMS.map((item) => {
-              const isActive = pathname === item.href;
+              const isActive =
+                pathname === item.href ||
+                (item.href !== "/" && pathname.startsWith(`${item.href}/`));
               return (
                 <Link
                   key={item.href}
@@ -73,7 +76,9 @@ export default function Header() {
         {mobileOpen && (
           <nav className="md:hidden pb-4 space-y-1">
             {NAV_ITEMS.map((item) => {
-              const isActive = pathname === item.href;
+              const isActive =
+                pathname === item.href ||
+                (item.href !== "/" && pathname.startsWith(`${item.href}/`));
               return (
                 <Link
                   key={item.href}

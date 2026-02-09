@@ -45,6 +45,26 @@ export default function ContractsTable({
   const [sortDir, setSortDir] = useState<"asc" | "desc">(
     enableDateSort ? initialDateSort : initialAmountSort
   );
+  const [expandedAwardees, setExpandedAwardees] = useState<Set<string>>(new Set());
+
+  const splitAwardees = (raw?: string): string[] => {
+    if (!raw) return [];
+    const cleaned = raw.trim();
+    if (!cleaned) return [];
+    if (cleaned.includes("||")) {
+      return cleaned
+        .split("||")
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
+    if (cleaned.includes(";")) {
+      return cleaned
+        .split(";")
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
+    return [cleaned];
+  };
 
   const visibleContracts = useMemo(() => {
     const q = organFilter.trim().toUpperCase();
@@ -140,6 +160,14 @@ export default function ContractsTable({
           </thead>
           <tbody>
             {visibleContracts.map((c, idx) => {
+              const rowKey = `${c.codi_expedient}-${idx}`;
+              const awardees = splitAwardees(c.denominacio_adjudicatari);
+              const hasMultipleAwardees = awardees.length > 1;
+              const isAwardeesExpanded = expandedAwardees.has(rowKey);
+              const displayAwardee =
+                hasMultipleAwardees && !isAwardeesExpanded
+                  ? awardees[0]
+                  : c.denominacio_adjudicatari || "—";
               const publicationUrl = getPublicationUrl(c.enllac_publicacio);
               const bestDate = getBestAvailableContractDate(
                 c.data_adjudicacio_contracte,
@@ -173,7 +201,32 @@ export default function ContractsTable({
                     {c.procediment || "—"}
                   </td>
                   <td className="py-3 px-4 truncate" title={c.denominacio_adjudicatari}>
-                    {c.denominacio_adjudicatari || "—"}
+                    <span className="align-middle">{displayAwardee}</span>
+                    {hasMultipleAwardees && !isAwardeesExpanded && (
+                      <button
+                        onClick={() =>
+                          setExpandedAwardees((prev) => new Set(prev).add(rowKey))
+                        }
+                        className="ml-2 inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 hover:bg-blue-100 transition-colors cursor-pointer align-middle"
+                        title={`UTE amb ${awardees.length} empreses — clic per expandir`}
+                      >
+                        UTE · +{awardees.length - 1}
+                      </button>
+                    )}
+                    {hasMultipleAwardees && isAwardeesExpanded && (
+                      <button
+                        onClick={() =>
+                          setExpandedAwardees((prev) => {
+                            const next = new Set(prev);
+                            next.delete(rowKey);
+                            return next;
+                          })
+                        }
+                        className="ml-2 inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 hover:bg-blue-100 transition-colors cursor-pointer align-middle"
+                      >
+                        Redueix
+                      </button>
+                    )}
                   </td>
                   <td className="py-3 px-4 text-right whitespace-nowrap font-mono text-xs">
                     {c.import_adjudicacio_sense
@@ -213,6 +266,14 @@ export default function ContractsTable({
       {/* Mobile card layout */}
       <div className="lg:hidden space-y-2 p-2">
         {visibleContracts.map((c, idx) => {
+          const rowKey = `${c.codi_expedient}-${idx}`;
+          const awardees = splitAwardees(c.denominacio_adjudicatari);
+          const hasMultipleAwardees = awardees.length > 1;
+          const isAwardeesExpanded = expandedAwardees.has(rowKey);
+          const displayAwardee =
+            hasMultipleAwardees && !isAwardeesExpanded
+              ? awardees[0]
+              : c.denominacio_adjudicatari || "—";
           const publicationUrl = getPublicationUrl(c.enllac_publicacio);
           const bestDate = getBestAvailableContractDate(
             c.data_adjudicacio_contracte,
@@ -249,7 +310,31 @@ export default function ContractsTable({
 
               <p className="mt-2 text-xs text-gray-700 line-clamp-2">
                 <span className="text-gray-500">Adjudicatari: </span>
-                {c.denominacio_adjudicatari || "—"}
+                {displayAwardee}
+                {hasMultipleAwardees && !isAwardeesExpanded && (
+                  <button
+                    onClick={() =>
+                      setExpandedAwardees((prev) => new Set(prev).add(rowKey))
+                    }
+                    className="ml-2 inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 hover:bg-blue-100 transition-colors cursor-pointer align-middle"
+                  >
+                    UTE · +{awardees.length - 1}
+                  </button>
+                )}
+                {hasMultipleAwardees && isAwardeesExpanded && (
+                  <button
+                    onClick={() =>
+                      setExpandedAwardees((prev) => {
+                        const next = new Set(prev);
+                        next.delete(rowKey);
+                        return next;
+                      })
+                    }
+                    className="ml-2 inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 hover:bg-blue-100 transition-colors cursor-pointer align-middle"
+                  >
+                    Redueix
+                  </button>
+                )}
               </p>
               <p className="mt-1 text-xs text-gray-700 line-clamp-1">
                 <span className="text-gray-500">Òrgan: </span>

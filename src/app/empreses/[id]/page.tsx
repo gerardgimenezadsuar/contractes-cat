@@ -90,7 +90,17 @@ export default async function CompanyDetailPage({ params }: Props) {
   const totalAmount = parseFloat(company.total);
   const numContracts = parseInt(company.num_contracts, 10);
   const avg = numContracts > 0 ? totalAmount / numContracts : 0;
+
+  const hasMeaningfulText = (value?: string) => {
+    const normalized = (value || "").trim().toUpperCase();
+    return normalized !== "" && normalized !== "-" && normalized !== "--" && normalized !== "NULL";
+  };
   const recentContracts = [...contracts]
+    .filter(
+      (contract) =>
+        hasMeaningfulText(contract.nom_organ) ||
+        hasMeaningfulText(contract.import_adjudicacio_sense)
+    )
     .sort((a, b) => {
       const aDate = getBestAvailableContractDate(
         a.data_adjudicacio_contracte,
@@ -165,7 +175,7 @@ export default async function CompanyDetailPage({ params }: Props) {
             </h2>
             <div className="bg-white rounded-lg border border-gray-100 shadow-sm overflow-hidden">
               <div className="border-b border-gray-100 px-4 py-3 text-xs text-gray-500">
-                Darrera adjudicació: <span className="font-medium text-gray-700">{formatDate(lastAwardDate)}</span>
+                Darrera data ref.: <span className="font-medium text-gray-700">{formatDate(lastAwardDate)}</span>
               </div>
               <div className="overflow-x-auto">
                 <table className="min-w-[520px] w-full table-auto text-sm">
@@ -195,14 +205,32 @@ export default async function CompanyDetailPage({ params }: Props) {
                                 title={contract.nom_organ || ""}
                                 className="block line-clamp-2 break-words leading-6 hover:underline"
                               >
-                                {contract.nom_organ || "—"}
+                                {contract.nom_organ ? (
+                                  <Link
+                                    href={`/organismes/${encodeURIComponent(contract.nom_organ)}`}
+                                    className="hover:underline"
+                                  >
+                                    {contract.nom_organ}
+                                  </Link>
+                                ) : (
+                                  "—"
+                                )}
                               </a>
                             ) : (
                               <span
                                 title={contract.nom_organ || ""}
                                 className="block line-clamp-2 break-words leading-6"
                               >
-                                {contract.nom_organ || "—"}
+                                {contract.nom_organ ? (
+                                  <Link
+                                    href={`/organismes/${encodeURIComponent(contract.nom_organ)}`}
+                                    className="hover:underline"
+                                  >
+                                    {contract.nom_organ}
+                                  </Link>
+                                ) : (
+                                  "—"
+                                )}
                               </span>
                             )}
                           </td>
