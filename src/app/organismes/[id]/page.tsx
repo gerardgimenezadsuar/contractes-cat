@@ -29,12 +29,33 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const organName = organ?.nom_organ || decodedId;
   const totalAmount = parseFloat(organ?.total || "0");
   const totalContracts = parseInt(organ?.num_contracts || "0", 10);
+  const description = organ
+    ? `${formatCompactNumber(totalAmount)} adjudicats en ${formatNumber(totalContracts)} contractes públics per ${organName}.`
+    : `Detall dels contractes públics de ${organName}.`;
+  const imageUrl = `/organismes/${encodeURIComponent(decodedId)}/opengraph-image`;
 
   return {
     title: organName,
-    description: organ
-      ? `${formatCompactNumber(totalAmount)} adjudicats en ${formatNumber(totalContracts)} contractes públics per ${organName}.`
-      : `Detall dels contractes públics de ${organName}.`,
+    description,
+    openGraph: {
+      title: organName,
+      description,
+      type: "article",
+      images: [
+        {
+          url: imageUrl,
+          width: 1200,
+          height: 630,
+          alt: `Resum de contractació pública de ${organName}`,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: organName,
+      description,
+      images: [imageUrl],
+    },
   };
 }
 
