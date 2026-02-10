@@ -8,21 +8,38 @@ export const size = {
   height: 630,
 };
 export const contentType = "image/png";
+export const runtime = "edge";
+export const revalidate = 86400;
 
 export default async function Image() {
-  let totalContracts = 0;
-  let totalAmount = 0;
-  let uniqueCompanies = 0;
+  const fallbackStats = {
+    totalContracts: 1643141,
+    totalAmount: 81400000000,
+    uniqueCompanies: 117808,
+  };
 
-  try {
-    [totalContracts, totalAmount, uniqueCompanies] = await Promise.all([
-      fetchTotalContracts(),
-      fetchTotalAmount(),
-      fetchUniqueCompanies(),
-    ]);
-  } catch (error) {
-    console.error("Error generating homepage OG image:", error);
-  }
+  const statsPromise = Promise.all([
+    fetchTotalContracts(),
+    fetchTotalAmount(),
+    fetchUniqueCompanies(),
+  ])
+    .then(([totalContracts, totalAmount, uniqueCompanies]) => ({
+      totalContracts,
+      totalAmount,
+      uniqueCompanies,
+    }))
+    .catch((error) => {
+      console.error("Error generating homepage OG image:", error);
+      return fallbackStats;
+    });
+
+  // Some social crawlers have tight timeouts; serve a valid image fast.
+  const stats = await Promise.race([
+    statsPromise,
+    new Promise<typeof fallbackStats>((resolve) => {
+      setTimeout(() => resolve(fallbackStats), 1200);
+    }),
+  ]);
 
   return new ImageResponse(
     (
@@ -78,7 +95,7 @@ export default async function Image() {
             >
               <div style={{ display: "flex", fontSize: 21, color: "#1e3a8a" }}>Contractes totals</div>
               <div style={{ display: "flex", fontSize: 48, fontWeight: 700, color: "#1e293b" }}>
-                {formatNumber(totalContracts)}
+                {formatNumber(stats.totalContracts)}
               </div>
             </div>
 
@@ -96,7 +113,7 @@ export default async function Image() {
             >
               <div style={{ display: "flex", fontSize: 21, color: "#166534" }}>Import adjudicat</div>
               <div style={{ display: "flex", fontSize: 48, fontWeight: 700, color: "#1e293b" }}>
-                {formatCompactNumber(totalAmount)}
+                {formatCompactNumber(stats.totalAmount)}
               </div>
             </div>
 
@@ -114,7 +131,7 @@ export default async function Image() {
             >
               <div style={{ display: "flex", fontSize: 21, color: "#6b21a8" }}>Empreses úniques</div>
               <div style={{ display: "flex", fontSize: 48, fontWeight: 700, color: "#1e293b" }}>
-                {formatNumber(uniqueCompanies)}
+                {formatNumber(stats.uniqueCompanies)}
               </div>
             </div>
           </div>

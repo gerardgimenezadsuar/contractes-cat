@@ -6,6 +6,8 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/config/constants";
 
+const SOCIAL_IMAGE_URL = `${SITE_URL}/opengraph-image?v=20260210`;
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -37,7 +39,7 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
-        url: `${SITE_URL}/opengraph-image`,
+        url: SOCIAL_IMAGE_URL,
         width: 1200,
         height: 630,
         alt: `${SITE_NAME} - Contractació pública a Catalunya`,
@@ -48,10 +50,11 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: SITE_NAME,
     description: SITE_DESCRIPTION,
-    images: [`${SITE_URL}/opengraph-image`],
+    images: [SOCIAL_IMAGE_URL],
   },
   other: {
-    "twitter:image:src": `${SITE_URL}/opengraph-image`,
+    "twitter:image:src": SOCIAL_IMAGE_URL,
+    "twitter:image:alt": `${SITE_NAME} - Contractació pública a Catalunya`,
     "twitter:domain": "www.contractes.cat",
   },
 };
