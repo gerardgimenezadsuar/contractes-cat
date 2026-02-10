@@ -6,7 +6,7 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/config/constants";
 
-const SOCIAL_IMAGE_URL = `${SITE_URL}/opengraph-image?v=20260210`;
+const SOCIAL_IMAGE_URL = `${SITE_URL}/social-card-v1.png`;
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
