@@ -3,11 +3,15 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { CompanyAggregation } from "@/lib/types";
+import YearFilterChip from "@/components/ui/YearFilterChip";
+import DirectAwardLimitChip from "@/components/ui/DirectAwardLimitChip";
 import { formatCurrency, formatNumber } from "@/lib/utils";
 
 interface Props {
   rows: CompanyAggregation[];
   organTotalAmount: number;
+  year?: number;
+  nearDirectAwardOnly?: boolean;
 }
 
 function parseNifs(raw: string): string[] {
@@ -28,12 +32,21 @@ function parseNifs(raw: string): string[] {
   return [normalized];
 }
 
-export default function OrganTopCompaniesTable({ rows, organTotalAmount }: Props) {
+export default function OrganTopCompaniesTable({
+  rows,
+  organTotalAmount,
+  year,
+  nearDirectAwardOnly,
+}: Props) {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
   return (
     <section className="mb-12">
-      <h2 className="text-2xl font-bold text-gray-900 mb-4">Empreses adjudicatàries principals</h2>
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <h2 className="text-2xl font-bold text-gray-900">Empreses adjudicatàries principals</h2>
+        {year !== undefined && <YearFilterChip year={year} />}
+        {nearDirectAwardOnly && <DirectAwardLimitChip />}
+      </div>
 
       <div className="bg-white rounded-lg border border-gray-100 shadow-sm overflow-x-auto">
         <table className="w-full text-sm">
@@ -78,7 +91,7 @@ export default function OrganTopCompaniesTable({ rows, organTotalAmount }: Props
                       <button
                         onClick={() => setExpandedRows((prev) => new Set(prev).add(rowKey))}
                         className="ml-2 inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 hover:bg-blue-100 transition-colors cursor-pointer align-middle"
-                        title={`UTE amb ${Math.max(names.length, nifs.length)} empreses — clic per expandir`}
+                        title={`UTE amb ${Math.max(names.length, nifs.length)} empreses - clic per expandir`}
                       >
                         UTE · +{Math.max(names.length, nifs.length) - 1}
                       </button>

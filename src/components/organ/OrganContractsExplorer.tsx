@@ -4,24 +4,26 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import type { Contract } from "@/lib/types";
 import ContractsTable from "@/components/tables/ContractsTable";
 import Pagination from "@/components/ui/Pagination";
+import YearFilterChip from "@/components/ui/YearFilterChip";
+import DirectAwardLimitChip from "@/components/ui/DirectAwardLimitChip";
 import { DEFAULT_PAGE_SIZE } from "@/config/constants";
 import { formatNumber } from "@/lib/utils";
 
 interface Props {
   organName: string;
-  initialContracts?: Contract[];
-  totalContracts?: number;
+  year?: number;
+  nearDirectAwardOnly?: boolean;
 }
 
 type SortKey = "date-desc" | "date-asc" | "amount-desc" | "amount-asc";
 
 export default function OrganContractsExplorer({
   organName,
-  initialContracts = [],
-  totalContracts = 0,
+  year,
+  nearDirectAwardOnly,
 }: Props) {
-  const [contracts, setContracts] = useState(initialContracts);
-  const [total, setTotal] = useState(totalContracts);
+  const [contracts, setContracts] = useState<Contract[]>([]);
+  const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState<SortKey>("date-desc");
   const [companyFilter, setCompanyFilter] = useState("");
@@ -37,6 +39,8 @@ export default function OrganContractsExplorer({
       setLoading(true);
       try {
         const params = new URLSearchParams({ nom_organ: organName, page: String(p), sort: s });
+        if (year !== undefined) params.set("year", String(year));
+        if (nearDirectAwardOnly) params.set("near_direct_award", "1");
         if (search.trim()) params.set("search", search.trim());
         const res = await fetch(`/api/contractes?${params.toString()}`, {
           signal: controller.signal,
@@ -49,17 +53,11 @@ export default function OrganContractsExplorer({
         if ((err as Error).name === "AbortError") return;
         console.error("Error fetching organ contracts:", err);
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     },
-    [organName]
+    [organName, year, nearDirectAwardOnly]
   );
-
-  useEffect(() => {
-    if (initialContracts.length === 0) {
-      fetchData(1, "date-desc", "");
-    }
-  }, [fetchData, initialContracts.length, organName]);
 
   useEffect(() => {
     return () => {
@@ -67,6 +65,19 @@ export default function OrganContractsExplorer({
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    setPage(1);
+    setSort("date-desc");
+    setCompanyFilter("");
+    setContracts([]);
+    setTotal(0);
+
+    if (abortRef.current) abortRef.current.abort();
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    fetchData(1, "date-desc", "");
+  }, [fetchData]);
 
   const handlePageChange = useCallback(
     (p: number) => {
@@ -97,8 +108,12 @@ export default function OrganContractsExplorer({
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-bold text-gray-900">Contractes ({formatNumber(total)})</h2>
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="text-2xl font-bold text-gray-900">Contractes ({formatNumber(total)})</h2>
+          {year !== undefined && <YearFilterChip year={year} />}
+          {nearDirectAwardOnly && <DirectAwardLimitChip />}
+        </div>
       </div>
       <div
         className={`bg-white rounded-lg border border-gray-100 shadow-sm ${

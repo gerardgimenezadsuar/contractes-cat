@@ -1,7 +1,9 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import YearFilterChip from "@/components/ui/YearFilterChip";
+import DirectAwardLimitChip from "@/components/ui/DirectAwardLimitChip";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/utils";
 
 interface CounterpartyRow {
@@ -14,12 +16,16 @@ interface Props {
   rows: CounterpartyRow[];
   companyTotalAmount: number;
   lastAwardDate?: string;
+  year?: number;
+  nearDirectAwardOnly?: boolean;
 }
 
 export default function CompanyCounterpartyTable({
   rows,
   companyTotalAmount,
   lastAwardDate,
+  year,
+  nearDirectAwardOnly,
 }: Props) {
   const [organSearch, setOrganSearch] = useState("");
 
@@ -32,9 +38,13 @@ export default function CompanyCounterpartyTable({
   return (
     <section className="mb-12">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-2xl font-bold text-gray-900">
-          Principals òrgans contractants (a aquesta empresa)
-        </h2>
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="text-2xl font-bold text-gray-900">
+            Principals òrgans contractants (a aquesta empresa)
+          </h2>
+          {year !== undefined && <YearFilterChip year={year} />}
+          {nearDirectAwardOnly && <DirectAwardLimitChip />}
+        </div>
         <div className="text-xs text-gray-500">
           Darrera data ref.:{" "}
           <span className="font-medium text-gray-700">{formatDate(lastAwardDate)}</span>

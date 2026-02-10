@@ -3,6 +3,7 @@ import Link from "next/link";
 import {
   fetchOrganDetail,
   fetchOrganRecentContracts,
+  fetchOrganNearDirectAwardBandCount,
 } from "@/lib/api";
 import {
   formatCurrency,
@@ -17,9 +18,34 @@ import YearlyTrendChart from "@/components/charts/YearlyTrendChart";
 import SharePageButton from "@/components/ui/SharePageButton";
 import OrganContractsExplorer from "@/components/organ/OrganContractsExplorer";
 import OrganTopCompaniesSection from "@/components/organ/OrganTopCompaniesSection";
+import YearFilterChip from "@/components/ui/YearFilterChip";
+import DirectAwardLimitChip from "@/components/ui/DirectAwardLimitChip";
+import {
+  DIRECT_AWARD_NEAR_LIMIT_MIN,
+  DIRECT_AWARD_NEAR_LIMIT_MAX,
+} from "@/config/constants";
 
 interface Props {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ year?: string; near_direct_award?: string }>;
+}
+
+const MIN_FILTER_SKELETON_MS = 350;
+
+function parseYearParam(value?: string): number | undefined {
+  if (!value || !/^\d{4}$/.test(value)) return undefined;
+  const parsed = Number(value);
+  const currentYear = new Date().getFullYear();
+  if (parsed < 2000 || parsed > currentYear + 1) return undefined;
+  return parsed;
+}
+
+function parseNearDirectAwardParam(value?: string): boolean {
+  return value === "1";
+}
+
+async function ensureMinimumSkeletonDelay(): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, MIN_FILTER_SKELETON_MS));
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -59,14 +85,29 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function OrganDetailPage({ params }: Props) {
-  const { id } = await params;
+export default async function OrganDetailPage({ params, searchParams }: Props) {
+  const [{ id }, query] = await Promise.all([params, searchParams]);
   const decodedId = decodeURIComponent(id);
+  const selectedYear = parseYearParam(query.year);
+  const nearDirectAwardOnly = parseNearDirectAwardParam(query.near_direct_award);
+  const shouldEnforceFilterSkeleton = selectedYear !== undefined || nearDirectAwardOnly;
+  const organFilterOptions =
+    selectedYear !== undefined || nearDirectAwardOnly
+      ? {
+          ...(selectedYear !== undefined ? { year: selectedYear } : {}),
+          ...(nearDirectAwardOnly ? { nearDirectAwardOnly: true } : {}),
+        }
+      : undefined;
 
-  const [{ organ, yearly }, recentContracts] = await Promise.all([
+  const [{ organ, yearly }, recentContracts, nearDirectAwardContractsCount] = await Promise.all([
     fetchOrganDetail(decodedId),
-    fetchOrganRecentContracts(decodedId, 10),
+    fetchOrganRecentContracts(decodedId, 10, organFilterOptions),
+    fetchOrganNearDirectAwardBandCount(decodedId, organFilterOptions),
   ]);
+
+  if (shouldEnforceFilterSkeleton) {
+    await ensureMinimumSkeletonDelay();
+  }
 
   if (!organ) {
     return (
@@ -82,21 +123,40 @@ export default async function OrganDetailPage({ params }: Props) {
   const totalAmount = parseFloat(organ.total);
   const numContracts = parseInt(organ.num_contracts, 10);
   const currentYear = new Date().getFullYear();
-  const currentYearRow = yearly.find((row) => parseInt(row.year, 10) === currentYear);
-  const currentYearContracts = currentYearRow ? parseInt(currentYearRow.num_contracts, 10) || 0 : 0;
-  const currentYearAmount = currentYearRow ? parseFloat(currentYearRow.total) || 0 : 0;
-  const currentYearContractsSubtitle = currentYearRow
-    ? `Total històric: ${formatNumber(numContracts)}`
-    : `Sense dades ${currentYear}. Total històric: ${formatNumber(numContracts)}`;
-  const currentYearAmountSubtitle = currentYearRow
-    ? `Total històric: ${formatCompactNumber(totalAmount)}`
-    : `Sense dades ${currentYear}. Total històric: ${formatCompactNumber(totalAmount)}`;
+  const statsYear = selectedYear ?? currentYear;
+  const selectedYearRow = yearly.find((row) => parseInt(row.year, 10) === statsYear);
+  const yearContracts = selectedYearRow ? parseInt(selectedYearRow.num_contracts, 10) || 0 : 0;
+  const yearAmount = selectedYearRow ? parseFloat(selectedYearRow.total) || 0 : 0;
+  const isYearFiltered = selectedYear !== undefined;
+  const yearContractsSubtitle = isYearFiltered
+    ? `Filtre actiu: només contractes de ${statsYear}`
+    : selectedYearRow
+      ? `Total històric: ${formatNumber(numContracts)}`
+      : `Sense dades ${statsYear}. Total històric: ${formatNumber(numContracts)}`;
+  const yearAmountSubtitle = isYearFiltered
+    ? `Filtre actiu: només import de ${statsYear}`
+    : selectedYearRow
+      ? `Total històric: ${formatCompactNumber(totalAmount)}`
+      : `Sense dades ${statsYear}. Total històric: ${formatCompactNumber(totalAmount)}`;
+  const nearDirectAwardBandLabel = `${DIRECT_AWARD_NEAR_LIMIT_MIN.toLocaleString("ca-ES")}-${(DIRECT_AWARD_NEAR_LIMIT_MAX - 1).toLocaleString("ca-ES")} EUR`;
+  const nearDirectAwardSubtitle = isYearFiltered
+    ? `Emesos a ${statsYear} amb import entre ${nearDirectAwardBandLabel}`
+    : `Emesos amb import entre ${nearDirectAwardBandLabel}`;
+  const nearDirectAwardHref =
+    nearDirectAwardContractsCount > 0 && !nearDirectAwardOnly
+      ? `/organismes/${encodeURIComponent(decodedId)}?${new URLSearchParams({
+          ...(selectedYear !== undefined ? { year: String(selectedYear) } : {}),
+          near_direct_award: "1",
+        }).toString()}`
+      : undefined;
 
   const lastAwardDate = getBestAvailableContractDate(
     recentContracts[0]?.data_adjudicacio_contracte,
     recentContracts[0]?.data_formalitzacio_contracte,
     recentContracts[0]?.data_publicacio_anunci
   ).date;
+
+  const topCompaniesBaseAmount = isYearFiltered ? yearAmount : totalAmount;
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -108,37 +168,59 @@ export default async function OrganDetailPage({ params }: Props) {
         <h1 className="text-3xl font-bold text-gray-900">{organ.nom_organ}</h1>
         <SharePageButton className="shrink-0" />
       </div>
-      <p className="text-gray-500 mb-8">Organisme contractant</p>
+      <div className="mb-8 flex flex-wrap items-center gap-3">
+        <p className="text-gray-500">Organisme contractant</p>
+        {selectedYear !== undefined && <YearFilterChip year={selectedYear} />}
+        {nearDirectAwardOnly && <DirectAwardLimitChip />}
+      </div>
 
-      <section className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-12">
+      <section className="mb-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard
-          title={`Import adjudicat ${currentYear}`}
-          value={formatCompactNumber(currentYearAmount)}
-          subtitle={currentYearAmountSubtitle}
+          title={`Import adjudicat ${statsYear}`}
+          value={formatCompactNumber(yearAmount)}
+          subtitle={yearAmountSubtitle}
         />
         <StatCard
-          title={`Contractes ${currentYear}`}
-          value={formatNumber(currentYearContracts)}
-          subtitle={currentYearContractsSubtitle}
+          title={`Contractes ${statsYear}`}
+          value={formatNumber(yearContracts)}
+          subtitle={yearContractsSubtitle}
+        />
+        <StatCard
+          title="Contractes prop del límit d'adjudicació directa"
+          value={formatNumber(nearDirectAwardContractsCount)}
+          subtitle={nearDirectAwardSubtitle}
+          valueHref={nearDirectAwardHref}
+          valueLinkTitle="Aplica filtre de límit d'adjudicació directa"
         />
       </section>
 
       <section className="mb-12">
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Evolució anual</h2>
-            <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <h2 className="text-2xl font-bold text-gray-900">Evolució anual</h2>
+              {selectedYear !== undefined && <YearFilterChip year={selectedYear} />}
+              {nearDirectAwardOnly && <DirectAwardLimitChip />}
+            </div>
+            <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
               {yearly.length > 0 ? (
-                <YearlyTrendChart data={yearly} />
+                <YearlyTrendChart data={yearly} enableYearFilter />
               ) : (
                 <p className="text-sm text-gray-500">No hi ha prou dades anuals per mostrar la gràfica.</p>
               )}
             </div>
+            <p className="mt-2 text-xs text-gray-500">
+              Clica una barra per filtrar tota la pàgina per aquell any. Torna a clicar-la per treure el filtre.
+            </p>
           </div>
 
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Contractes recents</h2>
-            <div className="bg-white rounded-lg border border-gray-100 shadow-sm overflow-hidden">
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <h2 className="text-2xl font-bold text-gray-900">Contractes recents</h2>
+              {selectedYear !== undefined && <YearFilterChip year={selectedYear} />}
+              {nearDirectAwardOnly && <DirectAwardLimitChip />}
+            </div>
+            <div className="rounded-lg border border-gray-100 bg-white shadow-sm overflow-hidden">
               <div className="border-b border-gray-100 px-4 py-3 text-xs text-gray-500">
                 Darrera data ref.: <span className="font-medium text-gray-700">{formatDate(lastAwardDate)}</span>
               </div>
@@ -196,10 +278,19 @@ export default async function OrganDetailPage({ params }: Props) {
         </div>
       </section>
 
-      <OrganTopCompaniesSection organName={organ.nom_organ} organTotalAmount={totalAmount} />
+      <OrganTopCompaniesSection
+        organName={organ.nom_organ}
+        organTotalAmount={topCompaniesBaseAmount}
+        year={selectedYear}
+        nearDirectAwardOnly={nearDirectAwardOnly}
+      />
 
       <section>
-        <OrganContractsExplorer organName={organ.nom_organ} />
+        <OrganContractsExplorer
+          organName={organ.nom_organ}
+          year={selectedYear}
+          nearDirectAwardOnly={nearDirectAwardOnly}
+        />
       </section>
     </div>
   );

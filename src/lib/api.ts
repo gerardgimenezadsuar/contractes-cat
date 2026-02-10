@@ -4,6 +4,8 @@ import {
   CLEAN_AMOUNT_SENSE_FILTER,
   REVALIDATE_SECONDS,
   DEFAULT_PAGE_SIZE,
+  DIRECT_AWARD_NEAR_LIMIT_MIN,
+  DIRECT_AWARD_NEAR_LIMIT_MAX,
 } from "@/config/constants";
 import type {
   Contract,
@@ -32,6 +34,7 @@ const AWARDED_CONTRACT_WHERE =
 const ANALYSIS_MIN_AMOUNT = 500;
 const ANALYSIS_BASE_SENSE_WHERE = `${CLEAN_AMOUNT_SENSE_FILTER} AND import_adjudicacio_sense IS NOT NULL AND import_adjudicacio_sense::number >= ${ANALYSIS_MIN_AMOUNT}`;
 const MINOR_15K_BASE_WHERE = `procediment='Contracte menor' AND ${ANALYSIS_BASE_SENSE_WHERE} AND import_adjudicacio_sense::number < 15000`;
+const NEAR_DIRECT_AWARD_RANGE_WHERE = `${CLEAN_AMOUNT_SENSE_FILTER} AND import_adjudicacio_sense IS NOT NULL AND import_adjudicacio_sense::number >= ${DIRECT_AWARD_NEAR_LIMIT_MIN} AND import_adjudicacio_sense::number < ${DIRECT_AWARD_NEAR_LIMIT_MAX}`;
 
 function parseNonNegativeNumber(value: string): number | null {
   const parsed = Number(value);
@@ -420,17 +423,54 @@ export async function fetchOrganContracts(
 
 export async function fetchOrganRecentContracts(
   organName: string,
-  limit = 10
+  limit = 10,
+  options?: { year?: number; nearDirectAwardOnly?: boolean }
 ): Promise<Contract[]> {
   const safeName = organName.replace(/'/g, "''");
   const futureCutoffIso = getContractsFutureCutoffIso();
+  const conditions = [
+    `nom_organ='${safeName}'`,
+    AWARDED_CONTRACT_WHERE,
+    `(${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) IS NOT NULL`,
+    `(${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) <= '${futureCutoffIso}'`,
+  ];
+  if (options?.year !== undefined) {
+    const year = parseYearFilter(String(options.year));
+    if (year !== null) {
+      conditions.push(`date_extract_y(data_adjudicacio_contracte)=${year}`);
+    }
+  }
+  if (options?.nearDirectAwardOnly) {
+    conditions.push(NEAR_DIRECT_AWARD_RANGE_WHERE);
+  }
   return soqlFetch<Contract>({
     $select:
       "codi_expedient, denominacio_adjudicatari, import_adjudicacio_sense, data_adjudicacio_contracte, data_formalitzacio_contracte, data_publicacio_anunci, enllac_publicacio",
-    $where: `nom_organ='${safeName}' AND ${AWARDED_CONTRACT_WHERE} AND (${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) IS NOT NULL AND (${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) <= '${futureCutoffIso}'`,
+    $where: conditions.join(" AND "),
     $order: `${BEST_AVAILABLE_CONTRACT_DATE_EXPR} DESC`,
     $limit: String(limit),
   });
+}
+
+export async function fetchOrganNearDirectAwardBandCount(
+  organName: string,
+  options?: { year?: number }
+): Promise<number> {
+  const safeName = organName.replace(/'/g, "''");
+  const conditions = [`nom_organ='${safeName}'`, NEAR_DIRECT_AWARD_RANGE_WHERE];
+
+  if (options?.year !== undefined) {
+    const year = parseYearFilter(String(options.year));
+    if (year !== null) {
+      conditions.push(`date_extract_y(data_adjudicacio_contracte)=${year}`);
+    }
+  }
+
+  const data = await soqlFetch<{ total: string }>({
+    $select: "count(*) as total",
+    $where: conditions.join(" AND "),
+  });
+  return parseInt(data[0]?.total || "0", 10);
 }
 
 export async function fetchOrganContractsCount(organName: string): Promise<number> {
@@ -456,13 +496,31 @@ export async function fetchOrganLastAwardDate(
 
 export async function fetchOrganTopCompanies(
   organName: string,
-  limit = 10
+  limit = 10,
+  options?: { year?: number; nearDirectAwardOnly?: boolean }
 ): Promise<CompanyAggregation[]> {
   const safeName = organName.replace(/'/g, "''");
+  const conditions = [
+    `nom_organ='${safeName}'`,
+    CLEAN_AMOUNT_FILTER,
+    "import_adjudicacio_amb_iva IS NOT NULL",
+    "denominacio_adjudicatari IS NOT NULL",
+    "identificacio_adjudicatari IS NOT NULL",
+  ];
+  if (options?.year !== undefined) {
+    const year = parseYearFilter(String(options.year));
+    if (year !== null) {
+      conditions.push(`date_extract_y(data_adjudicacio_contracte)=${year}`);
+    }
+  }
+  if (options?.nearDirectAwardOnly) {
+    conditions.push(NEAR_DIRECT_AWARD_RANGE_WHERE);
+  }
+
   const raw = await soqlFetch<CompanyAggregation>({
     $select:
       "identificacio_adjudicatari, denominacio_adjudicatari, sum(import_adjudicacio_amb_iva::number) as total, count(*) as num_contracts",
-    $where: `nom_organ='${safeName}' AND ${CLEAN_AMOUNT_FILTER} AND import_adjudicacio_amb_iva IS NOT NULL AND denominacio_adjudicatari IS NOT NULL AND identificacio_adjudicatari IS NOT NULL`,
+    $where: conditions.join(" AND "),
     $group: "identificacio_adjudicatari, denominacio_adjudicatari",
     $order: "total DESC",
     $limit: String(limit * 8),
@@ -535,32 +593,108 @@ export async function fetchCompanyDetail(
 export async function fetchCompanyContracts(
   id: string,
   offset = 0,
-  limit = DEFAULT_PAGE_SIZE
+  limit = DEFAULT_PAGE_SIZE,
+  options?: { year?: number; nearDirectAwardOnly?: boolean }
 ): Promise<Contract[]> {
   const safeId = id.replace(/'/g, "''");
+  const conditions = [
+    `identificacio_adjudicatari='${safeId}'`,
+    AWARDED_CONTRACT_WHERE,
+    `(${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) IS NOT NULL`,
+  ];
+  if (options?.year !== undefined) {
+    const year = parseYearFilter(String(options.year));
+    if (year !== null) {
+      conditions.push(`date_extract_y(data_adjudicacio_contracte)=${year}`);
+    }
+  }
+  if (options?.nearDirectAwardOnly) {
+    conditions.push(NEAR_DIRECT_AWARD_RANGE_WHERE);
+  }
+
   return soqlFetch<Contract>({
-    $where: `identificacio_adjudicatari='${safeId}' AND ${AWARDED_CONTRACT_WHERE} AND (${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) IS NOT NULL`,
+    $where: conditions.join(" AND "),
     $order: `${BEST_AVAILABLE_CONTRACT_DATE_EXPR} DESC`,
     $limit: String(limit),
     $offset: String(offset),
   });
 }
 
-export async function fetchCompanyContractsCount(id: string): Promise<number> {
+export async function fetchCompanyContractsCount(
+  id: string,
+  options?: { year?: number; nearDirectAwardOnly?: boolean }
+): Promise<number> {
   const safeId = id.replace(/'/g, "''");
+  const conditions = [
+    `identificacio_adjudicatari='${safeId}'`,
+    AWARDED_CONTRACT_WHERE,
+    `(${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) IS NOT NULL`,
+  ];
+  if (options?.year !== undefined) {
+    const year = parseYearFilter(String(options.year));
+    if (year !== null) {
+      conditions.push(`date_extract_y(data_adjudicacio_contracte)=${year}`);
+    }
+  }
+  if (options?.nearDirectAwardOnly) {
+    conditions.push(NEAR_DIRECT_AWARD_RANGE_WHERE);
+  }
+
   const data = await soqlFetch<{ total: string }>({
     $select: "count(*) as total",
-    $where: `identificacio_adjudicatari='${safeId}' AND ${AWARDED_CONTRACT_WHERE} AND (${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) IS NOT NULL`,
+    $where: conditions.join(" AND "),
   });
   return parseInt(data[0]?.total || "0", 10);
 }
 
-export async function fetchCompanyLastAwardDate(id: string): Promise<string | undefined> {
+export async function fetchCompanyNearDirectAwardBandCount(
+  id: string,
+  options?: { year?: number }
+): Promise<number> {
+  const safeId = id.replace(/'/g, "''");
+  const conditions = [
+    `identificacio_adjudicatari='${safeId}'`,
+    NEAR_DIRECT_AWARD_RANGE_WHERE,
+  ];
+  if (options?.year !== undefined) {
+    const year = parseYearFilter(String(options.year));
+    if (year !== null) {
+      conditions.push(`date_extract_y(data_adjudicacio_contracte)=${year}`);
+    }
+  }
+
+  const data = await soqlFetch<{ total: string }>({
+    $select: "count(*) as total",
+    $where: conditions.join(" AND "),
+  });
+  return parseInt(data[0]?.total || "0", 10);
+}
+
+export async function fetchCompanyLastAwardDate(
+  id: string,
+  options?: { year?: number; nearDirectAwardOnly?: boolean }
+): Promise<string | undefined> {
   const safeId = id.replace(/'/g, "''");
   const futureCutoffIso = getContractsFutureCutoffIso();
+  const conditions = [
+    `identificacio_adjudicatari='${safeId}'`,
+    AWARDED_CONTRACT_WHERE,
+    `(${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) IS NOT NULL`,
+    `(${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) <= '${futureCutoffIso}'`,
+  ];
+  if (options?.year !== undefined) {
+    const year = parseYearFilter(String(options.year));
+    if (year !== null) {
+      conditions.push(`date_extract_y(data_adjudicacio_contracte)=${year}`);
+    }
+  }
+  if (options?.nearDirectAwardOnly) {
+    conditions.push(NEAR_DIRECT_AWARD_RANGE_WHERE);
+  }
+
   const data = await soqlFetch<{ last_date?: string }>({
     $select: `max(${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) as last_date`,
-    $where: `identificacio_adjudicatari='${safeId}' AND ${AWARDED_CONTRACT_WHERE} AND (${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) IS NOT NULL AND (${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) <= '${futureCutoffIso}'`,
+    $where: conditions.join(" AND "),
   });
   return data[0]?.last_date;
 }
@@ -573,6 +707,7 @@ export async function fetchContracts(
   const futureCutoffIso = getContractsFutureCutoffIso();
   const {
     year,
+    nearDirectAwardOnly,
     tipus_contracte,
     procediment,
     amountMin,
@@ -594,6 +729,9 @@ export async function fetchContracts(
     if (parsedYear !== null) {
       conditions.push(`date_extract_y(data_adjudicacio_contracte)=${parsedYear}`);
     }
+  }
+  if (nearDirectAwardOnly) {
+    conditions.push(NEAR_DIRECT_AWARD_RANGE_WHERE);
   }
   if (tipus_contracte) {
     conditions.push(`tipus_contracte='${tipus_contracte.replace(/'/g, "''")}'`);
@@ -653,7 +791,7 @@ export async function fetchContractsCount(
 ): Promise<number> {
   const conditions: string[] = [];
   const futureCutoffIso = getContractsFutureCutoffIso();
-  const { year, tipus_contracte, procediment, amountMin, amountMax, nom_organ, search, nif } = filters;
+  const { year, nearDirectAwardOnly, tipus_contracte, procediment, amountMin, amountMax, nom_organ, search, nif } = filters;
 
   if (nif) {
     conditions.push(`identificacio_adjudicatari='${nif.replace(/'/g, "''")}'`);
@@ -663,6 +801,9 @@ export async function fetchContractsCount(
     if (parsedYear !== null) {
       conditions.push(`date_extract_y(data_adjudicacio_contracte)=${parsedYear}`);
     }
+  }
+  if (nearDirectAwardOnly) {
+    conditions.push(NEAR_DIRECT_AWARD_RANGE_WHERE);
   }
   if (tipus_contracte) {
     conditions.push(`tipus_contracte='${tipus_contracte.replace(/'/g, "''")}'`);
@@ -1017,13 +1158,30 @@ export async function fetchTopOrgans(
 // Top contracting bodies for a specific company (counterparties)
 export async function fetchCompanyTopOrgans(
   companyId: string,
-  limit = 10
+  limit = 10,
+  options?: { year?: number; nearDirectAwardOnly?: boolean }
 ): Promise<{ nom_organ: string; total: string; num_contracts: string }[]> {
   const safeId = companyId.replace(/'/g, "''");
+  const conditions = [
+    `identificacio_adjudicatari='${safeId}'`,
+    CLEAN_AMOUNT_FILTER,
+    "import_adjudicacio_amb_iva IS NOT NULL",
+    "nom_organ IS NOT NULL",
+  ];
+  if (options?.year !== undefined) {
+    const year = parseYearFilter(String(options.year));
+    if (year !== null) {
+      conditions.push(`date_extract_y(data_adjudicacio_contracte)=${year}`);
+    }
+  }
+  if (options?.nearDirectAwardOnly) {
+    conditions.push(NEAR_DIRECT_AWARD_RANGE_WHERE);
+  }
+
   return soqlFetch({
     $select:
       "nom_organ, sum(import_adjudicacio_amb_iva::number) as total, count(*) as num_contracts",
-    $where: `identificacio_adjudicatari='${safeId}' AND ${CLEAN_AMOUNT_FILTER} AND import_adjudicacio_amb_iva IS NOT NULL AND nom_organ IS NOT NULL`,
+    $where: conditions.join(" AND "),
     $group: "nom_organ",
     $order: "total DESC",
     $limit: String(limit),
