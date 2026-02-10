@@ -37,7 +37,7 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
-        url: "/opengraph-image",
+        url: `${SITE_URL}/opengraph-image`,
         width: 1200,
         height: 630,
         alt: `${SITE_NAME} - Contractació pública a Catalunya`,
@@ -48,7 +48,11 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: SITE_NAME,
     description: SITE_DESCRIPTION,
-    images: ["/opengraph-image"],
+    images: [`${SITE_URL}/opengraph-image`],
+  },
+  other: {
+    "twitter:image:src": `${SITE_URL}/opengraph-image`,
+    "twitter:domain": "www.contractes.cat",
   },
 };
 

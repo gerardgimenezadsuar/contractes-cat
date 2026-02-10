@@ -101,7 +101,7 @@ export const CPV_DIVISIONS: Record<string, string> = {
 export const SITE_NAME = "contractes.cat";
 export const SITE_DESCRIPTION =
   "Anàlisi de la contractació pública a Catalunya. Dades obertes de la Plataforma de serveis de contractació pública.";
-export const SITE_URL = "https://contractes.cat";
+export const SITE_URL = "https://www.contractes.cat";
 export const GITHUB_URL = "https://github.com/gerardgimenezadsuar/contractes-cat";
 export const CREATOR_NAME = "Ciència de Dades";
 export const CREATOR_URL = "https://cienciadedades.cat";
