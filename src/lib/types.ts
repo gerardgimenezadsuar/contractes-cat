@@ -15,6 +15,7 @@ export interface Contract {
   data_adjudicacio_contracte: string;
   data_formalitzacio_contracte: string;
   data_publicacio_anunci: string;
+  termini_presentacio_ofertes: string;
   ofertes_rebudes: number;
   codi_cpv: string;
   lloc_execucio: string;
@@ -98,6 +99,7 @@ export interface ContractFilters {
   amountMax?: string;
   nom_organ?: string;
   search?: string;
+  cpvSearch?: string;
   nif?: string;
   page?: number;
   pageSize?: number;

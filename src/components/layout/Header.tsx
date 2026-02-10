@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { href: "/empreses", label: "Empreses" },
   { href: "/organismes", label: "Organismes" },
   { href: "/contractes", label: "Contractes" },
+  { href: "/licitacions", label: "Licitacions" },
   { href: "/analisi", label: "Anàlisi" },
   { href: "/about", label: "Sobre" },
 ];

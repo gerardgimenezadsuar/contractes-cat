@@ -52,6 +52,10 @@ function getContractsFutureCutoffIso(): string {
   return `${cutoff.toISOString().slice(0, 10)}T23:59:59`;
 }
 
+function getTodayIsoDate(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 function normalizeSearchTerm(search: string): string {
   return search
     .normalize("NFD")
@@ -79,6 +83,36 @@ function buildLooseSearchCondition(search: string, fields: string[]): string {
   );
 
   return `(${exactParts.join(" OR ")} OR ${normalizedParts.join(" OR ")})`;
+}
+
+function buildCpvDivisionSearchCondition(search: string): string {
+  const tokens = search
+    .split(/\s+/)
+    .map((token) => normalizeSearchTerm(token))
+    .filter(Boolean);
+  if (tokens.length === 0) return "";
+
+  const matchingDivisions = Object.entries(CPV_DIVISIONS)
+    .filter(([code, label]) => {
+      const normalizedCode = normalizeSearchTerm(code);
+      const normalizedLabel = normalizeSearchTerm(label);
+      return tokens.every(
+        (token) =>
+          normalizedCode.includes(token) || normalizedLabel.includes(token)
+      );
+    })
+    .map(([code]) => code);
+
+  if (matchingDivisions.length === 0) {
+    const safeSearch = search.replace(/'/g, "''");
+    return `upper(codi_cpv) like upper('%${safeSearch}%')`;
+  }
+
+  const divisionClauses = matchingDivisions.map(
+    (code) => `(codi_cpv like '${code}%' OR codi_cpv like '%||${code}%')`
+  );
+
+  return `(${divisionClauses.join(" OR ")})`;
 }
 
 async function soqlFetch<T>(params: Record<string, string>): Promise<T[]> {
@@ -710,6 +744,141 @@ export async function fetchContractsCount(
   }
 
   const data = await soqlFetch<{ total: string }>(params);
+  return parseInt(data[0]?.total || "0", 10);
+}
+
+// Open tenders where offer-submission period is still active
+export async function fetchOpenTenders(
+  filters: ContractFilters
+): Promise<Contract[]> {
+  const conditions: string[] = [];
+  const todayIsoDate = getTodayIsoDate();
+  const {
+    tipus_contracte,
+    procediment,
+    amountMin,
+    amountMax,
+    nom_organ,
+    search,
+    cpvSearch,
+    page = 1,
+    pageSize = DEFAULT_PAGE_SIZE,
+  } = filters;
+
+  if (tipus_contracte) {
+    conditions.push(`tipus_contracte='${tipus_contracte.replace(/'/g, "''")}'`);
+  }
+  if (procediment) {
+    conditions.push(`procediment='${procediment.replace(/'/g, "''")}'`);
+  }
+  if (amountMin) {
+    const parsedAmountMin = parseNonNegativeNumber(amountMin);
+    if (parsedAmountMin !== null) {
+      conditions.push(
+        "pressupost_licitacio_sense IS NOT NULL"
+      );
+      conditions.push(`pressupost_licitacio_sense::number >= ${parsedAmountMin}`);
+    }
+  }
+  if (amountMax) {
+    const parsedAmountMax = parseNonNegativeNumber(amountMax);
+    if (parsedAmountMax !== null) {
+      conditions.push(
+        "pressupost_licitacio_sense IS NOT NULL"
+      );
+      conditions.push(`pressupost_licitacio_sense::number <= ${parsedAmountMax}`);
+    }
+  }
+  if (nom_organ) {
+    conditions.push(`upper(nom_organ) like upper('%${nom_organ.replace(/'/g, "''")}%')`);
+  }
+  if (search) {
+    conditions.push(
+      buildLooseSearchCondition(search, [
+        "denominacio",
+        "objecte_contracte",
+        "nom_organ",
+      ])
+    );
+  }
+  if (cpvSearch) {
+    conditions.push(buildCpvDivisionSearchCondition(cpvSearch));
+  }
+
+  conditions.push("fase_publicacio='Anunci de licitació'");
+  conditions.push("termini_presentacio_ofertes IS NOT NULL");
+  conditions.push(`termini_presentacio_ofertes >= '${todayIsoDate}'`);
+  conditions.push("data_publicacio_adjudicacio IS NULL");
+  conditions.push("data_publicacio_formalitzacio IS NULL");
+  conditions.push("data_adjudicacio_contracte IS NULL");
+
+  return soqlFetch<Contract>({
+    $where: conditions.join(" AND "),
+    $order: "termini_presentacio_ofertes ASC, data_publicacio_anunci DESC",
+    $limit: String(pageSize),
+    $offset: String((page - 1) * pageSize),
+  });
+}
+
+export async function fetchOpenTendersCount(
+  filters: ContractFilters
+): Promise<number> {
+  const conditions: string[] = [];
+  const todayIsoDate = getTodayIsoDate();
+  const { tipus_contracte, procediment, amountMin, amountMax, nom_organ, search, cpvSearch } = filters;
+
+  if (tipus_contracte) {
+    conditions.push(`tipus_contracte='${tipus_contracte.replace(/'/g, "''")}'`);
+  }
+  if (procediment) {
+    conditions.push(`procediment='${procediment.replace(/'/g, "''")}'`);
+  }
+  if (amountMin) {
+    const parsedAmountMin = parseNonNegativeNumber(amountMin);
+    if (parsedAmountMin !== null) {
+      conditions.push(
+        "pressupost_licitacio_sense IS NOT NULL"
+      );
+      conditions.push(`pressupost_licitacio_sense::number >= ${parsedAmountMin}`);
+    }
+  }
+  if (amountMax) {
+    const parsedAmountMax = parseNonNegativeNumber(amountMax);
+    if (parsedAmountMax !== null) {
+      conditions.push(
+        "pressupost_licitacio_sense IS NOT NULL"
+      );
+      conditions.push(`pressupost_licitacio_sense::number <= ${parsedAmountMax}`);
+    }
+  }
+  if (nom_organ) {
+    conditions.push(`upper(nom_organ) like upper('%${nom_organ.replace(/'/g, "''")}%')`);
+  }
+  if (search) {
+    conditions.push(
+      buildLooseSearchCondition(search, [
+        "denominacio",
+        "objecte_contracte",
+        "nom_organ",
+      ])
+    );
+  }
+  if (cpvSearch) {
+    conditions.push(buildCpvDivisionSearchCondition(cpvSearch));
+  }
+
+  conditions.push("fase_publicacio='Anunci de licitació'");
+  conditions.push("termini_presentacio_ofertes IS NOT NULL");
+  conditions.push(`termini_presentacio_ofertes >= '${todayIsoDate}'`);
+  conditions.push("data_publicacio_adjudicacio IS NULL");
+  conditions.push("data_publicacio_formalitzacio IS NULL");
+  conditions.push("data_adjudicacio_contracte IS NULL");
+
+  const data = await soqlFetch<{ total: string }>({
+    $select: "count(*) as total",
+    $where: conditions.join(" AND "),
+  });
+
   return parseInt(data[0]?.total || "0", 10);
 }
 
