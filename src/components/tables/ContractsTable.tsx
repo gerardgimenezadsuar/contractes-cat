@@ -143,19 +143,18 @@ export default function ContractsTable({
       )}
 
       {/* Desktop table */}
-      <div className="hidden lg:block overflow-x-hidden">
-        <table className="w-full table-fixed text-sm">
+      <div className="hidden lg:block overflow-x-auto">
+        <table className="min-w-[1040px] w-full table-fixed text-sm">
           <thead>
             <tr className="border-b border-gray-200 bg-gray-50">
-              <th className="w-[32%] xl:w-[25%] text-left py-3 px-4 font-medium text-gray-500">Denominació</th>
-              <th className="w-[12%] xl:w-[10%] text-left py-3 px-4 font-medium text-gray-500">Tipus</th>
+              <th className="w-[34%] xl:w-[28%] text-left py-3 px-4 font-medium text-gray-500">Denominació</th>
               <th className="hidden xl:table-cell xl:w-[10%] text-left py-3 px-4 font-medium text-gray-500">Procediment</th>
-              <th className="w-[18%] xl:w-[16%] text-left py-3 px-4 font-medium text-gray-500">Adjudicatari</th>
+              <th className="w-[21%] xl:w-[17%] text-left py-3 px-4 font-medium text-gray-500">Adjudicatari</th>
               <th className="w-[11%] xl:w-[10%] text-right py-3 px-4 font-medium text-gray-500">Import (sense IVA)</th>
               <th className="w-[8%] xl:w-[7%] text-left py-3 px-4 font-medium text-gray-500">
                 Data ref.
               </th>
-              <th className="w-[19%] xl:w-[16%] text-left py-3 px-4 font-medium text-gray-500">Organ</th>
+              <th className="w-[26%] xl:w-[28%] text-left py-3 px-4 font-medium text-gray-500">Organisme</th>
             </tr>
           </thead>
           <tbody>
@@ -193,9 +192,6 @@ export default function ContractsTable({
                     ) : (
                       c.denominacio || "—"
                     )}
-                  </td>
-                  <td className="py-3 px-4 truncate" title={c.tipus_contracte}>
-                    {c.tipus_contracte || "—"}
                   </td>
                   <td className="hidden xl:table-cell py-3 px-4 truncate" title={c.procediment}>
                     {c.procediment || "—"}
@@ -246,7 +242,7 @@ export default function ContractsTable({
                       </div>
                     )}
                   </td>
-                  <td className="py-3 px-4 truncate" title={c.nom_organ}>
+                  <td className="py-3 px-4 align-top whitespace-normal break-words" title={c.nom_organ}>
                     {c.nom_organ || "—"}
                   </td>
                 </tr>
@@ -254,7 +250,7 @@ export default function ContractsTable({
             })}
             {visibleContracts.length === 0 && (
               <tr>
-                <td colSpan={7} className="py-8 text-center text-gray-500">
+                <td colSpan={6} className="py-8 text-center text-gray-500">
                   No s&apos;han trobat contractes.
                 </td>
               </tr>
@@ -336,7 +332,7 @@ export default function ContractsTable({
                   </button>
                 )}
               </p>
-              <p className="mt-1 text-xs text-gray-700 line-clamp-1">
+              <p className="mt-1 text-xs text-gray-700">
                 <span className="text-gray-500">Òrgan: </span>
                 {c.nom_organ || "—"}
               </p>

@@ -205,23 +205,25 @@ export default function ContractExplorer({
       </aside>
 
       <div>
-        <div className="flex items-center justify-between mb-4">
+        <div className="mb-4 flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
           <p className="text-sm text-gray-500">
             {loading ? "Carregant..." : `${formatNumber(total)} contractes trobats`}
           </p>
-          <a
-            href={`/api/contractes?${exportParams.toString()}`}
-            className="inline-flex items-center rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
-          >
-            Exporta CSV (vista actual)
-          </a>
-          <button
-            type="button"
-            onClick={handleCopyShareLink}
-            className="ml-2 inline-flex items-center rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
-          >
-            {shareCopied ? "Enllaç copiat" : "Copia enllaç"}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <a
+              href={`/api/contractes?${exportParams.toString()}`}
+              className="inline-flex items-center rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Exporta CSV (vista actual)
+            </a>
+            <button
+              type="button"
+              onClick={handleCopyShareLink}
+              className="inline-flex items-center rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+            >
+              {shareCopied ? "Enllaç copiat" : "Copia enllaç"}
+            </button>
+          </div>
         </div>
         <p className="mb-3 text-xs text-gray-500">
           Data ref. = data d&apos;adjudicació; si manca, formalització o publicació. Pot haver-hi
