@@ -17,6 +17,9 @@ export const API_ROUTE_STALE_WHILE_REVALIDATE_SECONDS = 86400; // 24 hours
 
 export const DEFAULT_PAGE_SIZE = 50;
 
+export const COMPANY_OVERFETCH_FACTOR = 3;
+export const ORGAN_OVERFETCH_FACTOR = 3;
+
 export const MINOR_CONTRACT_THRESHOLD = 15000;
 
 export const CONTRACT_TYPES = [

@@ -8,6 +8,9 @@ import {
   fetchContractTypeDistribution,
   fetchCpvDistribution,
 } from "@/lib/api";
+import { REVALIDATE_SECONDS } from "@/config/constants";
+
+export const revalidate = REVALIDATE_SECONDS;
 import { formatCompactNumber, formatNumber } from "@/lib/utils";
 import StatCard from "@/components/ui/StatCard";
 import CompanyBarChart from "@/components/charts/CompanyBarChart";

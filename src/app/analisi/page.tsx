@@ -7,6 +7,9 @@ import {
   fetchTopCompaniesInMinorRiskBand,
   fetchMinorShareYearly,
 } from "@/lib/api";
+import { REVALIDATE_SECONDS } from "@/config/constants";
+
+export const revalidate = REVALIDATE_SECONDS;
 import { formatNumber, formatCompactNumber, formatCurrency } from "@/lib/utils";
 import ThresholdChart from "@/components/charts/ThresholdChart";
 import MinorShareTrendChart from "@/components/charts/MinorShareTrendChart";

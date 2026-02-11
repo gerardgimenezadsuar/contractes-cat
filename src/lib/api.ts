@@ -4,6 +4,8 @@ import {
   CLEAN_AMOUNT_SENSE_FILTER,
   REVALIDATE_SECONDS,
   DEFAULT_PAGE_SIZE,
+  COMPANY_OVERFETCH_FACTOR,
+  ORGAN_OVERFETCH_FACTOR,
 } from "@/config/constants";
 import type {
   Contract,
@@ -203,7 +205,7 @@ export async function fetchTopCompanies(
     $where: conditions.join(" AND "),
     $group: "identificacio_adjudicatari, denominacio_adjudicatari",
     $order: "total DESC",
-    $limit: String(limit * 8),
+    $limit: String(limit * COMPANY_OVERFETCH_FACTOR),
   });
   return mergeByNif(raw).slice(0, limit);
 }
@@ -246,7 +248,7 @@ export async function fetchCompanies(
   }
 
   // Over-fetch then merge by NIF to handle name variations
-  const fetchLimit = (offset + limit) * 6;
+  const fetchLimit = (offset + limit) * COMPANY_OVERFETCH_FACTOR;
   const raw = await soqlFetch<CompanyAggregation>({
     $select:
       "identificacio_adjudicatari, denominacio_adjudicatari, sum(import_adjudicacio_amb_iva::number) as total, count(*) as num_contracts",
@@ -465,7 +467,7 @@ export async function fetchOrganTopCompanies(
     $where: `nom_organ='${safeName}' AND ${CLEAN_AMOUNT_FILTER} AND import_adjudicacio_amb_iva IS NOT NULL AND denominacio_adjudicatari IS NOT NULL AND identificacio_adjudicatari IS NOT NULL`,
     $group: "identificacio_adjudicatari, denominacio_adjudicatari",
     $order: "total DESC",
-    $limit: String(limit * 8),
+    $limit: String(limit * ORGAN_OVERFETCH_FACTOR),
   });
   return mergeByNif(raw).slice(0, limit);
 }
@@ -797,7 +799,7 @@ export async function fetchTopCompaniesInMinorRiskBand(
     $where: `${MINOR_15K_BASE_WHERE} AND import_adjudicacio_sense::number >= 14900 AND import_adjudicacio_sense::number < 15000 AND ${CLEAN_AMOUNT_FILTER} AND import_adjudicacio_amb_iva IS NOT NULL AND denominacio_adjudicatari IS NOT NULL AND identificacio_adjudicatari IS NOT NULL`,
     $group: "identificacio_adjudicatari, denominacio_adjudicatari",
     $order: "num_contracts DESC, total DESC",
-    $limit: String(limit * 8),
+    $limit: String(limit * COMPANY_OVERFETCH_FACTOR),
   });
   return mergeByNif(raw).slice(0, limit);
 }
