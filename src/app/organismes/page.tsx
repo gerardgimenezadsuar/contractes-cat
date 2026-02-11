@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { fetchOrgans, fetchOrgansCount } from "@/lib/api";
 import OrgansTable from "@/components/tables/OrgansTable";
-import { DEFAULT_PAGE_SIZE, REVALIDATE_SECONDS } from "@/config/constants";
+import { DEFAULT_PAGE_SIZE } from "@/config/constants";
 import SharePageButton from "@/components/ui/SharePageButton";
 
-export const revalidate = REVALIDATE_SECONDS;
+export const revalidate = 21600;
 
 export const metadata: Metadata = {
   title: "Organismes contractants",

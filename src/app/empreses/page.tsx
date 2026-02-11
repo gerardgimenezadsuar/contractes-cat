@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { fetchCompanies, fetchCompaniesCount } from "@/lib/api";
 import CompaniesTable from "@/components/tables/CompaniesTable";
-import { DEFAULT_PAGE_SIZE, REVALIDATE_SECONDS } from "@/config/constants";
+import { DEFAULT_PAGE_SIZE } from "@/config/constants";
 import SharePageButton from "@/components/ui/SharePageButton";
 
-export const revalidate = REVALIDATE_SECONDS;
+export const revalidate = 21600;
 
 export const metadata: Metadata = {
   title: "Empreses adjudicatàries",
