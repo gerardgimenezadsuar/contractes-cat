@@ -134,7 +134,7 @@ export default async function HomePage() {
                         <tr key={`${organ.nom_organ}-${index}`} className="border-b border-gray-100 last:border-b-0">
                           <td className="px-2 py-2 text-xs text-gray-500">{index + 1}</td>
                           <td className="px-1 py-2 text-gray-700">{organ.nom_organ}</td>
-                          <td className="px-2 py-2 text-right font-medium text-gray-900">
+                          <td className="px-2 py-2 text-right font-medium text-gray-900 whitespace-nowrap">
                             {formatCompactNumber(parseFloat(organ.total) || 0)}
                           </td>
                         </tr>
@@ -154,7 +154,7 @@ export default async function HomePage() {
                         <tr key={`${organ.nom_organ}-${index}`} className="border-b border-gray-100 last:border-b-0">
                           <td className="px-2 py-2 text-xs text-gray-500">{index + 1}</td>
                           <td className="px-1 py-2 text-gray-700">{organ.nom_organ}</td>
-                          <td className="px-2 py-2 text-right font-medium text-gray-900">
+                          <td className="px-2 py-2 text-right font-medium text-gray-900 whitespace-nowrap">
                             {formatCompactNumber(parseFloat(organ.total) || 0)}
                           </td>
                         </tr>
