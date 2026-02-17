@@ -373,9 +373,11 @@ export async function fetchCompaniesCount(
 export async function fetchOrgans(
   offset = 0,
   limit = DEFAULT_PAGE_SIZE,
-  search?: string
+  search?: string,
+  options?: { includeCurrentYear?: boolean }
 ): Promise<OrganAggregation[]> {
   const currentYear = new Date().getFullYear();
+  const includeCurrentYear = options?.includeCurrentYear !== false;
   const conditions = [
     CLEAN_AMOUNT_FILTER,
     "import_adjudicacio_amb_iva IS NOT NULL",
@@ -397,7 +399,7 @@ export async function fetchOrgans(
     $offset: String(offset),
   });
 
-  if (rows.length === 0) return rows;
+  if (rows.length === 0 || !includeCurrentYear) return rows;
 
   const escapedNames = rows
     .map((row) => `'${row.nom_organ.replace(/'/g, "''")}'`)
@@ -1069,12 +1071,28 @@ export async function fetchCpvDistribution(
 
 // Top contracting bodies
 export async function fetchTopOrgans(
-  limit = 10
+  limit = 10,
+  options?: { minYear?: number; maxYear?: number }
 ): Promise<{ nom_organ: string; total: string; num_contracts: string }[]> {
+  const conditions = [
+    CLEAN_AMOUNT_FILTER,
+    "import_adjudicacio_amb_iva IS NOT NULL",
+    "nom_organ IS NOT NULL",
+  ];
+  if (options?.minYear !== undefined || options?.maxYear !== undefined) {
+    conditions.push("data_adjudicacio_contracte IS NOT NULL");
+  }
+  if (options?.minYear !== undefined) {
+    conditions.push(`date_extract_y(data_adjudicacio_contracte) >= ${options.minYear}`);
+  }
+  if (options?.maxYear !== undefined) {
+    conditions.push(`date_extract_y(data_adjudicacio_contracte) <= ${options.maxYear}`);
+  }
+
   return soqlFetch({
     $select:
       "nom_organ, sum(import_adjudicacio_amb_iva::number) as total, count(*) as num_contracts",
-    $where: `${CLEAN_AMOUNT_FILTER} AND import_adjudicacio_amb_iva IS NOT NULL AND nom_organ IS NOT NULL`,
+    $where: conditions.join(" AND "),
     $group: "nom_organ",
     $order: "total DESC",
     $limit: String(limit),
@@ -1095,4 +1113,159 @@ export async function fetchCompanyTopOrgans(
     $order: "total DESC",
     $limit: String(limit),
   });
+}
+
+export async function fetchRecentActivityWindow(
+  days = 7
+): Promise<{
+  num_contracts: number;
+  total_amount: number;
+  unique_organs: number;
+  unique_companies: number;
+  last_award_date?: string;
+}> {
+  const safeDays = Number.isFinite(days) ? Math.max(1, Math.floor(days)) : 7;
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - safeDays);
+  const cutoffIso = `${cutoff.toISOString().slice(0, 10)}T00:00:00`;
+  const futureCutoffIso = getContractsFutureCutoffIso();
+
+  const rows = await soqlFetch<{
+    num_contracts?: string;
+    total_amount?: string;
+    unique_organs?: string;
+    unique_companies?: string;
+    last_award_date?: string;
+  }>({
+    $select: `
+      count(*) as num_contracts,
+      sum(import_adjudicacio_amb_iva::number) as total_amount,
+      count(distinct nom_organ) as unique_organs,
+      count(distinct identificacio_adjudicatari) as unique_companies,
+      max(${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) as last_award_date
+    `,
+    $where: `
+      ${AWARDED_CONTRACT_WHERE}
+      AND (${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) IS NOT NULL
+      AND (${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) >= '${cutoffIso}'
+      AND (${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) <= '${futureCutoffIso}'
+      AND ${CLEAN_AMOUNT_FILTER}
+      AND import_adjudicacio_amb_iva IS NOT NULL
+    `,
+  });
+
+  const row = rows[0] || {};
+  return {
+    num_contracts: parseInt(row.num_contracts || "0", 10),
+    total_amount: parseFloat(row.total_amount || "0"),
+    unique_organs: parseInt(row.unique_organs || "0", 10),
+    unique_companies: parseInt(row.unique_companies || "0", 10),
+    last_award_date: row.last_award_date,
+  };
+}
+
+async function fetchRecentActivityBetween(
+  startIso: string,
+  endIso: string
+): Promise<{
+  num_contracts: number;
+  total_amount: number;
+  unique_organs: number;
+  unique_companies: number;
+}> {
+  const futureCutoffIso = getContractsFutureCutoffIso();
+  const rows = await soqlFetch<{
+    num_contracts?: string;
+    total_amount?: string;
+    unique_organs?: string;
+    unique_companies?: string;
+  }>({
+    $select: `
+      count(*) as num_contracts,
+      sum(import_adjudicacio_amb_iva::number) as total_amount,
+      count(distinct nom_organ) as unique_organs,
+      count(distinct identificacio_adjudicatari) as unique_companies
+    `,
+    $where: `
+      ${AWARDED_CONTRACT_WHERE}
+      AND (${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) IS NOT NULL
+      AND (${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) >= '${startIso}'
+      AND (${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) <= '${endIso}'
+      AND (${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) <= '${futureCutoffIso}'
+      AND ${CLEAN_AMOUNT_FILTER}
+      AND import_adjudicacio_amb_iva IS NOT NULL
+    `,
+  });
+
+  const row = rows[0] || {};
+  return {
+    num_contracts: parseInt(row.num_contracts || "0", 10),
+    total_amount: parseFloat(row.total_amount || "0"),
+    unique_organs: parseInt(row.unique_organs || "0", 10),
+    unique_companies: parseInt(row.unique_companies || "0", 10),
+  };
+}
+
+export async function fetchRecentActivityComparison(
+  days = 90,
+  offsetDays = 365,
+  lagDays = 90
+): Promise<{
+  current: {
+    num_contracts: number;
+    total_amount: number;
+    unique_organs: number;
+    unique_companies: number;
+  };
+  previous: {
+    num_contracts: number;
+    total_amount: number;
+    unique_organs: number;
+    unique_companies: number;
+  };
+  meta: {
+    current_start: string;
+    current_end: string;
+    previous_start: string;
+    previous_end: string;
+    lag_days: number;
+  };
+}> {
+  const safeDays = Number.isFinite(days) ? Math.max(1, Math.floor(days)) : 90;
+  const safeOffset = Number.isFinite(offsetDays)
+    ? Math.max(safeDays, Math.floor(offsetDays))
+    : 365;
+  const safeLag = Number.isFinite(lagDays) ? Math.max(0, Math.floor(lagDays)) : 21;
+
+  const currentEnd = new Date();
+  currentEnd.setDate(currentEnd.getDate() - safeLag);
+  const currentStart = new Date(currentEnd);
+  currentStart.setDate(currentStart.getDate() - safeDays + 1);
+
+  const previousEnd = new Date(currentEnd);
+  previousEnd.setDate(previousEnd.getDate() - safeOffset);
+  const previousStart = new Date(previousEnd);
+  previousStart.setDate(previousStart.getDate() - safeDays + 1);
+
+  const currentStartIso = `${currentStart.toISOString().slice(0, 10)}T00:00:00`;
+  const currentEndIso = `${currentEnd.toISOString().slice(0, 10)}T23:59:59`;
+  const previousStartIso = `${previousStart.toISOString().slice(0, 10)}T00:00:00`;
+  const previousEndIso = `${previousEnd.toISOString().slice(0, 10)}T23:59:59`;
+
+  const [current, previous] = await Promise.all([
+    fetchRecentActivityBetween(currentStartIso, currentEndIso),
+    fetchRecentActivityBetween(previousStartIso, previousEndIso),
+  ]);
+
+  return {
+    current,
+    previous,
+    meta: {
+      current_start: currentStartIso.slice(0, 10),
+      current_end: currentEndIso.slice(0, 10),
+      previous_start: previousStartIso.slice(0, 10),
+      previous_end: previousEndIso.slice(0, 10),
+      lag_days: safeLag,
+    },
+  };
 }

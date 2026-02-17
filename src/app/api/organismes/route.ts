@@ -24,12 +24,17 @@ export async function GET(request: NextRequest) {
   const rawSearch = (searchParams.get("search") || "").trim();
   const search = rawSearch.length >= 2 ? rawSearch : "";
   const includeTotal = searchParams.get("includeTotal") !== "0";
+  const includeCurrentYear = searchParams.get("includeCurrentYear") !== "0";
+  const parsedLimit = parseInt(searchParams.get("limit") || "", 10);
+  const limit = Number.isFinite(parsedLimit) && parsedLimit > 0
+    ? Math.min(parsedLimit, 100)
+    : DEFAULT_PAGE_SIZE;
   const parsedPage = parseInt(searchParams.get("page") || "1", 10);
   const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
-  const offset = (page - 1) * DEFAULT_PAGE_SIZE;
+  const offset = (page - 1) * limit;
 
   if (format === "csv") {
-    const data = await fetchOrgans(offset, DEFAULT_PAGE_SIZE, search || undefined);
+    const data = await fetchOrgans(offset, limit, search || undefined, { includeCurrentYear });
     const csv = toOrgansCsv(data);
     const timestamp = new Date().toISOString().slice(0, 10);
     return new NextResponse(csv, {
@@ -41,7 +46,7 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  const data = await fetchOrgans(offset, DEFAULT_PAGE_SIZE, search || undefined);
+  const data = await fetchOrgans(offset, limit, search || undefined, { includeCurrentYear });
 
   if (!includeTotal) {
     return NextResponse.json(
