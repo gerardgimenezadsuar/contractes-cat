@@ -64,6 +64,65 @@ function normalizeSoqlTextExpr(field: string): string {
   return `upper(replace(replace(replace(replace(replace(${field},'.',''),',',''),'-',''),' ',''),'/',''))`;
 }
 
+function resolveCpvDivisionCodes(cpvSearch: string): string[] {
+  const normalized = normalizeSearchTerm(cpvSearch);
+  if (!normalized) return [];
+
+  const isNumericSearch = /^\d+$/.test(normalized);
+  const matches: string[] = [];
+
+  for (const [code, label] of Object.entries(CPV_DIVISIONS)) {
+    const normalizedLabel = normalizeSearchTerm(label);
+    const matchesCode = isNumericSearch
+      ? normalized.startsWith(code) || code.startsWith(normalized)
+      : code.includes(normalized);
+
+    if (matchesCode || normalizedLabel.includes(normalized)) {
+      matches.push(code);
+    }
+  }
+
+  return matches;
+}
+
+function normalizeCpvDivisionCodes(filters?: string[]): string[] {
+  if (!filters || filters.length === 0) return [];
+
+  const resolved = new Set<string>();
+
+  for (const token of filters) {
+    const trimmed = token.trim();
+    if (!trimmed) continue;
+
+    const digits = trimmed.replace(/\D/g, "");
+    if (digits.length >= 2) {
+      const code = digits.slice(0, 2);
+      if (CPV_DIVISIONS[code]) {
+        resolved.add(code);
+        continue;
+      }
+    }
+
+    for (const code of resolveCpvDivisionCodes(trimmed)) {
+      resolved.add(code);
+    }
+  }
+
+  return Array.from(resolved);
+}
+
+function buildCpvDivisionWhere(cpvFilters?: string[]): string | null {
+  if (!cpvFilters || cpvFilters.length === 0) return null;
+
+  const codes = normalizeCpvDivisionCodes(cpvFilters);
+  if (codes.length === 0) return "1=0";
+
+  const cpvCodeConditions = codes.map(
+    (code) => `(codi_cpv like '${code}%' OR codi_cpv like '%||${code}%')`
+  );
+  return `codi_cpv IS NOT NULL AND (${cpvCodeConditions.join(" OR ")})`;
+}
+
 function buildLooseSearchCondition(search: string, fields: string[]): string {
   const safeSearch = search.replace(/'/g, "''");
   const exactParts = fields.map(
@@ -229,7 +288,8 @@ export async function fetchYearlyTrend(): Promise<YearlyAggregation[]> {
 export async function fetchCompanies(
   offset = 0,
   limit = DEFAULT_PAGE_SIZE,
-  search?: string
+  search?: string,
+  cpvFilters?: string[]
 ): Promise<CompanyAggregation[]> {
   const currentYear = new Date().getFullYear();
   const conditions = [
@@ -244,6 +304,8 @@ export async function fetchCompanies(
       `(upper(denominacio_adjudicatari) like upper('%${safe}%') OR upper(identificacio_adjudicatari) like upper('%${safe}%'))`
     );
   }
+  const cpvWhere = buildCpvDivisionWhere(cpvFilters);
+  if (cpvWhere) conditions.push(cpvWhere);
 
   // Over-fetch then merge by NIF to handle name variations
   const fetchLimit = (offset + limit) * 6;
@@ -281,7 +343,10 @@ export async function fetchCompanies(
   }));
 }
 
-export async function fetchCompaniesCount(search?: string): Promise<number> {
+export async function fetchCompaniesCount(
+  search?: string,
+  cpvFilters?: string[]
+): Promise<number> {
   const conditions = [
     CLEAN_AMOUNT_FILTER,
     "import_adjudicacio_amb_iva IS NOT NULL",
@@ -294,6 +359,8 @@ export async function fetchCompaniesCount(search?: string): Promise<number> {
       `(upper(denominacio_adjudicatari) like upper('%${safe}%') OR upper(identificacio_adjudicatari) like upper('%${safe}%'))`
     );
   }
+  const cpvWhere = buildCpvDivisionWhere(cpvFilters);
+  if (cpvWhere) conditions.push(cpvWhere);
 
   const data = await soqlFetch<{ total: string }>({
     $select: "count(distinct identificacio_adjudicatari) as total",

@@ -11,18 +11,22 @@ export const metadata: Metadata = {
 };
 
 interface Props {
-  searchParams: Promise<{ search?: string; page?: string }>;
+  searchParams: Promise<{ search?: string; cpv?: string; page?: string }>;
 }
 
 export default async function EmpresePage({ searchParams }: Props) {
   const params = await searchParams;
   const search = params.search || "";
+  const cpv = (params.cpv || "")
+    .split(",")
+    .map((token) => token.trim())
+    .filter((token) => token.length > 0);
   const page = parseInt(params.page || "1", 10);
   const offset = (page - 1) * DEFAULT_PAGE_SIZE;
 
   const [companies, total] = await Promise.all([
-    fetchCompanies(offset, DEFAULT_PAGE_SIZE, search || undefined),
-    fetchCompaniesCount(search || undefined),
+    fetchCompanies(offset, DEFAULT_PAGE_SIZE, search || undefined, cpv.length ? cpv : undefined),
+    fetchCompaniesCount(search || undefined, cpv.length ? cpv : undefined),
   ]);
 
   return (
@@ -35,13 +39,15 @@ export default async function EmpresePage({ searchParams }: Props) {
       </div>
       <p className="text-gray-600 mb-8">
         Rànquing d&apos;empreses per import total de contractes públics
-        adjudicats. Fes clic en una empresa per veure el detall.
+        adjudicats. Pots filtrar per empresa i també per sector CPV (codi o
+        descripció) per veure qui concentra més activitat en cada àmbit.
       </p>
 
       <CompaniesTable
         initialData={companies}
         initialTotal={total}
         initialSearch={search}
+        initialCpv={cpv}
         initialPage={page}
       />
     </div>

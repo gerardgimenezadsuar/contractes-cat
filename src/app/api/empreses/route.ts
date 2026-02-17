@@ -38,14 +38,24 @@ export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const format = searchParams.get("format");
   const rawSearch = (searchParams.get("search") || "").trim();
+  const rawCpv = (searchParams.get("cpv") || "").trim();
   const search = rawSearch.length >= 2 ? rawSearch : "";
+  const cpvFilters = rawCpv
+    .split(",")
+    .map((token) => token.trim())
+    .filter((token) => token.length > 0);
   const includeTotal = searchParams.get("includeTotal") !== "0";
   const parsedPage = parseInt(searchParams.get("page") || "1", 10);
   const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
   const offset = (page - 1) * DEFAULT_PAGE_SIZE;
 
   if (format === "csv") {
-    const data = await fetchCompanies(offset, DEFAULT_PAGE_SIZE, search || undefined);
+    const data = await fetchCompanies(
+      offset,
+      DEFAULT_PAGE_SIZE,
+      search || undefined,
+      cpvFilters.length > 0 ? cpvFilters : undefined
+    );
     const csv = toCompaniesCsv(data);
     const timestamp = new Date().toISOString().slice(0, 10);
     return new NextResponse(csv, {
@@ -57,7 +67,12 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  const data = await fetchCompanies(offset, DEFAULT_PAGE_SIZE, search || undefined);
+  const data = await fetchCompanies(
+    offset,
+    DEFAULT_PAGE_SIZE,
+    search || undefined,
+    cpvFilters.length > 0 ? cpvFilters : undefined
+  );
 
   if (!includeTotal) {
     return NextResponse.json(
@@ -70,7 +85,10 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const total = await fetchCompaniesCount(search || undefined);
+  const total = await fetchCompaniesCount(
+    search || undefined,
+    cpvFilters.length > 0 ? cpvFilters : undefined
+  );
 
   return NextResponse.json(
     { data, total },
