@@ -47,11 +47,12 @@ export default function ContractFilters({
 
       {/* Search */}
       <div>
-        <label className="block text-xs font-medium text-gray-500 mb-1">
+        <label htmlFor="contract-filter-search" className="block text-xs font-medium text-gray-500 mb-1">
           Cerca per contracte, empresa o NIF
         </label>
         <div className="relative">
           <input
+            id="contract-filter-search"
             type="text"
             value={filters.search}
             onChange={(e) => onChange("search", e.target.value)}
@@ -69,10 +70,11 @@ export default function ContractFilters({
 
       {/* Year */}
       <div>
-        <label className="block text-xs font-medium text-gray-500 mb-1">
+        <label htmlFor="contract-filter-year" className="block text-xs font-medium text-gray-500 mb-1">
           Any
         </label>
         <select
+          id="contract-filter-year"
           value={filters.year}
           onChange={(e) => onChange("year", e.target.value)}
           className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
@@ -88,10 +90,11 @@ export default function ContractFilters({
 
       {/* Contract type */}
       <div>
-        <label className="block text-xs font-medium text-gray-500 mb-1">
+        <label htmlFor="contract-filter-type" className="block text-xs font-medium text-gray-500 mb-1">
           Tipus de contracte
         </label>
         <select
+          id="contract-filter-type"
           value={filters.tipus_contracte}
           onChange={(e) => onChange("tipus_contracte", e.target.value)}
           className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
@@ -107,10 +110,11 @@ export default function ContractFilters({
 
       {/* Procedure */}
       <div>
-        <label className="block text-xs font-medium text-gray-500 mb-1">
+        <label htmlFor="contract-filter-procedure" className="block text-xs font-medium text-gray-500 mb-1">
           Procediment
         </label>
         <select
+          id="contract-filter-procedure"
           value={filters.procediment}
           onChange={(e) => onChange("procediment", e.target.value)}
           className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
@@ -127,10 +131,11 @@ export default function ContractFilters({
       {/* Amount range */}
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">
+          <label htmlFor="contract-filter-amount-min" className="block text-xs font-medium text-gray-500 mb-1">
             Import mínim (EUR)
           </label>
           <input
+            id="contract-filter-amount-min"
             type="number"
             value={filters.amountMin}
             onChange={(e) => onChange("amountMin", e.target.value)}
@@ -140,10 +145,11 @@ export default function ContractFilters({
           />
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">
+          <label htmlFor="contract-filter-amount-max" className="block text-xs font-medium text-gray-500 mb-1">
             Import màxim (EUR)
           </label>
           <input
+            id="contract-filter-amount-max"
             type="number"
             value={filters.amountMax}
             onChange={(e) => onChange("amountMax", e.target.value)}
@@ -156,11 +162,12 @@ export default function ContractFilters({
 
       {/* Organ */}
       <div>
-        <label className="block text-xs font-medium text-gray-500 mb-1">
+        <label htmlFor="contract-filter-organ" className="block text-xs font-medium text-gray-500 mb-1">
           Òrgan de contractació
         </label>
         <div className="relative">
           <input
+            id="contract-filter-organ"
             type="text"
             value={filters.nom_organ}
             onChange={(e) => onChange("nom_organ", e.target.value)}

@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "doctor": "react-doctor . --yes",
+    "doctor:verbose": "react-doctor . --yes --verbose"
   },
   "dependencies": {
     "@vercel/analytics": "^1.6.1",
@@ -22,6 +24,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "react-doctor": "^0.0.18",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

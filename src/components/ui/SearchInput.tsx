@@ -23,10 +23,6 @@ export default function SearchInput({
   const [local, setLocal] = useState(value);
 
   useEffect(() => {
-    setLocal(value);
-  }, [value]);
-
-  useEffect(() => {
     const timer = setTimeout(() => {
       if (local !== value) onChange(local);
     }, debounceMs);

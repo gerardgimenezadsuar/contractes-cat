@@ -17,7 +17,7 @@ import {
   formatDate,
 } from "@/lib/utils";
 import StatCard from "@/components/ui/StatCard";
-import YearlyTrendChart from "@/components/charts/YearlyTrendChart";
+import { YearlyTrendChartLazy } from "@/components/charts/LazyCharts";
 import CompanyContractsExplorer from "@/components/company/CompanyContractsExplorer";
 import SharePageButton from "@/components/ui/SharePageButton";
 import CompanyCounterpartyTable from "@/components/company/CompanyCounterpartyTable";
@@ -174,7 +174,7 @@ export default async function CompanyDetailPage({ params }: Props) {
             </h2>
             <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
               {yearly.length > 0 ? (
-                <YearlyTrendChart data={yearly} />
+                <YearlyTrendChartLazy data={yearly} />
               ) : (
                 <p className="text-sm text-gray-500">No hi ha prou dades anuals per mostrar la gràfica.</p>
               )}

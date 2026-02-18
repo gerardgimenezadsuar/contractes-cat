@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   fetchTotalContracts,
@@ -18,9 +19,17 @@ import {
   getPublicationUrl,
 } from "@/lib/utils";
 import StatCard from "@/components/ui/StatCard";
-import CompanyBarChart from "@/components/charts/CompanyBarChart";
-import YearlyTrendChart from "@/components/charts/YearlyTrendChart";
+import {
+  CompanyBarChartLazy,
+  YearlyTrendChartLazy,
+} from "@/components/charts/LazyCharts";
 import CompanySearch from "@/components/ui/CompanySearch";
+
+export const metadata: Metadata = {
+  title: "Contractes CAT | Observatori independent de contractació pública",
+  description:
+    "Explora contractes públics a Catalunya per empresa i organisme amb rànquings, tendències i dades obertes.",
+};
 
 function isAjuntament(name: string): boolean {
   return /\bajuntament\b/i.test(name);
@@ -115,7 +124,7 @@ export default async function HomePage() {
               </Link>
             </div>
             <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
-              <CompanyBarChart data={topCompanies} />
+              <CompanyBarChartLazy data={topCompanies} />
             </div>
             <p className="mt-2 text-xs text-gray-500">Basat en la data d&apos;adjudicació del contracte.</p>
           </div>
@@ -172,7 +181,7 @@ export default async function HomePage() {
           <div>
             <h2 className="mb-4 text-2xl font-bold text-gray-900">Evolució anual</h2>
             <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
-              <YearlyTrendChart data={yearlyTrend} />
+              <YearlyTrendChartLazy data={yearlyTrend} />
             </div>
             <p className="mt-2 text-xs text-gray-400">
               L&apos;increment dels primers anys reflecteix l&apos;adopció progressiva del registre digital.

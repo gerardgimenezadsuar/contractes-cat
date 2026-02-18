@@ -7,6 +7,8 @@ import Pagination from "@/components/ui/Pagination";
 import { DEFAULT_PAGE_SIZE } from "@/config/constants";
 import { formatNumber } from "@/lib/utils";
 
+const EMPTY_CONTRACTS: Contract[] = [];
+
 interface Props {
   organName: string;
   initialContracts?: Contract[];
@@ -17,7 +19,7 @@ type SortKey = "date-desc" | "date-asc" | "amount-desc" | "amount-asc";
 
 export default function OrganContractsExplorer({
   organName,
-  initialContracts = [],
+  initialContracts = EMPTY_CONTRACTS,
   totalContracts = 0,
 }: Props) {
   const [contracts, setContracts] = useState(initialContracts);

@@ -7,6 +7,8 @@ interface PaginationProps {
   onPageChange: (page: number) => void;
 }
 
+type PaginationToken = number | "dots-left" | "dots-right";
+
 export default function Pagination({
   currentPage,
   totalItems,
@@ -18,12 +20,12 @@ export default function Pagination({
   if (totalPages <= 1) return null;
 
   const getPageNumbers = () => {
-    const pages: (number | "...")[] = [];
+    const pages: PaginationToken[] = [];
     if (totalPages <= 7) {
       for (let i = 1; i <= totalPages; i++) pages.push(i);
     } else {
       pages.push(1);
-      if (currentPage > 3) pages.push("...");
+      if (currentPage > 3) pages.push("dots-left");
       for (
         let i = Math.max(2, currentPage - 1);
         i <= Math.min(totalPages - 1, currentPage + 1);
@@ -31,7 +33,7 @@ export default function Pagination({
       ) {
         pages.push(i);
       }
-      if (currentPage < totalPages - 2) pages.push("...");
+      if (currentPage < totalPages - 2) pages.push("dots-right");
       pages.push(totalPages);
     }
     return pages;
@@ -52,9 +54,9 @@ export default function Pagination({
         >
           Anterior
         </button>
-        {getPageNumbers().map((page, i) =>
-          page === "..." ? (
-            <span key={`dots-${i}`} className="px-2 text-gray-400">
+        {getPageNumbers().map((page) =>
+          page === "dots-left" || page === "dots-right" ? (
+            <span key={page} className="px-2 text-gray-400">
               ...
             </span>
           ) : (

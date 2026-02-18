@@ -154,11 +154,11 @@ export default function CompanySearch() {
 
       {open && results.length > 0 && (
         <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
-          {results.map((result, i) => {
+          {results.map((result) => {
             if (result.kind === "empresa") {
               return (
                 <Link
-                  key={`${result.identificacio_adjudicatari}-${i}`}
+                  key={`empresa-${result.identificacio_adjudicatari}`}
                   href={`/empreses/${encodeURIComponent(result.identificacio_adjudicatari)}`}
                   onClick={() => setOpen(false)}
                   className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
@@ -185,7 +185,7 @@ export default function CompanySearch() {
 
             return (
               <Link
-                key={`${result.nom_organ}-${i}`}
+                key={`organ-${result.nom_organ}`}
                 href={`/organismes/${encodeURIComponent(result.nom_organ)}`}
                 onClick={() => setOpen(false)}
                 className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"

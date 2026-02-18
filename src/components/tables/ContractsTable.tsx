@@ -94,6 +94,23 @@ export default function ContractsTable({
     sortDir,
   ]);
 
+  const keyedVisibleContracts = useMemo(() => {
+    const seen = new Map<string, number>();
+    return visibleContracts.map((contract) => {
+      const baseKey = [
+        contract.codi_expedient || "",
+        contract.nom_organ || "",
+        contract.denominacio_adjudicatari || "",
+        contract.numero_lot || "",
+        contract.data_adjudicacio_contracte || "",
+      ].join("|");
+      const occurrence = seen.get(baseKey) ?? 0;
+      seen.set(baseKey, occurrence + 1);
+      const rowKey = occurrence === 0 ? baseKey : `${baseKey}__dup-${occurrence}`;
+      return { contract, rowKey };
+    });
+  }, [visibleContracts]);
+
   const showControls = enableOrganFilter || enableDateSort || enableAmountSort;
 
   return (
@@ -158,8 +175,7 @@ export default function ContractsTable({
             </tr>
           </thead>
           <tbody>
-            {visibleContracts.map((c, idx) => {
-              const rowKey = `${c.codi_expedient}-${idx}`;
+            {keyedVisibleContracts.map(({ contract: c, rowKey }) => {
               const awardees = splitAwardees(c.denominacio_adjudicatari);
               const hasMultipleAwardees = awardees.length > 1;
               const isAwardeesExpanded = expandedAwardees.has(rowKey);
@@ -176,7 +192,7 @@ export default function ContractsTable({
               const suspiciousDate = isSuspiciousContractDate(bestDate.date);
               return (
                 <tr
-                  key={`${c.codi_expedient}-${idx}`}
+                  key={rowKey}
                   className="border-b border-gray-100 hover:bg-gray-50"
                 >
                   <td className="py-3 px-4 truncate" title={c.denominacio}>
@@ -261,8 +277,7 @@ export default function ContractsTable({
 
       {/* Mobile card layout */}
       <div className="lg:hidden space-y-2 p-2">
-        {visibleContracts.map((c, idx) => {
-          const rowKey = `${c.codi_expedient}-${idx}`;
+        {keyedVisibleContracts.map(({ contract: c, rowKey }) => {
           const awardees = splitAwardees(c.denominacio_adjudicatari);
           const hasMultipleAwardees = awardees.length > 1;
           const isAwardeesExpanded = expandedAwardees.has(rowKey);
@@ -279,7 +294,7 @@ export default function ContractsTable({
           const suspiciousDate = isSuspiciousContractDate(bestDate.date);
           return (
             <article
-              key={`m-${c.codi_expedient}-${idx}`}
+              key={`m-${rowKey}`}
               className="rounded-lg border border-gray-200 bg-white p-3"
             >
               {publicationUrl ? (

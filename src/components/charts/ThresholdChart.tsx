@@ -49,9 +49,9 @@ export default function ThresholdChart({ data }: Props) {
           label={{ value: "Tram final <15k", position: "top", fill: "#dc2626", fontSize: 11 }}
         />
         <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-          {data.map((entry, index) => (
+          {data.map((entry) => (
             <Cell
-              key={index}
+              key={`${entry.range_start}-${entry.range_end}`}
               fill={entry.range_start >= 14500 ? "#dc2626" : "#1e3a5f"}
               fillOpacity={entry.range_start >= 14500 ? 1 : 0.8}
             />

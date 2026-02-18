@@ -8,8 +8,10 @@ import {
   fetchMinorShareYearly,
 } from "@/lib/api";
 import { formatNumber, formatCompactNumber, formatCurrency } from "@/lib/utils";
-import ThresholdChart from "@/components/charts/ThresholdChart";
-import MinorShareTrendChart from "@/components/charts/MinorShareTrendChart";
+import {
+  MinorShareTrendChartLazy,
+  ThresholdChartLazy,
+} from "@/components/charts/LazyCharts";
 import StatCard from "@/components/ui/StatCard";
 import SharePageButton from "@/components/ui/SharePageButton";
 
@@ -175,7 +177,7 @@ export default async function AnalisiPage() {
         </div>
 
         <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
-          <ThresholdChart data={thresholdData} />
+          <ThresholdChartLazy data={thresholdData} />
         </div>
         <p className="text-xs text-gray-500 mt-2">
           El gràfic mostra la distribució en trams de 500 EUR. La franja
@@ -335,7 +337,7 @@ export default async function AnalisiPage() {
         </div>
 
         <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
-          <MinorShareTrendChart data={minorShareYearlyComplete} />
+          <MinorShareTrendChartLazy data={minorShareYearlyComplete} />
         </div>
 
         <p className="text-xs text-gray-500 mt-2">

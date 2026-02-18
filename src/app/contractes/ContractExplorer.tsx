@@ -8,6 +8,8 @@ import Pagination from "@/components/ui/Pagination";
 import { DEFAULT_PAGE_SIZE } from "@/config/constants";
 import { formatNumber } from "@/lib/utils";
 
+const EMPTY_CONTRACTS: Contract[] = [];
+
 const EMPTY_FILTERS = {
   year: "",
   tipus_contracte: "",
@@ -28,7 +30,7 @@ interface Props {
 export default function ContractExplorer({
   initialFilters = EMPTY_FILTERS,
   initialPage = 1,
-  initialContracts = [],
+  initialContracts = EMPTY_CONTRACTS,
   initialTotal = 0,
 }: Props) {
   const [filters, setFilters] = useState(initialFilters);

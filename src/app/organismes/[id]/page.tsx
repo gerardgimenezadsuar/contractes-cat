@@ -15,7 +15,7 @@ import {
   formatDate,
 } from "@/lib/utils";
 import StatCard from "@/components/ui/StatCard";
-import YearlyTrendChart from "@/components/charts/YearlyTrendChart";
+import { YearlyTrendChartLazy } from "@/components/charts/LazyCharts";
 import SharePageButton from "@/components/ui/SharePageButton";
 import OrganContractsExplorer from "@/components/organ/OrganContractsExplorer";
 import OrganTopCompaniesTable from "@/components/organ/OrganTopCompaniesTable";
@@ -136,7 +136,7 @@ export default async function OrganDetailPage({ params }: Props) {
             <h2 className="text-2xl font-bold text-gray-900 mb-4">Evolució anual</h2>
             <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
               {yearly.length > 0 ? (
-                <YearlyTrendChart data={yearly} />
+                <YearlyTrendChartLazy data={yearly} />
               ) : (
                 <p className="text-sm text-gray-500">No hi ha prou dades anuals per mostrar la gràfica.</p>
               )}
