@@ -21,15 +21,19 @@ const EMPTY_FILTERS = {
 interface Props {
   initialFilters?: typeof EMPTY_FILTERS;
   initialPage?: number;
+  initialContracts?: Contract[];
+  initialTotal?: number;
 }
 
 export default function ContractExplorer({
   initialFilters = EMPTY_FILTERS,
   initialPage = 1,
+  initialContracts = [],
+  initialTotal = 0,
 }: Props) {
   const [filters, setFilters] = useState(initialFilters);
-  const [contracts, setContracts] = useState<Contract[]>([]);
-  const [total, setTotal] = useState(0);
+  const [contracts, setContracts] = useState<Contract[]>(initialContracts);
+  const [total, setTotal] = useState(initialTotal);
   const [page, setPage] = useState(initialPage);
   const [loading, setLoading] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -118,7 +122,9 @@ export default function ContractExplorer({
   }, [buildQueryString, filters, page]);
 
   useEffect(() => {
-    fetchData(filters, page);
+    if (initialContracts.length === 0) {
+      fetchData(filters, page);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

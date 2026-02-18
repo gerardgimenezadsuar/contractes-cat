@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { cache } from "react";
 import {
   fetchCompanyDetail,
   fetchCompanyContracts,
@@ -21,14 +22,18 @@ import CompanyContractsExplorer from "@/components/company/CompanyContractsExplo
 import SharePageButton from "@/components/ui/SharePageButton";
 import CompanyCounterpartyTable from "@/components/company/CompanyCounterpartyTable";
 
+export const revalidate = 21600;
+
 interface Props {
   params: Promise<{ id: string }>;
 }
 
+const getCompanyDetail = cache(async (id: string) => fetchCompanyDetail(id));
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const decodedId = decodeURIComponent(id);
-  const { company } = await fetchCompanyDetail(decodedId);
+  const { company } = await getCompanyDetail(decodedId);
   const companyName = company?.denominacio_adjudicatari || decodedId;
   const totalAmount = parseFloat(company?.total || "0");
   const totalContracts = parseInt(company?.num_contracts || "0", 10);
@@ -69,7 +74,7 @@ export default async function CompanyDetailPage({ params }: Props) {
   const decodedId = decodeURIComponent(id);
 
   const [{ company, yearly }, contracts, contractsCount, topOrgans, lastAwardDate] = await Promise.all([
-    fetchCompanyDetail(decodedId),
+    getCompanyDetail(decodedId),
     fetchCompanyContracts(decodedId, 0, 50),
     fetchCompanyContractsCount(decodedId),
     fetchCompanyTopOrgans(decodedId, 10),

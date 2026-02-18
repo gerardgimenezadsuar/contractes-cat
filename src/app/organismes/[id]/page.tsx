@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { cache } from "react";
 import {
   fetchOrganDetail,
   fetchOrganRecentContracts,
+  fetchOrganTopCompanies,
 } from "@/lib/api";
 import {
   formatCurrency,
@@ -16,16 +18,20 @@ import StatCard from "@/components/ui/StatCard";
 import YearlyTrendChart from "@/components/charts/YearlyTrendChart";
 import SharePageButton from "@/components/ui/SharePageButton";
 import OrganContractsExplorer from "@/components/organ/OrganContractsExplorer";
-import OrganTopCompaniesSection from "@/components/organ/OrganTopCompaniesSection";
+import OrganTopCompaniesTable from "@/components/organ/OrganTopCompaniesTable";
+
+export const revalidate = 21600;
 
 interface Props {
   params: Promise<{ id: string }>;
 }
 
+const getOrganDetail = cache(async (id: string) => fetchOrganDetail(id));
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const decodedId = decodeURIComponent(id);
-  const { organ } = await fetchOrganDetail(decodedId);
+  const { organ } = await getOrganDetail(decodedId);
   const organName = organ?.nom_organ || decodedId;
   const totalAmount = parseFloat(organ?.total || "0");
   const totalContracts = parseInt(organ?.num_contracts || "0", 10);
@@ -63,9 +69,10 @@ export default async function OrganDetailPage({ params }: Props) {
   const { id } = await params;
   const decodedId = decodeURIComponent(id);
 
-  const [{ organ, yearly }, recentContracts] = await Promise.all([
-    fetchOrganDetail(decodedId),
+  const [{ organ, yearly }, recentContracts, topCompanies] = await Promise.all([
+    getOrganDetail(decodedId),
     fetchOrganRecentContracts(decodedId, 10),
+    fetchOrganTopCompanies(decodedId, 10),
   ]);
 
   if (!organ) {
@@ -196,7 +203,9 @@ export default async function OrganDetailPage({ params }: Props) {
         </div>
       </section>
 
-      <OrganTopCompaniesSection organName={organ.nom_organ} organTotalAmount={totalAmount} />
+      {topCompanies.length > 0 && (
+        <OrganTopCompaniesTable rows={topCompanies} organTotalAmount={totalAmount} />
+      )}
 
       <section>
         <OrganContractsExplorer organName={organ.nom_organ} />

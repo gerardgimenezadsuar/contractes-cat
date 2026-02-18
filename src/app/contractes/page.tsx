@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import ContractExplorer from "./ContractExplorer";
 import SharePageButton from "@/components/ui/SharePageButton";
+import { fetchContracts, fetchContractsCount } from "@/lib/api";
 
 export const metadata: Metadata = {
   title: "Explorador de contractes",
@@ -33,6 +34,20 @@ export default async function ContractesPage({ searchParams }: Props) {
     search: params.search || "",
   };
   const initialPage = Math.max(1, parseInt(params.page || "1", 10) || 1);
+  const queryFilters = {
+    year: initialFilters.year || undefined,
+    tipus_contracte: initialFilters.tipus_contracte || undefined,
+    procediment: initialFilters.procediment || undefined,
+    amountMin: initialFilters.amountMin || undefined,
+    amountMax: initialFilters.amountMax || undefined,
+    nom_organ: initialFilters.nom_organ || undefined,
+    search: initialFilters.search || undefined,
+  };
+
+  const [initialContracts, initialTotal] = await Promise.all([
+    fetchContracts({ ...queryFilters, page: initialPage }),
+    fetchContractsCount(queryFilters),
+  ]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -46,7 +61,12 @@ export default async function ContractesPage({ searchParams }: Props) {
         Cerca i filtra tots els contractes públics publicats a la plataforma de
         contractació pública de Catalunya.
       </p>
-      <ContractExplorer initialFilters={initialFilters} initialPage={initialPage} />
+      <ContractExplorer
+        initialFilters={initialFilters}
+        initialPage={initialPage}
+        initialContracts={initialContracts}
+        initialTotal={initialTotal}
+      />
     </div>
   );
 }
