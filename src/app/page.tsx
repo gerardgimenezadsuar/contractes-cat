@@ -64,52 +64,80 @@ export default async function HomePage() {
   const currentYearContracts = currentYearRow ? parseInt(currentYearRow.num_contracts, 10) || 0 : 0;
   const currentYearAmount = currentYearRow ? parseFloat(currentYearRow.total) || 0 : 0;
 
+  // YoY trend: compare last two complete years (currentYear-1 vs currentYear-2)
+  const previousYearRow = yearlyTrend.find((row) => parseInt(row.year, 10) === currentYear - 1);
+  const twoYearsAgoRow = yearlyTrend.find((row) => parseInt(row.year, 10) === currentYear - 2);
+  const prevContracts = previousYearRow ? parseInt(previousYearRow.num_contracts, 10) || 0 : 0;
+  const twoYearsContracts = twoYearsAgoRow ? parseInt(twoYearsAgoRow.num_contracts, 10) || 0 : 0;
+  const contractsTrend =
+    twoYearsContracts > 0 ? ((prevContracts - twoYearsContracts) / twoYearsContracts) * 100 : null;
+  const prevAmount = previousYearRow ? parseFloat(previousYearRow.total) || 0 : 0;
+  const twoYearsAmount = twoYearsAgoRow ? parseFloat(twoYearsAgoRow.total) || 0 : 0;
+  const amountTrend =
+    twoYearsAmount > 0 ? ((prevAmount - twoYearsAmount) / twoYearsAmount) * 100 : null;
+  const trendLabel =
+    previousYearRow && twoYearsAgoRow
+      ? `${twoYearsAgoRow.year}→${previousYearRow.year}`
+      : undefined;
+
   const topAjuntaments = topOrgans2024to2026.filter((row) => isAjuntament(row.nom_organ)).slice(0, 5);
   const topAltresOrgans = topOrgans2024to2026.filter((row) => !isAjuntament(row.nom_organ)).slice(0, 5);
 
   return (
     <div>
-      <section className="mb-10 bg-gradient-to-b from-gray-50 to-white">
-        <div className="mx-auto max-w-7xl px-4 pb-1 pt-8">
-          <div className="relative mb-3">
+      <section className="mb-10 bg-gradient-to-b from-indigo-50/60 to-white">
+        <div className="mx-auto max-w-7xl px-4 pb-4 pt-10">
+          <div className="mb-1 flex justify-center">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-white px-3 py-1 text-xs font-medium text-indigo-700 shadow-sm">
+              <span className="h-1.5 w-1.5 rounded-full bg-green-500"></span>
+              {formatNumber(totalContracts)} contractes · {formatCompactNumber(totalAmount)} adjudicats · Dades obertes
+            </span>
+          </div>
+          <div className="relative mb-3 mt-3">
             <h1 className="text-3xl font-bold text-gray-900 text-center sm:text-4xl">
               Observatori independent de contractació pública
             </h1>
           </div>
-          <p className="mb-4 text-center text-sm text-gray-700 sm:text-base">
-            Busca directament empreses i organismes per supervisar activitat i imports adjudicats.
+          <p className="mb-5 text-center text-sm text-gray-600 sm:text-base max-w-2xl mx-auto">
+            Supervisa qui rep els contractes públics a Catalunya, quant s&apos;adjudica i com evoluciona la despesa. Cerca empreses, organismes i analitza patrons.
           </p>
-          <div className="mb-2 flex justify-center">
+          <div className="mb-3 flex justify-center">
             <CompanySearch />
           </div>
           <div className="mb-2 flex flex-wrap items-center justify-center gap-4 text-xs text-gray-500">
             <Link href="/empreses" className="underline hover:text-gray-800">Rànquing empreses</Link>
             <Link href="/organismes" className="underline hover:text-gray-800">Rànquing organismes</Link>
             <Link href="/contractes" className="underline hover:text-gray-800">Explorador contractes</Link>
+            <Link href="/licitacions" className="underline hover:text-gray-800">Licitacions obertes</Link>
           </div>
-          <p className="text-center text-xs text-gray-400">
-            Dades obertes de la Plataforma de Transparència de Catalunya.
-          </p>
         </div>
       </section>
 
       <div className="mx-auto max-w-7xl px-4 pb-8">
         <section className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
-            title={`Contractes ${currentYear}`}
+            title={`Contractes ${currentYear} (en curs)`}
             value={formatNumber(currentYearContracts)}
-            subtitle={`Total dataset: ${formatNumber(totalContracts)}`}
+            trend={contractsTrend}
+            trendLabel={trendLabel}
+            subtitle={`Any complet ${currentYear - 1}: ${formatNumber(prevContracts)}`}
           />
           <StatCard
-            title={`Import adjudicat ${currentYear}`}
+            title={`Import adjudicat ${currentYear} (en curs)`}
             value={formatCompactNumber(currentYearAmount)}
-            subtitle={`Total dataset: ${formatCompactNumber(totalAmount)}`}
+            trend={amountTrend}
+            trendLabel={trendLabel}
+            subtitle={`Any complet ${currentYear - 1}: ${formatCompactNumber(prevAmount)}`}
           />
-          <StatCard title="Empreses adjudicatàries" value={formatNumber(uniqueCompanies)} />
+          <StatCard
+            title="Empreses adjudicatàries"
+            value={formatNumber(uniqueCompanies)}
+            subtitle="Empreses úniques al dataset"
+          />
           <StatCard
             title="Total contractes al dataset"
             value={formatNumber(totalContracts)}
-            subtitle="Publicats a la plataforma"
+            subtitle="Publicats a la plataforma de transparència"
           />
         </section>
 
@@ -142,7 +170,14 @@ export default async function HomePage() {
                       {topAjuntaments.map((organ, index) => (
                         <tr key={`${organ.nom_organ}-${index}`} className="border-b border-gray-100 last:border-b-0">
                           <td className="px-2 py-2 text-xs text-gray-500">{index + 1}</td>
-                          <td className="px-1 py-2 text-gray-700">{organ.nom_organ}</td>
+                          <td className="px-1 py-2">
+                            <Link
+                              href={`/organismes/${encodeURIComponent(organ.nom_organ)}`}
+                              className="text-gray-700 hover:text-indigo-600 hover:underline"
+                            >
+                              {organ.nom_organ}
+                            </Link>
+                          </td>
                           <td className="px-2 py-2 text-right font-medium text-gray-900 whitespace-nowrap">
                             {formatCompactNumber(parseFloat(organ.total) || 0)}
                           </td>
@@ -162,7 +197,14 @@ export default async function HomePage() {
                       {topAltresOrgans.map((organ, index) => (
                         <tr key={`${organ.nom_organ}-${index}`} className="border-b border-gray-100 last:border-b-0">
                           <td className="px-2 py-2 text-xs text-gray-500">{index + 1}</td>
-                          <td className="px-1 py-2 text-gray-700">{organ.nom_organ}</td>
+                          <td className="px-1 py-2">
+                            <Link
+                              href={`/organismes/${encodeURIComponent(organ.nom_organ)}`}
+                              className="text-gray-700 hover:text-indigo-600 hover:underline"
+                            >
+                              {organ.nom_organ}
+                            </Link>
+                          </td>
                           <td className="px-2 py-2 text-right font-medium text-gray-900 whitespace-nowrap">
                             {formatCompactNumber(parseFloat(organ.total) || 0)}
                           </td>
@@ -259,7 +301,18 @@ export default async function HomePage() {
                   ) : (
                     <p className="line-clamp-2 text-sm font-medium text-gray-900">{c.denominacio || "—"}</p>
                   )}
-                  <p className="mt-1 line-clamp-2 text-xs text-gray-600">{c.denominacio_adjudicatari || "—"}</p>
+                  <p className="mt-1 line-clamp-2 text-xs text-gray-600">
+                    {c.identificacio_adjudicatari ? (
+                      <Link
+                        href={`/empreses/${encodeURIComponent(c.identificacio_adjudicatari)}`}
+                        className="hover:underline hover:text-indigo-600"
+                      >
+                        {c.denominacio_adjudicatari || "—"}
+                      </Link>
+                    ) : (
+                      c.denominacio_adjudicatari || "—"
+                    )}
+                  </p>
                   <p className="mt-1 line-clamp-2 text-xs text-gray-600">{c.nom_organ || "—"}</p>
                   <div className="mt-2 flex items-center justify-between">
                     <span className="text-xs text-gray-500">{c.tipus_contracte || "—"}</span>
@@ -308,7 +361,18 @@ export default async function HomePage() {
                           c.denominacio || "—"
                         )}
                       </td>
-                      <td className="px-4 py-3 text-gray-700" title={c.denominacio_adjudicatari || ""}>{c.denominacio_adjudicatari || "—"}</td>
+                      <td className="px-4 py-3 text-gray-700" title={c.denominacio_adjudicatari || ""}>
+                        {c.identificacio_adjudicatari ? (
+                          <Link
+                            href={`/empreses/${encodeURIComponent(c.identificacio_adjudicatari)}`}
+                            className="hover:underline hover:text-indigo-600"
+                          >
+                            {c.denominacio_adjudicatari || "—"}
+                          </Link>
+                        ) : (
+                          c.denominacio_adjudicatari || "—"
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-gray-700" title={c.nom_organ || ""}>{c.nom_organ || "—"}</td>
                       <td className="px-4 py-3 text-right font-mono text-xs text-gray-900">
                         {formatCurrencyFull(c.import_adjudicacio_amb_iva || "0")}
@@ -326,41 +390,86 @@ export default async function HomePage() {
           </p>
         </section>
 
-        <section className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+        {/* Anàlisi callout banner */}
+        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4">
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 flex-shrink-0">
+              <svg className="h-5 w-5 text-amber-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+              </svg>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-amber-900">
+                Anàlisi de risc: contractes menors concentrats al llindar dels 15.000 €
+              </p>
+              <p className="mt-1 text-sm text-amber-800">
+                Detectem si hi ha una acumulació inusual de contractes just per sota del llindar legal. Podria indicar fraccionament per evitar licitació pública.
+              </p>
+              <Link href="/analisi" className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-amber-900 underline hover:text-amber-700">
+                Veure l&apos;anàlisi completa
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+                </svg>
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        <section className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Link
             href="/empreses"
-            className="rounded-lg border border-gray-100 bg-white p-6 shadow-sm transition-all hover:shadow-md"
+            className="group rounded-lg border border-gray-100 bg-white p-5 shadow-sm transition-all hover:border-indigo-200 hover:shadow-md"
           >
-            <h3 className="mb-2 text-lg font-semibold text-gray-900">Empreses</h3>
+            <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 transition-colors group-hover:bg-indigo-100">
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Z" />
+              </svg>
+            </div>
+            <h3 className="mb-1 font-semibold text-gray-900">Empreses</h3>
             <p className="text-sm text-gray-600">
-              Rànquing d&apos;empreses per import total de contractes adjudicats. Cerca per nom o NIF.
+              Rànquing per import adjudicat. Cerca per nom o NIF i veu l&apos;historial complet.
             </p>
           </Link>
           <Link
             href="/organismes"
-            className="rounded-lg border border-gray-100 bg-white p-6 shadow-sm transition-all hover:shadow-md"
+            className="group rounded-lg border border-gray-100 bg-white p-5 shadow-sm transition-all hover:border-purple-200 hover:shadow-md"
           >
-            <h3 className="mb-2 text-lg font-semibold text-gray-900">Organismes</h3>
+            <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-purple-50 text-purple-600 transition-colors group-hover:bg-purple-100">
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0 0 12 10c-2.551 0-5.056.2-7.5.582V21M3 21h18M12 6.75h.008v.008H12V6.75Z" />
+              </svg>
+            </div>
+            <h3 className="mb-1 font-semibold text-gray-900">Organismes</h3>
             <p className="text-sm text-gray-600">
-              Rànquing d&apos;organismes per import adjudicat, amb detall anual i contractes recents.
+              Ajuntaments, Generalitat i ens públics. Detall anual i empreses adjudicatàries.
             </p>
           </Link>
           <Link
             href="/contractes"
-            className="rounded-lg border border-gray-100 bg-white p-6 shadow-sm transition-all hover:shadow-md"
+            className="group rounded-lg border border-gray-100 bg-white p-5 shadow-sm transition-all hover:border-teal-200 hover:shadow-md"
           >
-            <h3 className="mb-2 text-lg font-semibold text-gray-900">Contractes</h3>
+            <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-teal-50 text-teal-600 transition-colors group-hover:bg-teal-100">
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+              </svg>
+            </div>
+            <h3 className="mb-1 font-semibold text-gray-900">Contractes</h3>
             <p className="text-sm text-gray-600">
               Explora tots els contractes amb filtres per any, tipus, procediment i import.
             </p>
           </Link>
           <Link
             href="/analisi"
-            className="rounded-lg border border-gray-100 bg-white p-6 shadow-sm transition-all hover:shadow-md"
+            className="group rounded-lg border border-amber-200 bg-amber-50/50 p-5 shadow-sm transition-all hover:border-amber-300 hover:shadow-md"
           >
-            <h3 className="mb-2 text-lg font-semibold text-gray-900">Anàlisi</h3>
-            <p className="text-sm text-gray-600">
-              Detecció de patrons, llindars de contractes menors i focus en transparència.
+            <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-amber-100 text-amber-600 transition-colors group-hover:bg-amber-200">
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 0 0 6 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0 1 18 16.5h-2.25m-7.5 0h7.5m-7.5 0-1 3m8.5-3 1 3m0 0 .5 1.5m-.5-1.5h-9.5m0 0-.5 1.5m.75-9 3-3 2.148 2.148A12.061 12.061 0 0 1 16.5 7.605" />
+              </svg>
+            </div>
+            <h3 className="mb-1 font-semibold text-amber-900">Anàlisi</h3>
+            <p className="text-sm text-amber-800">
+              Detecció de patrons de risc i anàlisi del pes dels contractes menors.
             </p>
           </Link>
         </section>
