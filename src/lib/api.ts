@@ -737,7 +737,9 @@ export async function fetchContractsByAwardeesSummary(
   const { nifs, names, nom_organ } = filters;
 
   const awardeeScopeCondition = buildAwardeeScopeCondition(nifs, names);
-  if (!awardeeScopeCondition) return 0;
+  if (!awardeeScopeCondition) {
+    return { total: 0, totalAmount: 0 };
+  }
   conditions.push(awardeeScopeCondition);
 
   if (nom_organ) {
