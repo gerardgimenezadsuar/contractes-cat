@@ -6,12 +6,20 @@ import type { CompanyAggregation, OrganAggregation } from "@/lib/types";
 import { formatCompactNumber, formatNumber } from "@/lib/utils";
 import SearchLoadingIndicator from "@/components/ui/SearchLoadingIndicator";
 
-type SearchMode = "empresa" | "organisme";
+type SearchMode = "empresa" | "organisme" | "persona";
+interface PersonSearchResult {
+  person_name: string;
+  num_companies: number;
+  num_companies_with_nif: number;
+  active_spans: number;
+}
 type SearchResult =
   | ({ kind: "empresa" } & CompanyAggregation)
-  | ({ kind: "organisme" } & OrganAggregation);
+  | ({ kind: "organisme" } & OrganAggregation)
+  | ({ kind: "persona" } & PersonSearchResult);
 
 export default function CompanySearch() {
+  const minCharsForMode = (m: SearchMode): number => (m === "persona" ? 3 : 2);
   const [mode, setMode] = useState<SearchMode>("empresa");
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -22,19 +30,24 @@ export default function CompanySearch() {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const search = useCallback(async (q: string, nextMode: SearchMode) => {
-    if (q.length < 2) {
+    const minChars = minCharsForMode(nextMode);
+    if (q.trim().length < minChars) {
       setResults([]);
       setOpen(false);
+      setLoading(false);
       return;
     }
     setLoading(true);
+    setOpen(true);
     try {
       if (abortRef.current) abortRef.current.abort();
       abortRef.current = new AbortController();
       const endpoint =
         nextMode === "empresa"
           ? `/api/empreses?search=${encodeURIComponent(q)}&page=1&includeTotal=0`
-          : `/api/organismes?search=${encodeURIComponent(q)}&page=1&limit=8&includeTotal=0&includeCurrentYear=0`;
+          : nextMode === "organisme"
+            ? `/api/organismes?search=${encodeURIComponent(q)}&page=1&limit=8&includeTotal=0&includeCurrentYear=0`
+            : `/api/persones?search=${encodeURIComponent(q)}&page=1&includeTotal=0`;
       const res = await fetch(
         endpoint,
         { signal: abortRef.current.signal }
@@ -43,8 +56,10 @@ export default function CompanySearch() {
       const sliced = (json.data || []).slice(0, 8);
       if (nextMode === "empresa") {
         setResults(sliced.map((row: CompanyAggregation) => ({ kind: "empresa" as const, ...row })));
-      } else {
+      } else if (nextMode === "organisme") {
         setResults(sliced.map((row: OrganAggregation) => ({ kind: "organisme" as const, ...row })));
+      } else {
+        setResults(sliced.map((row: PersonSearchResult) => ({ kind: "persona" as const, ...row })));
       }
       setOpen(true);
     } catch {
@@ -59,6 +74,13 @@ export default function CompanySearch() {
       const val = e.target.value;
       setQuery(val);
       if (debounceRef.current) clearTimeout(debounceRef.current);
+      const minChars = minCharsForMode(mode);
+      if (val.trim().length < minChars) {
+        setResults([]);
+        setOpen(false);
+        setLoading(false);
+        return;
+      }
       debounceRef.current = setTimeout(() => search(val, mode), 300);
     },
     [mode, search]
@@ -69,7 +91,7 @@ export default function CompanySearch() {
     setResults([]);
     setOpen(false);
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (query.length >= 2) {
+    if (query.trim().length >= minCharsForMode(nextMode)) {
       debounceRef.current = setTimeout(() => search(query, nextMode), 100);
     }
   }, [query, search]);
@@ -116,7 +138,23 @@ export default function CompanySearch() {
         >
           Organismes
         </button>
+        <button
+          type="button"
+          onClick={() => switchMode("persona")}
+          className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+            mode === "persona"
+              ? "border-gray-900 bg-gray-900 text-white"
+              : "border-gray-300 bg-white text-gray-700 hover:border-gray-400"
+          }`}
+        >
+          Persones
+        </button>
       </div>
+      <p className="mb-2 text-xs text-gray-500">
+        {mode === "persona"
+          ? "Persones: cerca automàtica amb mínim 3 caràcters."
+          : "Cerca automàtica amb mínim 2 caràcters."}
+      </p>
       <div className="relative">
         <svg
           className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
@@ -139,7 +177,9 @@ export default function CompanySearch() {
           placeholder={
             mode === "empresa"
               ? "Cerca empresa per nom o NIF..."
-              : "Cerca organisme per nom..."
+              : mode === "organisme"
+                ? "Cerca organisme per nom..."
+                : "Cerca persona per nom..."
           }
           className={`w-full pl-12 py-3 border border-gray-300 rounded-xl text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent focus:shadow-md transition-shadow bg-white ${
             loading ? "pr-28" : "pr-4"
@@ -152,7 +192,13 @@ export default function CompanySearch() {
         )}
       </div>
 
-      {open && results.length > 0 && (
+      {open && loading && query.trim().length >= minCharsForMode(mode) && (
+        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg p-4 text-sm text-gray-500 text-center">
+          Cercant resultats...
+        </div>
+      )}
+
+      {open && !loading && results.length > 0 && (
         <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
           {results.map((result) => {
             if (result.kind === "empresa") {
@@ -183,24 +229,49 @@ export default function CompanySearch() {
               );
             }
 
+            if (result.kind === "organisme") {
+              return (
+                <Link
+                  key={`organ-${result.nom_organ}`}
+                  href={`/organismes/${encodeURIComponent(result.nom_organ)}`}
+                  onClick={() => setOpen(false)}
+                  className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {result.nom_organ}
+                    </p>
+                  </div>
+                  <div className="ml-4 text-right shrink-0">
+                    <p className="text-sm font-medium text-gray-900">
+                      {formatCompactNumber(result.total)}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {formatNumber(result.num_contracts)} contractes
+                    </p>
+                  </div>
+                </Link>
+              );
+            }
+
             return (
               <Link
-                key={`organ-${result.nom_organ}`}
-                href={`/organismes/${encodeURIComponent(result.nom_organ)}`}
+                key={`persona-${result.person_name}`}
+                href={`/persones/${encodeURIComponent(result.person_name)}`}
                 onClick={() => setOpen(false)}
                 className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
               >
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-gray-900 truncate">
-                    {result.nom_organ}
+                    {result.person_name}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {formatNumber(result.num_companies)} empreses vinculades
                   </p>
                 </div>
                 <div className="ml-4 text-right shrink-0">
-                  <p className="text-sm font-medium text-gray-900">
-                    {formatCompactNumber(result.total)}
-                  </p>
                   <p className="text-xs text-gray-500">
-                    {formatNumber(result.num_contracts)} contractes
+                    {formatNumber(result.active_spans)} càrrecs actius
                   </p>
                 </div>
               </Link>
@@ -210,7 +281,9 @@ export default function CompanySearch() {
             href={
               mode === "empresa"
                 ? `/empreses?search=${encodeURIComponent(query)}`
-                : `/organismes?search=${encodeURIComponent(query)}`
+                : mode === "organisme"
+                  ? `/organismes?search=${encodeURIComponent(query)}`
+                  : `/persones?search=${encodeURIComponent(query)}`
             }
             onClick={() => setOpen(false)}
             className="block px-4 py-2 text-center text-sm text-gray-600 hover:bg-gray-50 bg-gray-50"
@@ -220,9 +293,13 @@ export default function CompanySearch() {
         </div>
       )}
 
-      {open && query.length >= 2 && results.length === 0 && !loading && (
+      {open && query.trim().length >= minCharsForMode(mode) && results.length === 0 && !loading && (
         <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg p-4 text-sm text-gray-500 text-center">
-          {mode === "empresa" ? "No s&apos;han trobat empreses." : "No s&apos;han trobat organismes."}
+          {mode === "empresa"
+            ? "No s&apos;han trobat empreses."
+            : mode === "organisme"
+              ? "No s&apos;han trobat organismes."
+              : "No s&apos;han trobat persones."}
         </div>
       )}
     </div>

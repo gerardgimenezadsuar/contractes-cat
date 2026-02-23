@@ -45,5 +45,16 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-/skills
-/data
+# local project data
+/skills/
+/data/
+
+# BORME extraction and local processing (keep local-only)
+/borme-dataset/
+/scripts/__pycache__/
+/scripts/borme_*.py
+/scripts/borme_turso_import.py
+/scripts/borme_turso_import.mjs
+/public/borme/
+/tmp/borme/
+/data/borme/

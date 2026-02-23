@@ -22,6 +22,11 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
+                <Link href="/persones" prefetch className="text-gray-600 hover:text-gray-900">
+                  Persones
+                </Link>
+              </li>
+              <li>
                 <Link href="/contractes" prefetch className="text-gray-600 hover:text-gray-900">
                   Contractes
                 </Link>

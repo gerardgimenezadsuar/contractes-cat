@@ -29,6 +29,17 @@ pnpm dev
 
 Obre [http://localhost:3000](http://localhost:3000) al navegador.
 
+### Variables d'entorn (BORME/Turso)
+
+Per mostrar l'històric d'administradors des de Turso (sense fitxers JSON estàtics), configura:
+
+```bash
+TURSO_URL=libsql://<db-name>-<org>.turso.io
+TURSO_TOKEN=<db-token>
+```
+
+També es suporta `TURSO_AUTH_TOKEN` com a alternativa a `TURSO_TOKEN`.
+
 ## Font de dades
 
 Totes les dades provenen del conjunt de dades [Contractació pública a Catalunya](https://analisi.transparenciacatalunya.cat/Sector-P-blic/Contractaci-del-sector-p-blic-de-la-Generalitat-d/ybgg-dgi6) publicat pel Departament d'Economia i Hisenda de la Generalitat de Catalunya.

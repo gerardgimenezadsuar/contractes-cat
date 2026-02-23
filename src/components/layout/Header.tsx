@@ -8,6 +8,7 @@ import { SITE_NAME } from "@/config/constants";
 const NAV_ITEMS = [
   { href: "/", label: "Inici" },
   { href: "/empreses", label: "Empreses" },
+  { href: "/persones", label: "Persones" },
   { href: "/organismes", label: "Organismes" },
   { href: "/contractes", label: "Contractes" },
   { href: "/analisi", label: "Anàlisi" },

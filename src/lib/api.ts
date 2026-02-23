@@ -634,6 +634,130 @@ export async function fetchCompanyLastAwardDate(id: string): Promise<string | un
   return data[0]?.last_date;
 }
 
+function buildAwardeeScopeCondition(nifs?: string[], names?: string[]): string | null {
+  const normalizedNifs = Array.from(
+    new Set(
+      (nifs || [])
+        .map((nif) => nif.trim())
+        .filter((nif) => nif.length > 0)
+    )
+  ).slice(0, 400);
+
+  const normalizedNames = Array.from(
+    new Set(
+      (names || [])
+        .map((name) => name.trim())
+        .filter((name) => name.length > 0)
+    )
+  ).slice(0, 400);
+
+  const conditions: string[] = [];
+
+  if (normalizedNifs.length > 0) {
+    const escapedNifs = normalizedNifs
+      .map((nif) => `'${nif.replace(/'/g, "''")}'`)
+      .join(",");
+    conditions.push(`identificacio_adjudicatari IN (${escapedNifs})`);
+  }
+
+  if (normalizedNames.length > 0) {
+    const escapedNames = normalizedNames
+      .map((name) => `'${name.replace(/'/g, "''").toUpperCase()}'`)
+      .join(",");
+    conditions.push(`upper(denominacio_adjudicatari) IN (${escapedNames})`);
+  }
+
+  if (conditions.length === 0) return null;
+  if (conditions.length === 1) return conditions[0];
+  return `(${conditions.join(" OR ")})`;
+}
+
+interface AwardeeContractFilters {
+  nifs?: string[];
+  names?: string[];
+  page?: number;
+  pageSize?: number;
+  orderBy?: string;
+  orderDir?: "ASC" | "DESC";
+  nom_organ?: string;
+}
+
+export interface AwardeeContractsSummary {
+  total: number;
+  totalAmount: number;
+}
+
+export async function fetchContractsByAwardees(
+  filters: AwardeeContractFilters
+): Promise<Contract[]> {
+  const conditions: string[] = [];
+  const futureCutoffIso = getContractsFutureCutoffIso();
+  const {
+    nifs,
+    names,
+    page = 1,
+    pageSize = DEFAULT_PAGE_SIZE,
+    orderBy = BEST_AVAILABLE_CONTRACT_DATE_EXPR,
+    orderDir = "DESC",
+    nom_organ,
+  } = filters;
+
+  const awardeeScopeCondition = buildAwardeeScopeCondition(nifs, names);
+  if (!awardeeScopeCondition) return [];
+  conditions.push(awardeeScopeCondition);
+
+  if (nom_organ) {
+    conditions.push(`upper(nom_organ) like upper('%${nom_organ.replace(/'/g, "''")}%')`);
+  }
+
+  conditions.push(`(${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) IS NOT NULL`);
+  conditions.push(`(${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) <= '${futureCutoffIso}'`);
+  conditions.push(AWARDED_CONTRACT_WHERE);
+
+  return soqlFetch<Contract>({
+    $where: conditions.join(" AND "),
+    $order: `${orderBy} ${orderDir}`,
+    $limit: String(pageSize),
+    $offset: String((page - 1) * pageSize),
+  });
+}
+
+export async function fetchContractsByAwardeesCount(
+  filters: Pick<AwardeeContractFilters, "nifs" | "names" | "nom_organ">
+): Promise<number> {
+  const summary = await fetchContractsByAwardeesSummary(filters);
+  return summary.total;
+}
+
+export async function fetchContractsByAwardeesSummary(
+  filters: Pick<AwardeeContractFilters, "nifs" | "names" | "nom_organ">
+): Promise<AwardeeContractsSummary> {
+  const conditions: string[] = [];
+  const futureCutoffIso = getContractsFutureCutoffIso();
+  const { nifs, names, nom_organ } = filters;
+
+  const awardeeScopeCondition = buildAwardeeScopeCondition(nifs, names);
+  if (!awardeeScopeCondition) return 0;
+  conditions.push(awardeeScopeCondition);
+
+  if (nom_organ) {
+    conditions.push(`upper(nom_organ) like upper('%${nom_organ.replace(/'/g, "''")}%')`);
+  }
+
+  conditions.push(`(${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) IS NOT NULL`);
+  conditions.push(`(${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) <= '${futureCutoffIso}'`);
+  conditions.push(AWARDED_CONTRACT_WHERE);
+
+  const rows = await soqlFetch<{ total: string }>({
+    $select: "count(*) as total, sum(import_adjudicacio_sense::number) as total_amount",
+    $where: conditions.join(" AND "),
+  });
+  return {
+    total: parseInt(rows[0]?.total || "0", 10),
+    totalAmount: parseFloat((rows[0] as { total_amount?: string })?.total_amount || "0"),
+  };
+}
+
 // Contracts list with filters
 export async function fetchContracts(
   filters: ContractFilters

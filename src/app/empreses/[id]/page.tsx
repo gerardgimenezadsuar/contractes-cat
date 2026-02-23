@@ -9,18 +9,16 @@ import {
   fetchCompanyTopOrgans,
 } from "@/lib/api";
 import {
-  formatCurrency,
   formatNumber,
   formatCompactNumber,
-  getBestAvailableContractDate,
-  getPublicationUrl,
-  formatDate,
 } from "@/lib/utils";
 import StatCard from "@/components/ui/StatCard";
 import { YearlyTrendChartLazy } from "@/components/charts/LazyCharts";
 import CompanyContractsExplorer from "@/components/company/CompanyContractsExplorer";
 import SharePageButton from "@/components/ui/SharePageButton";
 import CompanyCounterpartyTable from "@/components/company/CompanyCounterpartyTable";
+import BormeSummaryCard from "@/components/company/BormeSummaryCard";
+import { loadAdminHistory } from "@/lib/borme";
 
 export const revalidate = 21600;
 
@@ -81,6 +79,9 @@ export default async function CompanyDetailPage({ params }: Props) {
     fetchCompanyLastAwardDate(decodedId),
   ]);
 
+  const adminHistory = await loadAdminHistory(decodedId);
+  const hasBormeData = Boolean(adminHistory && adminHistory.spans.length > 0);
+
   if (!company) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-8">
@@ -105,33 +106,6 @@ export default async function CompanyDetailPage({ params }: Props) {
     ? `Total històric: ${formatCompactNumber(totalAmount)}`
     : `Sense dades ${currentYear}. Total històric: ${formatCompactNumber(totalAmount)}`;
 
-  const hasMeaningfulText = (value?: string) => {
-    const normalized = (value || "").trim().toUpperCase();
-    return normalized !== "" && normalized !== "-" && normalized !== "--" && normalized !== "NULL";
-  };
-  const recentContracts = [...contracts]
-    .filter(
-      (contract) =>
-        hasMeaningfulText(contract.nom_organ) ||
-        hasMeaningfulText(contract.import_adjudicacio_sense)
-    )
-    .sort((a, b) => {
-      const aDate = getBestAvailableContractDate(
-        a.data_adjudicacio_contracte,
-        a.data_formalitzacio_contracte,
-        a.data_publicacio_anunci
-      ).date;
-      const bDate = getBestAvailableContractDate(
-        b.data_adjudicacio_contracte,
-        b.data_formalitzacio_contracte,
-        b.data_publicacio_anunci
-      ).date;
-      const aTs = aDate ? new Date(aDate).getTime() : 0;
-      const bTs = bDate ? new Date(bDate).getTime() : 0;
-      return bTs - aTs;
-    })
-    .slice(0, 10);
-
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <Link
@@ -151,27 +125,31 @@ export default async function CompanyDetailPage({ params }: Props) {
         NIF: {company.identificacio_adjudicatari}
       </p>
 
-      {/* Stats */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-12">
-        <StatCard
-          title={`Import adjudicat ${currentYear}`}
-          value={formatCompactNumber(currentYearAmount)}
-          subtitle={currentYearAmountSubtitle}
-        />
-        <StatCard
-          title={`Contractes ${currentYear}`}
-          value={formatNumber(currentYearContracts)}
-          subtitle={currentYearContractsSubtitle}
-        />
-      </section>
+      <section
+        className={`mb-10 ${
+          hasBormeData
+            ? "grid grid-cols-1 xl:grid-cols-12 gap-6 items-start"
+            : "flex justify-center"
+        }`}
+      >
+        <div className={`${hasBormeData ? "xl:col-span-7" : "w-full xl:max-w-4xl"}`}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <StatCard
+              title={`Import adjudicat ${currentYear}`}
+              value={formatCompactNumber(currentYearAmount)}
+              subtitle={currentYearAmountSubtitle}
+              compact
+            />
+            <StatCard
+              title={`Contractes ${currentYear}`}
+              value={formatNumber(currentYearContracts)}
+              subtitle={currentYearContractsSubtitle}
+              compact
+            />
+          </div>
 
-      {/* Yearly + recent contracts */}
-      <section className="mb-12">
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">
-              Evolució anual
-            </h2>
+          <div className="mt-4">
+            <h2 className="text-2xl font-bold text-gray-900 mb-3">Evolució anual</h2>
             <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
               {yearly.length > 0 ? (
                 <YearlyTrendChartLazy data={yearly} />
@@ -180,73 +158,16 @@ export default async function CompanyDetailPage({ params }: Props) {
               )}
             </div>
           </div>
+        </div>
 
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">
-              Contractes recents
-            </h2>
-            <div className="bg-white rounded-lg border border-gray-100 shadow-sm overflow-hidden">
-              <div className="border-b border-gray-100 px-4 py-3 text-xs text-gray-500">
-                Darrera data ref.: <span className="font-medium text-gray-700">{formatDate(lastAwardDate)}</span>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="min-w-[520px] w-full table-auto text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-100 bg-gray-50">
-                      <th className="w-[50%] text-left py-2.5 px-3 md:px-4 font-medium text-gray-500">Òrgan</th>
-                      <th className="w-[20%] text-left py-2.5 px-3 md:px-4 font-medium text-gray-500 whitespace-nowrap">Data ref.</th>
-                      <th className="w-[30%] text-right py-2.5 px-3 md:px-4 font-medium text-gray-500 whitespace-nowrap">Import (sense IVA)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {recentContracts.map((contract, idx) => {
-                      const bestDate = getBestAvailableContractDate(
-                        contract.data_adjudicacio_contracte,
-                        contract.data_formalitzacio_contracte,
-                        contract.data_publicacio_anunci
-                      );
-                      const publicationUrl = getPublicationUrl(contract.enllac_publicacio);
-                      return (
-                        <tr key={`${contract.codi_expedient}-mini-${idx}`} className="border-b border-gray-100 last:border-b-0">
-                          <td className="py-2.5 px-3 md:px-4 align-top text-gray-700">
-                            {contract.nom_organ ? (
-                              publicationUrl ? (
-                                <a
-                                  href={publicationUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  title={contract.nom_organ}
-                                  className="block line-clamp-2 break-words leading-6 hover:underline"
-                                >
-                                  {contract.nom_organ}
-                                </a>
-                              ) : (
-                                <Link
-                                  href={`/organismes/${encodeURIComponent(contract.nom_organ)}`}
-                                  title={contract.nom_organ}
-                                  className="block line-clamp-2 break-words leading-6 hover:underline"
-                                >
-                                  {contract.nom_organ}
-                                </Link>
-                              )
-                            ) : (
-                              <span className="block leading-6">—</span>
-                            )}
-                          </td>
-                          <td className="py-2.5 px-3 md:px-4 align-top whitespace-nowrap text-gray-700">{formatDate(bestDate.date)}</td>
-                          <td className="py-2.5 px-3 md:px-4 align-top text-right whitespace-nowrap text-gray-900 tabular-nums">
-                            {contract.import_adjudicacio_sense
-                              ? formatCurrency(contract.import_adjudicacio_sense)
-                              : "—"}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
+        <div className="xl:col-span-5 space-y-4">
+          {hasBormeData && (
+            <BormeSummaryCard
+              spans={adminHistory?.spans || []}
+              matchedName={adminHistory?.matched_name || ""}
+              compact
+            />
+          )}
         </div>
       </section>
 

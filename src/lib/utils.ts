@@ -39,7 +39,23 @@ export function formatCompactNumber(value: number | string): string {
 export function formatDate(dateStr: string | undefined): string {
   if (!dateStr) return "—";
   try {
-    const date = new Date(dateStr);
+    const raw = dateStr.trim();
+    let date: Date;
+
+    // BORME spans are commonly stored as YYYYMMDD.
+    if (/^\d{8}$/.test(raw)) {
+      const year = parseInt(raw.slice(0, 4), 10);
+      const month = parseInt(raw.slice(4, 6), 10);
+      const day = parseInt(raw.slice(6, 8), 10);
+      date = new Date(year, month - 1, day);
+    } else if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+      const [year, month, day] = raw.split("-").map((v) => parseInt(v, 10));
+      date = new Date(year, month - 1, day);
+    } else {
+      date = new Date(raw);
+    }
+
+    if (Number.isNaN(date.getTime())) return "—";
     return new Intl.DateTimeFormat("ca-ES", {
       year: "numeric",
       month: "2-digit",

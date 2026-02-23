@@ -99,13 +99,14 @@ export default async function HomePage() {
             </h1>
           </div>
           <p className="mb-5 text-center text-sm text-gray-600 sm:text-base max-w-2xl mx-auto">
-            Supervisa qui rep els contractes públics a Catalunya, quant s&apos;adjudica i com evoluciona la despesa. Cerca empreses, organismes i analitza patrons.
+            Supervisa qui rep els contractes públics a Catalunya, quant s&apos;adjudica i com evoluciona la despesa. Cerca empreses, persones vinculades i organismes.
           </p>
           <div className="mb-3 flex justify-center">
             <CompanySearch />
           </div>
           <div className="mb-2 flex flex-wrap items-center justify-center gap-4 text-xs text-gray-500">
             <Link href="/empreses" className="underline hover:text-gray-800">Rànquing empreses</Link>
+            <Link href="/persones" className="underline hover:text-gray-800">Cerca persones</Link>
             <Link href="/organismes" className="underline hover:text-gray-800">Rànquing organismes</Link>
             <Link href="/contractes" className="underline hover:text-gray-800">Explorador contractes</Link>
             <Link href="/licitacions" className="underline hover:text-gray-800">Licitacions obertes</Link>
