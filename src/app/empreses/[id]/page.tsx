@@ -40,6 +40,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const decodedId = decodeURIComponent(id);
   const { company } = await getCompanyDetail(decodedId);
   const companyName = company?.denominacio_adjudicatari || decodedId;
+  const canonicalCompanyId = company?.identificacio_adjudicatari || decodedId;
   const totalAmount = parseFloat(company?.total || "0");
   const totalContracts = parseInt(company?.num_contracts || "0", 10);
   const description = company
@@ -48,7 +49,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       )} contractes públics a ${companyName}.`
     : `Detall dels contractes públics adjudicats a ${companyName}.`;
 
-  const entityPath = `/empreses/${encodeURIComponent(decodedId)}`;
+  const entityPath = `/empreses/${encodeURIComponent(canonicalCompanyId)}`;
   return buildEntityMetadata({
     title: companyName,
     description,

@@ -40,13 +40,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const decodedId = decodeURIComponent(id);
   const { organ } = await getOrganDetail(decodedId);
   const organName = organ?.nom_organ || decodedId;
+  const canonicalOrganId = organ?.nom_organ || decodedId;
   const totalAmount = parseFloat(organ?.total || "0");
   const totalContracts = parseInt(organ?.num_contracts || "0", 10);
   const description = organ
     ? `${formatCompactNumber(totalAmount)} adjudicats en ${formatNumber(totalContracts)} contractes públics per ${organName}.`
     : `Detall dels contractes públics de ${organName}.`;
 
-  const entityPath = `/organismes/${encodeURIComponent(decodedId)}`;
+  const entityPath = `/organismes/${encodeURIComponent(canonicalOrganId)}`;
   return buildEntityMetadata({
     title: organName,
     description,
@@ -102,7 +103,7 @@ export default async function OrganDetailPage({ params }: Props) {
     recentContracts[0]?.data_formalitzacio_contracte,
     recentContracts[0]?.data_publicacio_anunci
   ).date;
-  const entityPath = `/organismes/${encodeURIComponent(decodedId)}`;
+  const entityPath = `/organismes/${encodeURIComponent(organ.nom_organ)}`;
   const organDescription = `${formatCompactNumber(totalAmount)} adjudicats en ${formatNumber(numContracts)} contractes públics per ${organ.nom_organ}.`;
   const jsonLd = buildEntityJsonLdGraph(
     buildEntityPrimaryJsonLd({
