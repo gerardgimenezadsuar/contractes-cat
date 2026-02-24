@@ -15,18 +15,12 @@ interface Props {
   params: Promise<{ name: string }> | { name: string };
 }
 
-function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean).slice(0, 2);
-  return parts.map((p) => p[0]).join("").toUpperCase() || "?";
-}
-
 export default async function Image({ params }: Props) {
   const { name } = await Promise.resolve(params);
   const decodedName = decodeURIComponent(name);
   const profile = await loadPersonProfile(decodedName);
 
   const displayName = formatPersonDisplayName(profile?.person_name || decodedName);
-  const initials = getInitials(displayName);
   const numCompanies = profile?.num_companies || 0;
 
   const targets = profile ? getPersonAwardeeTargets(profile) : { nifs: [], companyNames: [] };
@@ -67,49 +61,30 @@ export default async function Image({ params }: Props) {
             boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
           }}
         >
-          {/* Top: avatar + name */}
-          <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+          {/* Top: name */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <div
               style={{
                 display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 80,
-                height: 80,
-                borderRadius: "50%",
-                background: "linear-gradient(135deg, #4F46E5, #6366F1)",
-                color: "#ffffff",
-                fontSize: 32,
-                fontWeight: 700,
-                flexShrink: 0,
+                fontSize: 18,
+                color: "#6366F1",
+                fontWeight: 600,
+                letterSpacing: "0.05em",
+                textTransform: "uppercase",
               }}
             >
-              {initials}
+              Perfil societari
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <div
-                style={{
-                  display: "flex",
-                  fontSize: 18,
-                  color: "#6366F1",
-                  fontWeight: 600,
-                  letterSpacing: "0.05em",
-                  textTransform: "uppercase",
-                }}
-              >
-                Perfil societari
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  fontSize: 52,
-                  fontWeight: 700,
-                  lineHeight: 1.1,
-                  color: "#111827",
-                }}
-              >
-                {displayName}
-              </div>
+            <div
+              style={{
+                display: "flex",
+                fontSize: 52,
+                fontWeight: 700,
+                lineHeight: 1.1,
+                color: "#111827",
+              }}
+            >
+              {displayName}
             </div>
           </div>
 
