@@ -16,10 +16,16 @@ const STATIC_ROUTES = [
 // Search engines commonly cap each sitemap file at 50,000 URLs.
 // We keep a conservative 40,000 limit to leave headroom for growth and avoid edge-case overflows.
 const PERSONS_PER_SITEMAP = 40000;
+const MIN_PERSON_SITEMAPS = 1;
 
 export async function generateSitemaps(): Promise<Array<{ id: number }>> {
   const totalPersons = await countAllPersonNames();
-  const personSitemapCount = Math.ceil(totalPersons / PERSONS_PER_SITEMAP);
+  // Keep at least one dynamic persons sitemap even if counting fails temporarily.
+  // This avoids dropping all person URLs from discovery during transient DB outages.
+  const personSitemapCount = Math.max(
+    MIN_PERSON_SITEMAPS,
+    Math.ceil(totalPersons / PERSONS_PER_SITEMAP)
+  );
   const totalSitemaps = 1 + personSitemapCount; // id 0 is static routes.
   return Array.from({ length: totalSitemaps }, (_, id) => ({ id }));
 }
