@@ -198,7 +198,7 @@ export default function BormeSummaryCard({ spans, matchedName, compact = false }
           className="underline decoration-dotted cursor-help"
           title="Les coincidències es fan per nom perquè BORME no publica NIF en aquests registres, i poden contenir errors."
         >
-          Poden contenir errors d&apos;extracció i coincidència.
+          Poden contenir errors d'extracció i coincidència.
         </span>
       </p>
 

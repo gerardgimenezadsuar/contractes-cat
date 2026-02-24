@@ -13,6 +13,13 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    rules: {
+      // Allow ' in JSX since Catalan uses apostrophes extensively (l', d', s').
+      // Keep protection for >, " and } which are actually dangerous in JSX.
+      "react/no-unescaped-entities": ["error", { forbid: [">", '"', "}"] }],
+    },
+  },
 ]);
 
 export default eslintConfig;

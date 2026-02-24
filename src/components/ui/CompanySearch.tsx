@@ -296,10 +296,10 @@ export default function CompanySearch() {
       {open && query.trim().length >= minCharsForMode(mode) && results.length === 0 && !loading && (
         <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg p-4 text-sm text-gray-500 text-center">
           {mode === "empresa"
-            ? "No s&apos;han trobat empreses."
+            ? "No s'han trobat empreses."
             : mode === "organisme"
-              ? "No s&apos;han trobat organismes."
-              : "No s&apos;han trobat persones."}
+              ? "No s'han trobat organismes."
+              : "No s'han trobat persones."}
         </div>
       )}
     </div>

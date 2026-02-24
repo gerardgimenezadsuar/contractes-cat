@@ -78,7 +78,7 @@ export default async function OrganDetailPage({ params }: Props) {
   if (!organ) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-8">
-        <p className="text-gray-500">No s&apos;ha trobat l&apos;organisme.</p>
+        <p className="text-gray-500">No s'ha trobat l'organisme.</p>
         <Link href="/organismes" className="text-blue-600 hover:underline mt-4 inline-block">
           Tornar a organismes
         </Link>
@@ -108,7 +108,7 @@ export default async function OrganDetailPage({ params }: Props) {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <Link href="/organismes" className="text-sm text-gray-500 hover:text-gray-900 mb-4 inline-block">
-        &larr; Tornar a organismes
+        ← Tornar a organismes
       </Link>
 
       <div className="mb-1 flex items-start justify-between gap-3">

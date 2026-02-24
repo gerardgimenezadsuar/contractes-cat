@@ -99,7 +99,7 @@ export default async function HomePage() {
             </h1>
           </div>
           <p className="mb-5 text-center text-sm text-gray-600 sm:text-base max-w-2xl mx-auto">
-            Supervisa qui rep els contractes públics a Catalunya, quant s&apos;adjudica i com evoluciona la despesa. Cerca empreses, persones vinculades i organismes.
+            Supervisa qui rep els contractes públics a Catalunya, quant s'adjudica i com evoluciona la despesa. Cerca empreses, persones vinculades i organismes.
           </p>
           <div className="mb-3 flex justify-center">
             <CompanySearch />
@@ -155,7 +155,7 @@ export default async function HomePage() {
             <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
               <CompanyBarChartLazy data={topCompanies} />
             </div>
-            <p className="mt-2 text-xs text-gray-500">Basat en la data d&apos;adjudicació del contracte.</p>
+            <p className="mt-2 text-xs text-gray-500">Basat en la data d'adjudicació del contracte.</p>
           </div>
 
           <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
@@ -227,7 +227,7 @@ export default async function HomePage() {
               <YearlyTrendChartLazy data={yearlyTrend} />
             </div>
             <p className="mt-2 text-xs text-gray-400">
-              L&apos;increment dels primers anys reflecteix l&apos;adopció progressiva del registre digital.
+              L'increment dels primers anys reflecteix l'adopció progressiva del registre digital.
               Les dades dels últims 5 anys són les més representatives.
             </p>
           </div>
@@ -407,7 +407,7 @@ export default async function HomePage() {
                 Detectem si hi ha una acumulació inusual de contractes just per sota del llindar legal. Podria indicar fraccionament per evitar licitació pública.
               </p>
               <Link href="/analisi" className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-amber-900 underline hover:text-amber-700">
-                Veure l&apos;anàlisi completa
+                Veure l'anàlisi completa
                 <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
                 </svg>
@@ -428,7 +428,7 @@ export default async function HomePage() {
             </div>
             <h3 className="mb-1 font-semibold text-gray-900">Empreses</h3>
             <p className="text-sm text-gray-600">
-              Rànquing per import adjudicat. Cerca per nom o NIF i veu l&apos;historial complet.
+              Rànquing per import adjudicat. Cerca per nom o NIF i veu l'historial complet.
             </p>
           </Link>
           <Link

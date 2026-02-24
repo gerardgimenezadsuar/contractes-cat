@@ -27,7 +27,7 @@ export default function AboutPage() {
         <p className="text-amber-800">
           <strong>Aquesta no és una web oficial del govern.</strong> {SITE_NAME}{" "}
           és un projecte independent i de codi obert que utilitza dades
-          públiques per facilitar l&apos;anàlisi de la contractació pública a
+          públiques per facilitar l'anàlisi de la contractació pública a
           Catalunya. No tenim cap vinculació amb la Generalitat de Catalunya ni
           amb cap administració pública.
         </p>
@@ -39,7 +39,7 @@ export default function AboutPage() {
           Què és {SITE_NAME}?
         </h2>
         <p className="text-gray-600 mb-4">
-          {SITE_NAME} és una plataforma d&apos;anàlisi de dades obertes que
+          {SITE_NAME} és una plataforma d'anàlisi de dades obertes que
           permet als ciutadans explorar i entendre com es gasten els diners
           públics en contractació a Catalunya. El nostre objectiu és fer
           accessible i comprensible la informació sobre contractes públics que
@@ -65,14 +65,14 @@ export default function AboutPage() {
             rel="noopener noreferrer"
             className="text-blue-600 hover:underline"
           >
-            &quot;Contractació pública a Catalunya: publicacions a la Plataforma de
-            serveis de contractació pública&quot;
+            «Contractació pública a Catalunya: publicacions a la Plataforma de
+            serveis de contractació pública»
           </a>{" "}
-          publicat pel Departament d&apos;Economia i Hisenda de la Generalitat
+          publicat pel Departament d'Economia i Hisenda de la Generalitat
           de Catalunya a la plataforma de Transparència de Catalunya.
         </p>
         <p className="text-gray-600 mb-4">
-          El conjunt de dades conté les publicacions de l&apos;activitat
+          El conjunt de dades conté les publicacions de l'activitat
           contractual dels òrgans de contractació que publiquen a la Plataforma
           de serveis de contractació pública de Catalunya. <strong>Pot no incloure la
           totalitat dels contractes públics de Catalunya</strong>, ja que no totes
@@ -83,11 +83,11 @@ export default function AboutPage() {
           <p className="font-medium text-gray-900 mb-2">Detalls tècnics:</p>
           <ul className="list-disc list-inside space-y-1">
             <li>API: Socrata Open Data (SODA)</li>
-            <li>Actualització: Les dades s&apos;actualitzen periòdicament a la font</li>
+            <li>Actualització: Les dades s'actualitzen periòdicament a la font</li>
             <li>Memòria cau: Les dades es refresquen aproximadament cada 6 hores</li>
             <li>
               Un petit nombre de registres (~0,3%) amb dades inconsistents
-              s&apos;exclouen dels càlculs agregats
+              s'exclouen dels càlculs agregats
             </li>
           </ul>
         </div>
@@ -101,11 +101,11 @@ export default function AboutPage() {
         <p className="text-gray-600 mb-4">
           Les agregacions (imports totals, mitjanes, etc.) es calculen
           directament a la base de dades mitjançant consultes SoQL, excloent
-          registres amb dades d&apos;import corruptes. Els imports sense IVA i
+          registres amb dades d'import corruptes. Els imports sense IVA i
           amb IVA es mostren tal com estan publicats a la font original.
         </p>
         <p className="text-gray-600">
-          L&apos;anàlisi del llindar de contractes menors es basa en el límit
+          L'anàlisi del llindar de contractes menors es basa en el límit
           legal de 15.000 EUR (sense IVA) per a contractes de serveis i
           subministraments. La distribució mostra la concentració de contractes
           en rangs de 500 EUR per identificar possibles patrons.
@@ -118,14 +118,14 @@ export default function AboutPage() {
           Privacitat i avís legal
         </h2>
         <p className="text-gray-600 mb-4">
-          Utilitzem analítica agregada per entendre l&apos;ús general del web i
+          Utilitzem analítica agregada per entendre l'ús general del web i
           millorar-lo tècnicament. No fem perfilat personal ni publicitat
           dirigida.
         </p>
         <p className="text-gray-600">
           Pots consultar el detall complet a{" "}
           <Link href="/legal" className="text-blue-600 hover:underline">
-            l&apos;avís legal i política de privacitat
+            l'avís legal i política de privacitat
           </Link>
           .
         </p>
@@ -146,9 +146,9 @@ export default function AboutPage() {
           >
             {CREATOR_NAME}
           </a>
-          , una empresa d&apos;enginyeria d&apos;intel&middot;lig&egrave;ncia
-          artificial amb seu a Barcelona, Catalunya. Creiem en l&apos;ús de la
-          tecnologia per millorar la transparència i l&apos;accés a la
+          , una empresa d'enginyeria d'intel·ligència
+          artificial amb seu a Barcelona, Catalunya. Creiem en l'ús de la
+          tecnologia per millorar la transparència i l'accés a la
           informació pública.
         </p>
       </section>

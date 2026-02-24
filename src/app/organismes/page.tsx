@@ -32,8 +32,8 @@ export default async function OrganismesPage({ searchParams }: Props) {
         <SharePageButton className="shrink-0" />
       </div>
       <p className="text-gray-600 mb-8">
-        Rànquing d&apos;organismes per import total adjudicat. Fes clic en un organisme per veure
-        l&apos;evolució anual, les empreses adjudicatàries i els contractes recents.
+        Rànquing d'organismes per import total adjudicat. Fes clic en un organisme per veure
+        l'evolució anual, les empreses adjudicatàries i els contractes recents.
       </p>
 
       <OrgansTable

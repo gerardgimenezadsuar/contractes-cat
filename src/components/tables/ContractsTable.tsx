@@ -267,7 +267,7 @@ export default function ContractsTable({
             {visibleContracts.length === 0 && (
               <tr>
                 <td colSpan={6} className="py-8 text-center text-gray-500">
-                  No s&apos;han trobat contractes.
+                  No s'han trobat contractes.
                 </td>
               </tr>
             )}
@@ -367,7 +367,7 @@ export default function ContractsTable({
         })}
         {visibleContracts.length === 0 && (
           <div className="py-8 text-center text-sm text-gray-500">
-            No s&apos;han trobat contractes.
+            No s'han trobat contractes.
           </div>
         )}
       </div>

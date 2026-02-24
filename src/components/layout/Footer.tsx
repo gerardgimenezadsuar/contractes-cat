@@ -94,7 +94,7 @@ export default function Footer() {
             >
               {CREATOR_NAME}
             </a>
-            , empresa d&apos;enginyeria d&apos;IA a Barcelona, Catalunya.
+            , empresa d'enginyeria d'IA a Barcelona, Catalunya.
           </p>
           <p className="text-gray-400">
             Dades actualitzades periòdicament des de la Plataforma de Transparència · No és un web oficial del govern de Catalunya
