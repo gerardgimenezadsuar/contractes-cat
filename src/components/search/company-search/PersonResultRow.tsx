@@ -32,8 +32,8 @@ export default function PersonResultRow({ result, showTypeBadge, onSelect }: Pro
       </div>
       <div className="ml-4 text-right shrink-0">
         {typeof result.total === "number" && result.total > 0 && (
-          <p className="text-xs font-medium text-gray-700">
-            {formatCompactNumber(result.total)} EUR
+          <p className="text-sm font-medium text-gray-900">
+            {formatCompactNumber(result.total)}
           </p>
         )}
         <p className="text-xs text-gray-500">
