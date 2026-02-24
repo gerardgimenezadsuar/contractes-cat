@@ -1,0 +1,54 @@
+/**
+ * Centralized production proxy helpers for local development.
+ *
+ * When PROD_PROXY_URL is configured in development, server-side reads can
+ * fall back to production API endpoints instead of returning empty values.
+ */
+
+const PROD_PROXY_URL = process.env.PROD_PROXY_URL;
+const NODE_ENV = process.env.NODE_ENV;
+const PROD_PROXY_REVALIDATE_SECONDS = 180;
+
+export function shouldUseProductionProxy(hasDbClient: boolean, canReadDb: boolean): boolean {
+  return !hasDbClient || !canReadDb;
+}
+
+function isProductionProxyEnabled(): boolean {
+  return NODE_ENV === "development" && Boolean(PROD_PROXY_URL);
+}
+
+function buildProductionProxyUrl(path: string): string {
+  const base = (PROD_PROXY_URL || "").replace(/\/+$/, "");
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return `${base}${normalizedPath}`;
+}
+
+export function proxyPathAdminHistory(nif: string): string {
+  return `/api/borme/${encodeURIComponent(nif)}`;
+}
+
+export function proxyPathPersonProfile(personName: string): string {
+  return `/api/persones/${encodeURIComponent(personName)}/profile`;
+}
+
+export function proxyPathPersonSearch(query: string, page: number): string {
+  const params = new URLSearchParams({
+    search: query,
+    page: String(page),
+  });
+  return `/api/persones?${params.toString()}`;
+}
+
+export async function fetchFromProductionProxy<T>(path: string, fallback: T): Promise<T> {
+  if (!isProductionProxyEnabled()) return fallback;
+  try {
+    const url = buildProductionProxyUrl(path);
+    const res = await fetch(url, {
+      next: { revalidate: PROD_PROXY_REVALIDATE_SECONDS },
+    });
+    if (!res.ok) return fallback;
+    return res.json();
+  } catch {
+    return fallback;
+  }
+}

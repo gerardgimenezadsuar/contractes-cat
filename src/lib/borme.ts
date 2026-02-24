@@ -1,5 +1,11 @@
 import { createClient } from "@libsql/client";
-import { prodFetch } from "./prod-proxy";
+import {
+  fetchFromProductionProxy,
+  proxyPathAdminHistory,
+  proxyPathPersonProfile,
+  proxyPathPersonSearch,
+  shouldUseProductionProxy,
+} from "./proxy";
 
 export interface BormeAdminSpan {
   person_name:   string;
@@ -133,8 +139,8 @@ function setCachedValue<T>(cache: Map<string, { expiresAt: number; value: T }>, 
 export async function loadAdminHistory(nif: string): Promise<BormeAdminData | null> {
   try {
     const client = getDb();
-    if (!client || !canReadTurso()) {
-      return prodFetch(`/api/borme/${encodeURIComponent(nif)}`, null);
+    if (shouldUseProductionProxy(Boolean(client), canReadTurso())) {
+      return fetchFromProductionProxy(proxyPathAdminHistory(nif), null);
     }
     const normalizedNif = nif.trim().toUpperCase();
     let result;
@@ -285,10 +291,10 @@ export async function searchPersonsWithTotal(
 ): Promise<BormePersonSearchPage> {
   try {
     const client = getDb();
-    if (!client || !canReadTurso()) {
+    if (shouldUseProductionProxy(Boolean(client), canReadTurso())) {
       const page = Math.floor(offset / limit) + 1;
-      return prodFetch(
-        `/api/persones?search=${encodeURIComponent(query)}&page=${page}`,
+      return fetchFromProductionProxy(
+        proxyPathPersonSearch(query, page),
         { data: [], total: 0 },
       );
     }
@@ -413,8 +419,8 @@ async function resolveCanonicalPersonName(personName: string): Promise<string | 
 export async function loadPersonProfile(personName: string): Promise<BormePersonProfile | null> {
   try {
     const client = getDb();
-    if (!client || !canReadTurso()) {
-      return prodFetch(`/api/persones/${encodeURIComponent(personName)}/profile`, null);
+    if (shouldUseProductionProxy(Boolean(client), canReadTurso())) {
+      return fetchFromProductionProxy(proxyPathPersonProfile(personName), null);
     }
     const normalizedLookup = normalizePersonText(personName);
     const cachedProfile = getCachedValue(personProfileCache, normalizedLookup);
