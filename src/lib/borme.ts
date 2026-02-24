@@ -502,18 +502,42 @@ export async function loadPersonProfile(personName: string): Promise<BormePerson
   }
 }
 
-/** List all person names for sitemap generation. */
-export async function listAllPersonNames(): Promise<string[]> {
+/** Count all people available for sitemap generation. */
+export async function countAllPersonNames(): Promise<number> {
+  try {
+    const client = getDb();
+    if (!client) return 0;
+    if (!canReadTurso()) return 0;
+
+    const result = await client.execute({
+      sql: "SELECT COUNT(*) AS total FROM person_summary",
+      args: [],
+    });
+
+    return Number(result.rows[0]?.total || 0);
+  } catch (error) {
+    markBlockedRead(error);
+    if (isBlockedReadError(error)) return 0;
+    console.error("Failed to count person names from Turso:", error);
+    return 0;
+  }
+}
+
+/** List person names for sitemap generation, paginated by offset/limit. */
+export async function listPersonNamesPage(offset = 0, limit = 1000): Promise<string[]> {
   try {
     const client = getDb();
     if (!client) return [];
     if (!canReadTurso()) return [];
 
+    const safeOffset = Math.max(0, Math.floor(offset));
+    const safeLimit = Math.max(1, Math.floor(limit));
     const result = await client.execute({
       sql: `SELECT person_name
             FROM person_summary
-            ORDER BY num_companies_with_nif DESC, total_spans DESC`,
-      args: [],
+            ORDER BY num_companies_with_nif DESC, total_spans DESC
+            LIMIT ? OFFSET ?`,
+      args: [safeLimit, safeOffset],
     });
 
     return result.rows.map((r) => String(r.person_name));
@@ -523,6 +547,13 @@ export async function listAllPersonNames(): Promise<string[]> {
     console.error("Failed to list person names from Turso:", error);
     return [];
   }
+}
+
+/** List all person names for sitemap generation. */
+export async function listAllPersonNames(): Promise<string[]> {
+  const total = await countAllPersonNames();
+  if (total <= 0) return [];
+  return listPersonNamesPage(0, total);
 }
 
 export function getPersonAwardeeTargets(profile: BormePersonProfile): BormePersonAwardeeTargets {
