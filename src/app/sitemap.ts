@@ -13,6 +13,8 @@ const STATIC_ROUTES = [
   "/legal",
 ] as const;
 
+// Search engines commonly cap each sitemap file at 50,000 URLs.
+// We keep a conservative 40,000 limit to leave headroom for growth and avoid edge-case overflows.
 const PERSONS_PER_SITEMAP = 40000;
 
 export async function generateSitemaps(): Promise<Array<{ id: number }>> {

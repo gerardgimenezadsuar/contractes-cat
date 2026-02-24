@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { SITE_URL } from "@/config/constants";
 import { countAllPersonNames } from "@/lib/borme";
 
+// Must match sitemap chunk size: we keep 40,000 URLs per file as a safe buffer under the 50,000 sitemap limit.
 const PERSONS_PER_SITEMAP = 40000;
 
 export default async function robots(): Promise<MetadataRoute.Robots> {
