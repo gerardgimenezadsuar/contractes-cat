@@ -148,26 +148,6 @@ export default async function Image({ params }: Props) {
                 Evolució anual
               </div>
               <div style={{ display: "flex", flex: 1, position: "relative" }}>
-                {/* Y-axis labels */}
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    justifyContent: "space-between",
-                    width: 44,
-                    paddingRight: 8,
-                    height: CHART_HEIGHT,
-                  }}
-                >
-                  {[...ticks].reverse().map((tick, idx) => (
-                    <div
-                      key={`y-${idx}`}
-                      style={{ display: "flex", fontSize: 11, color: "#9CA3AF", justifyContent: "flex-end" }}
-                    >
-                      {formatCompactShort(tick)}
-                    </div>
-                  ))}
-                </div>
                 {/* Grid lines + bars */}
                 <div style={{ display: "flex", flex: 1, position: "relative" }}>
                   {ticks.map((tick, idx) => {
@@ -224,6 +204,26 @@ export default async function Image({ params }: Props) {
                       );
                     })}
                   </div>
+                </div>
+                {/* Y-axis labels (right) */}
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "space-between",
+                    width: 44,
+                    paddingLeft: 8,
+                    height: CHART_HEIGHT,
+                  }}
+                >
+                  {[...ticks].reverse().map((tick, idx) => (
+                    <div
+                      key={`y-${idx}`}
+                      style={{ display: "flex", fontSize: 11, color: "#9CA3AF", justifyContent: "flex-start" }}
+                    >
+                      {formatCompactShort(tick)}
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
