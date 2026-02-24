@@ -7,13 +7,15 @@
  */
 
 const PROD_PROXY_URL = process.env.PROD_PROXY_URL;
+const NODE_ENV = process.env.NODE_ENV;
 
-export function prodProxyUrl(): string | null {
-  return PROD_PROXY_URL || null;
+function isProdProxyEnabled(): boolean {
+  // Safety guard: only enable proxying during local development.
+  return NODE_ENV === "development" && Boolean(PROD_PROXY_URL);
 }
 
 export async function prodFetch<T>(path: string, fallback: T): Promise<T> {
-  if (!PROD_PROXY_URL) return fallback;
+  if (!isProdProxyEnabled()) return fallback;
   try {
     const url = `${PROD_PROXY_URL}${path}`;
     const res = await fetch(url, { next: { revalidate: 180 } });

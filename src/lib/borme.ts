@@ -133,8 +133,9 @@ function setCachedValue<T>(cache: Map<string, { expiresAt: number; value: T }>, 
 export async function loadAdminHistory(nif: string): Promise<BormeAdminData | null> {
   try {
     const client = getDb();
-    if (!client) return prodFetch(`/api/borme/${encodeURIComponent(nif)}`, null);
-    if (!canReadTurso()) return null;
+    if (!client || !canReadTurso()) {
+      return prodFetch(`/api/borme/${encodeURIComponent(nif)}`, null);
+    }
     const normalizedNif = nif.trim().toUpperCase();
     let result;
     try {
@@ -284,14 +285,13 @@ export async function searchPersonsWithTotal(
 ): Promise<BormePersonSearchPage> {
   try {
     const client = getDb();
-    if (!client) {
+    if (!client || !canReadTurso()) {
       const page = Math.floor(offset / limit) + 1;
       return prodFetch(
         `/api/persones?search=${encodeURIComponent(query)}&page=${page}`,
         { data: [], total: 0 },
       );
     }
-    if (!canReadTurso()) return { data: [], total: 0 };
     const fts = buildPersonSearchFts(query);
     if (!fts) return { data: [], total: 0 };
 
@@ -413,8 +413,9 @@ async function resolveCanonicalPersonName(personName: string): Promise<string | 
 export async function loadPersonProfile(personName: string): Promise<BormePersonProfile | null> {
   try {
     const client = getDb();
-    if (!client) return prodFetch(`/api/persones/${encodeURIComponent(personName)}/profile`, null);
-    if (!canReadTurso()) return null;
+    if (!client || !canReadTurso()) {
+      return prodFetch(`/api/persones/${encodeURIComponent(personName)}/profile`, null);
+    }
     const normalizedLookup = normalizePersonText(personName);
     const cachedProfile = getCachedValue(personProfileCache, normalizedLookup);
     if (cachedProfile) return cachedProfile;
