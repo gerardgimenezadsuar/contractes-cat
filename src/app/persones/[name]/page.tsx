@@ -5,6 +5,7 @@ import { getPersonAwardeeTargets, loadPersonProfile } from "@/lib/borme";
 import { fetchContractsByAwardeesSummary } from "@/lib/api";
 import { formatCompactNumber, formatDate, formatNumber } from "@/lib/utils";
 import { formatPersonDisplayName } from "@/lib/person-utils";
+import { safeJsonLd } from "@/lib/seo/jsonld";
 import { SITE_URL } from "@/config/constants";
 import StatCard from "@/components/ui/StatCard";
 import SharePageButton from "@/components/ui/SharePageButton";
@@ -137,7 +138,7 @@ export default async function PersonDetailPage({ params }: Props) {
     <div className="max-w-7xl mx-auto px-4 py-8">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
       />
 
       <Link href="/" className="text-sm text-gray-500 hover:text-gray-900 mb-4 inline-block">
