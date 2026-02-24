@@ -7,6 +7,7 @@ import Pagination from "@/components/ui/Pagination";
 import SearchLoadingIndicator from "@/components/ui/SearchLoadingIndicator";
 import { DEFAULT_PAGE_SIZE } from "@/config/constants";
 import { formatNumber } from "@/lib/utils";
+import { formatPersonDisplayName } from "@/lib/person-utils";
 
 interface PersonSearchResult {
   person_name: string;
@@ -225,11 +226,11 @@ export default function PersonSearchExplorer({
               >
                 <div className="flex items-start gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-700">
-                    {getInitials(row.person_name)}
+                    {getInitials(formatPersonDisplayName(row.person_name))}
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-base font-semibold text-gray-900 group-hover:text-indigo-700">
-                      {row.person_name}
+                      {formatPersonDisplayName(row.person_name)}
                     </p>
                     <p className="mt-1 text-xs text-gray-500">
                       {formatNumber(row.total_spans)} registres societaris

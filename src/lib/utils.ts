@@ -102,6 +102,34 @@ export function parseAmount(value: string | undefined): number {
   return isNaN(num) ? 0 : num;
 }
 
+export function formatCompactShort(value: number): string {
+  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(0)} mil M`;
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(0)}M`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(0)}k`;
+  return `${value.toFixed(0)}`;
+}
+
+export function niceAxisTicks(maxValue: number, numTicks = 3): { ticks: number[]; niceMax: number } {
+  if (maxValue <= 0) return { ticks: [0], niceMax: 1 };
+  const rawStep = maxValue / (numTicks - 1);
+  const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
+  const niceSteps = [1, 2, 2.5, 5, 10];
+  const normalised = rawStep / magnitude;
+  let niceStep = magnitude * 10;
+  for (const s of niceSteps) {
+    if (s >= normalised) {
+      niceStep = s * magnitude;
+      break;
+    }
+  }
+  const niceMax = Math.ceil(maxValue / niceStep) * niceStep;
+  const ticks: number[] = [];
+  for (let i = 0; i <= numTicks - 1; i++) {
+    ticks.push(Math.round((niceMax / (numTicks - 1)) * i));
+  }
+  return { ticks, niceMax };
+}
+
 export function cn(...classes: (string | undefined | false)[]): string {
   return classes.filter(Boolean).join(" ");
 }

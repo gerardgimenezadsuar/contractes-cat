@@ -14,6 +14,13 @@ import {
   getPublicationUrl,
   formatDate,
 } from "@/lib/utils";
+import { safeJsonLd } from "@/lib/seo/jsonld";
+import {
+  buildEntityBreadcrumbJsonLd,
+  buildEntityJsonLdGraph,
+  buildEntityMetadata,
+  buildEntityPrimaryJsonLd,
+} from "@/lib/seo/entity-seo";
 import StatCard from "@/components/ui/StatCard";
 import { YearlyTrendChartLazy } from "@/components/charts/LazyCharts";
 import SharePageButton from "@/components/ui/SharePageButton";
@@ -33,36 +40,28 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const decodedId = decodeURIComponent(id);
   const { organ } = await getOrganDetail(decodedId);
   const organName = organ?.nom_organ || decodedId;
+  const canonicalOrganId = organ?.nom_organ || decodedId;
   const totalAmount = parseFloat(organ?.total || "0");
   const totalContracts = parseInt(organ?.num_contracts || "0", 10);
   const description = organ
     ? `${formatCompactNumber(totalAmount)} adjudicats en ${formatNumber(totalContracts)} contractes públics per ${organName}.`
     : `Detall dels contractes públics de ${organName}.`;
-  const imageUrl = `/organismes/${encodeURIComponent(decodedId)}/opengraph-image`;
 
-  return {
+  const entityPath = `/organismes/${encodeURIComponent(canonicalOrganId)}`;
+  return buildEntityMetadata({
     title: organName,
     description,
-    openGraph: {
-      title: organName,
-      description,
-      type: "article",
-      images: [
-        {
-          url: imageUrl,
-          width: 1200,
-          height: 630,
-          alt: `Resum de contractació pública de ${organName}`,
-        },
-      ],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: organName,
-      description,
-      images: [imageUrl],
-    },
-  };
+    path: entityPath,
+    imagePath: `${entityPath}/opengraph-image`,
+    imageAlt: `Resum de contractació pública de ${organName}`,
+    keywords: [
+      organName,
+      `${organName} contractes`,
+      "organisme contractant",
+      "contractació pública Catalunya",
+    ],
+    openGraphType: "article",
+  });
 }
 
 export default async function OrganDetailPage({ params }: Props) {
@@ -104,9 +103,26 @@ export default async function OrganDetailPage({ params }: Props) {
     recentContracts[0]?.data_formalitzacio_contracte,
     recentContracts[0]?.data_publicacio_anunci
   ).date;
+  const entityPath = `/organismes/${encodeURIComponent(organ.nom_organ)}`;
+  const organDescription = `${formatCompactNumber(totalAmount)} adjudicats en ${formatNumber(numContracts)} contractes públics per ${organ.nom_organ}.`;
+  const jsonLd = buildEntityJsonLdGraph(
+    buildEntityPrimaryJsonLd({
+      schemaType: "GovernmentOrganization",
+      name: organ.nom_organ,
+      path: entityPath,
+      description: organDescription,
+    }),
+    buildEntityBreadcrumbJsonLd([
+      { name: "Inici", path: "/" },
+      { name: "Organismes", path: "/organismes" },
+      { name: organ.nom_organ },
+    ])
+  );
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
+
       <Link href="/organismes" className="text-sm text-gray-500 hover:text-gray-900 mb-4 inline-block">
         &larr; Tornar a organismes
       </Link>

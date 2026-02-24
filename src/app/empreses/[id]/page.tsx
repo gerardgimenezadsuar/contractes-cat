@@ -12,6 +12,13 @@ import {
   formatNumber,
   formatCompactNumber,
 } from "@/lib/utils";
+import { safeJsonLd } from "@/lib/seo/jsonld";
+import {
+  buildEntityBreadcrumbJsonLd,
+  buildEntityJsonLdGraph,
+  buildEntityMetadata,
+  buildEntityPrimaryJsonLd,
+} from "@/lib/seo/entity-seo";
 import StatCard from "@/components/ui/StatCard";
 import { YearlyTrendChartLazy } from "@/components/charts/LazyCharts";
 import CompanyContractsExplorer from "@/components/company/CompanyContractsExplorer";
@@ -33,6 +40,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const decodedId = decodeURIComponent(id);
   const { company } = await getCompanyDetail(decodedId);
   const companyName = company?.denominacio_adjudicatari || decodedId;
+  const canonicalCompanyId = company?.identificacio_adjudicatari || decodedId;
   const totalAmount = parseFloat(company?.total || "0");
   const totalContracts = parseInt(company?.num_contracts || "0", 10);
   const description = company
@@ -40,31 +48,22 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         totalContracts
       )} contractes públics a ${companyName}.`
     : `Detall dels contractes públics adjudicats a ${companyName}.`;
-  const imageUrl = `/empreses/${encodeURIComponent(decodedId)}/opengraph-image`;
 
-  return {
+  const entityPath = `/empreses/${encodeURIComponent(canonicalCompanyId)}`;
+  return buildEntityMetadata({
     title: companyName,
     description,
-    openGraph: {
-      title: companyName,
-      description,
-      type: "article",
-      images: [
-        {
-          url: imageUrl,
-          width: 1200,
-          height: 630,
-          alt: `Resum de contractació pública de ${companyName}`,
-        },
-      ],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: companyName,
-      description,
-      images: [imageUrl],
-    },
-  };
+    path: entityPath,
+    imagePath: `${entityPath}/opengraph-image`,
+    imageAlt: `Resum de contractació pública de ${companyName}`,
+    keywords: [
+      companyName,
+      decodedId,
+      `${companyName} contractes`,
+      "contractació pública Catalunya",
+    ],
+    openGraphType: "article",
+  });
 }
 
 export default async function CompanyDetailPage({ params }: Props) {
@@ -105,9 +104,29 @@ export default async function CompanyDetailPage({ params }: Props) {
   const currentYearAmountSubtitle = currentYearRow
     ? `Total històric: ${formatCompactNumber(totalAmount)}`
     : `Sense dades ${currentYear}. Total històric: ${formatCompactNumber(totalAmount)}`;
+  const entityPath = `/empreses/${encodeURIComponent(company.identificacio_adjudicatari)}`;
+  const companyDescription = `${formatCompactNumber(totalAmount)} adjudicats en ${formatNumber(numContracts)} contractes públics a ${company.denominacio_adjudicatari}.`;
+  const jsonLd = buildEntityJsonLdGraph(
+    buildEntityPrimaryJsonLd({
+      schemaType: "Organization",
+      name: company.denominacio_adjudicatari,
+      path: entityPath,
+      description: companyDescription,
+      extraFields: {
+        identifier: company.identificacio_adjudicatari,
+      },
+    }),
+    buildEntityBreadcrumbJsonLd([
+      { name: "Inici", path: "/" },
+      { name: "Empreses", path: "/empreses" },
+      { name: company.denominacio_adjudicatari },
+    ])
+  );
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
+
       <Link
         href="/empreses"
         className="text-sm text-gray-500 hover:text-gray-900 mb-4 inline-block"
