@@ -17,3 +17,10 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Prevent iOS auto-zoom on input focus — 16px is the minimum to avoid it */
+input,
+select,
+textarea {
+  font-size: max(16px, 1em);
+}
