@@ -134,19 +134,7 @@ export default async function Image() {
                 Plataforma de serveis de contractació pública · Dades obertes
               </div>
             </div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                background: "#4F46E5",
-                color: "#ffffff",
-                fontSize: 20,
-                fontWeight: 600,
-                padding: "10px 24px",
-                borderRadius: 50,
-              }}
-            >
+            <div style={{ display: "flex", fontSize: 20, fontWeight: 600, color: "#4F46E5" }}>
               Explora les dades →
             </div>
           </div>
