@@ -143,7 +143,7 @@ export default function ContractsTable({
                     key={col.id}
                     className={`
                       ${col.align === "right" ? "text-right" : "text-left"}
-                      py-3 px-4 font-medium text-gray-500 relative
+                      py-3 px-4 font-medium text-gray-500 relative overflow-hidden
                       ${col.hiddenBelowXl ? "hidden xl:table-cell" : ""}
                       ${isSortable ? "cursor-pointer hover:text-gray-700 hover:bg-gray-100/50 select-none transition-colors" : ""}
                     `}
@@ -151,8 +151,8 @@ export default function ContractsTable({
                     onClick={isSortable ? () => handleHeaderClick(col.id) : undefined}
                     aria-sort={isActive ? (sortState?.dir === "asc" ? "ascending" : "descending") : undefined}
                   >
-                    <span className={`inline-flex items-center gap-1 ${col.align === "right" ? "justify-end w-full" : ""}`}>
-                      {col.label}
+                    <span className={`inline-flex items-center gap-1 min-w-0 ${col.align === "right" ? "justify-end w-full" : ""}`}>
+                      <span className="truncate">{col.label}</span>
                       {isSortable && (
                         <span className={`inline-flex flex-col leading-none ${isActive ? "text-gray-700" : "text-gray-300"}`}>
                           <svg width="8" height="5" viewBox="0 0 8 5" className={`${isActive && sortState?.dir === "asc" ? "text-gray-700" : ""}`}>
@@ -263,7 +263,7 @@ export default function ContractsTable({
                       </div>
                     )}
                   </td>
-                  <td className="py-3 px-4 align-top whitespace-normal break-words" title={c.nom_organ}>
+                  <td className="py-3 px-4 truncate" title={c.nom_organ}>
                     {c.nom_organ || "—"}
                   </td>
                 </tr>

@@ -78,7 +78,7 @@ export function useColumnResize(
         const state = dragState.current;
         if (!state) return;
         const delta = ev.clientX - state.startX;
-        const minW = 60;
+        const minW = 36;
         const newLeft = state.startWidthLeft + delta;
         const newRight = state.startWidthRight - delta;
         if (newLeft >= minW && newRight >= minW) {
