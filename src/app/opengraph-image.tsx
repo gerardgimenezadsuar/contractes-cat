@@ -33,94 +33,105 @@ export default async function Image() {
           width: "100%",
           height: "100%",
           display: "flex",
-          flexDirection: "column",
           background: "linear-gradient(135deg, #EEF2FF 0%, #FFFFFF 50%, #F0F9FF 100%)",
-          color: "#111827",
-          padding: "56px",
+          padding: "32px",
           fontFamily:
             "ui-sans-serif, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial",
-          justifyContent: "space-between",
         }}
       >
-        {/* Top: branding + tagline */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <div
-            style={{
-              display: "flex",
-              fontSize: 52,
-              fontWeight: 700,
-              color: "#111827",
-            }}
-          >
-            contractes.cat
-          </div>
-          <div
-            style={{
-              display: "flex",
-              fontSize: 26,
-              color: "#4B5563",
-              fontWeight: 500,
-            }}
-          >
-            Contractació pública a Catalunya
-          </div>
-          <div
-            style={{
-              display: "flex",
-              fontSize: 20,
-              color: "#9CA3AF",
-            }}
-          >
-            Dades obertes, anàlisi independent i visualitzacions clares.
-          </div>
-        </div>
-
-        {/* Middle: stat cards */}
-        <div style={{ display: "flex", gap: 20 }}>
-          {stats.map((stat) => (
+        <div
+          style={{
+            width: "100%",
+            height: "100%",
+            display: "flex",
+            flexDirection: "column",
+            background: "#ffffff",
+            borderRadius: 24,
+            padding: "48px",
+            justifyContent: "space-between",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+          }}
+        >
+          {/* Top: branding + tagline */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div
-              key={stat.label}
               style={{
                 display: "flex",
-                flexDirection: "column",
-                gap: 6,
-                background: "#ffffff",
-                border: "2px solid #E5E7EB",
-                borderRadius: 16,
-                padding: "24px 32px",
-                flex: 1,
+                fontSize: 52,
+                fontWeight: 700,
+                color: "#111827",
               }}
             >
-              <div style={{ display: "flex", fontSize: 16, color: stat.color, fontWeight: 600 }}>
-                {stat.label}
-              </div>
+              contractes.cat
+            </div>
+            <div
+              style={{
+                display: "flex",
+                fontSize: 26,
+                color: "#4B5563",
+                fontWeight: 500,
+              }}
+            >
+              Contractació pública a Catalunya
+            </div>
+            <div
+              style={{
+                display: "flex",
+                fontSize: 20,
+                color: "#9CA3AF",
+              }}
+            >
+              Dades obertes, anàlisi independent i visualitzacions clares.
+            </div>
+          </div>
+
+          {/* Middle: stat cards */}
+          <div style={{ display: "flex", gap: 20 }}>
+            {stats.map((stat) => (
               <div
+                key={stat.label}
                 style={{
                   display: "flex",
-                  fontSize: 44,
-                  fontWeight: 700,
-                  color: "#111827",
+                  flexDirection: "column",
+                  gap: 6,
+                  background: "#F9FAFB",
+                  border: "2px solid #E5E7EB",
+                  borderRadius: 16,
+                  padding: "24px 32px",
+                  flex: 1,
                 }}
               >
-                {stat.value}
+                <div style={{ display: "flex", fontSize: 16, color: stat.color, fontWeight: 600 }}>
+                  {stat.label}
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    fontSize: 44,
+                    fontWeight: 700,
+                    color: "#111827",
+                  }}
+                >
+                  {stat.value}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
 
-        {/* Bottom: data source */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div
-            style={{
-              display: "flex",
-              width: 12,
-              height: 12,
-              borderRadius: "50%",
-              background: "#22C55E",
-            }}
-          />
-          <div style={{ display: "flex", fontSize: 16, color: "#6B7280" }}>
-            Plataforma de serveis de contractació pública · Dades obertes
+          {/* Bottom: data source */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div
+              style={{
+                display: "flex",
+                width: 12,
+                height: 12,
+                borderRadius: "50%",
+                background: "#22C55E",
+              }}
+            />
+            <div style={{ display: "flex", fontSize: 16, color: "#6B7280" }}>
+              Plataforma de serveis de contractació pública · Dades obertes
+            </div>
           </div>
         </div>
       </div>

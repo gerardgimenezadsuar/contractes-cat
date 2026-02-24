@@ -48,112 +48,123 @@ export default async function Image({ params }: Props) {
           width: "100%",
           height: "100%",
           display: "flex",
-          flexDirection: "column",
           background: "linear-gradient(135deg, #EEF2FF 0%, #FFFFFF 50%, #F0F9FF 100%)",
-          color: "#111111",
-          padding: "56px",
+          padding: "32px",
           fontFamily:
             "ui-sans-serif, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial",
-          justifyContent: "space-between",
         }}
       >
-        {/* Top: avatar + name */}
-        <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 80,
-              height: 80,
-              borderRadius: "50%",
-              background: "linear-gradient(135deg, #4F46E5, #6366F1)",
-              color: "#ffffff",
-              fontSize: 32,
-              fontWeight: 700,
-              flexShrink: 0,
-            }}
-          >
-            {initials}
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <div
+          style={{
+            width: "100%",
+            height: "100%",
+            display: "flex",
+            flexDirection: "column",
+            background: "#ffffff",
+            borderRadius: 24,
+            padding: "48px",
+            justifyContent: "space-between",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+          }}
+        >
+          {/* Top: avatar + name */}
+          <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
             <div
               style={{
                 display: "flex",
-                fontSize: 18,
-                color: "#6366F1",
-                fontWeight: 600,
-                letterSpacing: "0.05em",
-                textTransform: "uppercase",
-              }}
-            >
-              Perfil societari
-            </div>
-            <div
-              style={{
-                display: "flex",
-                fontSize: 52,
+                alignItems: "center",
+                justifyContent: "center",
+                width: 80,
+                height: 80,
+                borderRadius: "50%",
+                background: "linear-gradient(135deg, #4F46E5, #6366F1)",
+                color: "#ffffff",
+                fontSize: 32,
                 fontWeight: 700,
-                lineHeight: 1.1,
-                color: "#111827",
+                flexShrink: 0,
               }}
             >
-              {displayName}
+              {initials}
             </div>
-          </div>
-        </div>
-
-        {/* Middle: stat cards */}
-        <div style={{ display: "flex", gap: 20 }}>
-          {stats.map((stat) => (
-            <div
-              key={stat.label}
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 6,
-                background: "#ffffff",
-                border: "2px solid #E0E7FF",
-                borderRadius: 16,
-                padding: "24px 32px",
-                flex: 1,
-              }}
-            >
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               <div
                 style={{
                   display: "flex",
-                  fontSize: 44,
-                  fontWeight: 700,
-                  color: "#4F46E5",
+                  fontSize: 18,
+                  color: "#6366F1",
+                  fontWeight: 600,
+                  letterSpacing: "0.05em",
+                  textTransform: "uppercase",
                 }}
               >
-                {stat.value}
+                Perfil societari
               </div>
-              <div style={{ display: "flex", fontSize: 18, color: "#6B7280", fontWeight: 500 }}>
-                {stat.label}
+              <div
+                style={{
+                  display: "flex",
+                  fontSize: 52,
+                  fontWeight: 700,
+                  lineHeight: 1.1,
+                  color: "#111827",
+                }}
+              >
+                {displayName}
               </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Bottom: branding */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div
-              style={{
-                display: "flex",
-                width: 12,
-                height: 12,
-                borderRadius: "50%",
-                background: "#22C55E",
-              }}
-            />
-            <div style={{ display: "flex", fontSize: 16, color: "#6B7280" }}>
-              Dades obertes · BORME + Contractació pública
             </div>
           </div>
-          <div style={{ display: "flex", fontSize: 30, fontWeight: 700, color: "#111827" }}>
-            contractes.cat
+
+          {/* Middle: stat cards */}
+          <div style={{ display: "flex", gap: 20 }}>
+            {stats.map((stat) => (
+              <div
+                key={stat.label}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 6,
+                  background: "#F9FAFB",
+                  border: "2px solid #E0E7FF",
+                  borderRadius: 16,
+                  padding: "24px 32px",
+                  flex: 1,
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    fontSize: 44,
+                    fontWeight: 700,
+                    color: "#4F46E5",
+                  }}
+                >
+                  {stat.value}
+                </div>
+                <div style={{ display: "flex", fontSize: 18, color: "#6B7280", fontWeight: 500 }}>
+                  {stat.label}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Bottom: branding */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div
+                style={{
+                  display: "flex",
+                  width: 12,
+                  height: 12,
+                  borderRadius: "50%",
+                  background: "#22C55E",
+                }}
+              />
+              <div style={{ display: "flex", fontSize: 16, color: "#6B7280" }}>
+                Dades obertes · BORME + Contractació pública
+              </div>
+            </div>
+            <div style={{ display: "flex", fontSize: 30, fontWeight: 700, color: "#111827" }}>
+              contractes.cat
+            </div>
           </div>
         </div>
       </div>
