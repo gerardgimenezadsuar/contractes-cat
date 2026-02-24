@@ -6,7 +6,12 @@ import { fetchContractsByAwardeesSummary } from "@/lib/api";
 import { formatCompactNumber, formatDate, formatNumber } from "@/lib/utils";
 import { formatPersonDisplayName } from "@/lib/person-utils";
 import { safeJsonLd } from "@/lib/seo/jsonld";
-import { SITE_URL } from "@/config/constants";
+import {
+  buildEntityBreadcrumbJsonLd,
+  buildEntityJsonLdGraph,
+  buildEntityMetadata,
+  buildEntityPrimaryJsonLd,
+} from "@/lib/seo/entity-seo";
 import StatCard from "@/components/ui/StatCard";
 import SharePageButton from "@/components/ui/SharePageButton";
 import PersonContractsExplorer from "@/components/person/PersonContractsExplorer";
@@ -40,11 +45,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     ? `${displayName}: ${formatNumber(profile.num_companies)} empreses vinculades, ${formatNumber(contractsSummary.total)} contractes públics (${formatCompactNumber(contractsSummary.totalAmount)}). Informació societària del BORME i contractes públics a Catalunya.`
     : `Informació societària de ${displayName} segons BORME.`;
 
-  const imageUrl = `/persones/${encodeURIComponent(bormeName)}/opengraph-image`;
-
-  return {
+  const entityPath = `/persones/${encodeURIComponent(bormeName)}`;
+  return buildEntityMetadata({
     title: displayName,
     description,
+    path: entityPath,
+    imagePath: `${entityPath}/opengraph-image`,
+    imageAlt: `Perfil de contractació pública de ${displayName}`,
     keywords: [
       displayName,
       bormeName,
@@ -53,26 +60,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       "BORME",
       "contractació pública Catalunya",
     ],
-    openGraph: {
-      title: displayName,
-      description,
-      type: "profile",
-      images: [
-        {
-          url: imageUrl,
-          width: 1200,
-          height: 630,
-          alt: `Perfil de contractació pública de ${displayName}`,
-        },
-      ],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: displayName,
-      description,
-      images: [imageUrl],
-    },
-  };
+    openGraphType: "profile",
+  });
 }
 
 export default async function PersonDetailPage({ params }: Props) {
@@ -99,40 +88,22 @@ export default async function PersonDetailPage({ params }: Props) {
       : { total: 0, totalAmount: 0 };
   const activeCompanies = profile.companies.filter((c) => c.active_spans > 0).length;
 
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@graph": [
-      {
-        "@type": "Person",
-        name: displayName,
-        alternateName: profile.person_name,
-        url: `${SITE_URL}/persones/${encodeURIComponent(profile.person_name)}`,
-        description: `${displayName}: vinculacions societàries i contractes públics a Catalunya.`,
-      },
-      {
-        "@type": "BreadcrumbList",
-        itemListElement: [
-          {
-            "@type": "ListItem",
-            position: 1,
-            name: "Inici",
-            item: SITE_URL,
-          },
-          {
-            "@type": "ListItem",
-            position: 2,
-            name: "Persones",
-            item: `${SITE_URL}/persones`,
-          },
-          {
-            "@type": "ListItem",
-            position: 3,
-            name: displayName,
-          },
-        ],
-      },
-    ],
-  };
+  const personPath = `/persones/${encodeURIComponent(profile.person_name)}`;
+  const personDescription = `${displayName}: vinculacions societàries i contractes públics a Catalunya.`;
+  const jsonLd = buildEntityJsonLdGraph(
+    buildEntityPrimaryJsonLd({
+      schemaType: "Person",
+      name: displayName,
+      alternateName: profile.person_name,
+      path: personPath,
+      description: personDescription,
+    }),
+    buildEntityBreadcrumbJsonLd([
+      { name: "Inici", path: "/" },
+      { name: "Persones", path: "/persones" },
+      { name: displayName },
+    ])
+  );
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
