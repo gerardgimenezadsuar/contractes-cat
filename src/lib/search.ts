@@ -7,6 +7,7 @@ export interface PersonSearchResult {
   num_companies: number;
   num_companies_with_nif: number;
   active_spans: number;
+  total?: number;
 }
 
 export interface UnifiedSearchSections {
@@ -24,6 +25,10 @@ interface ApiDataResponse<T> {
   data?: T[];
 }
 
+interface PersonContractsSummaryResponse {
+  totalAmount?: number;
+}
+
 const DEFAULT_MIXED_SECTION_LIMIT = 5;
 const DEFAULT_SINGLE_MODE_LIMIT = 8;
 
@@ -32,6 +37,23 @@ const parseJsonOrThrow = async <T>(res: Response): Promise<ApiDataResponse<T>> =
     throw new Error(`Search request failed with status ${res.status}`);
   }
   return res.json() as Promise<ApiDataResponse<T>>;
+};
+
+const fetchPersonTotalAmount = async (personName: string, signal?: AbortSignal): Promise<number> => {
+  try {
+    const response = await fetch(
+      `/api/persones/${encodeURIComponent(personName)}/contractes?page=1&sort=amount-desc`,
+      { signal }
+    );
+    if (!response.ok) return 0;
+    const json = (await response.json()) as PersonContractsSummaryResponse;
+    return Number(json.totalAmount || 0);
+  } catch (errorValue) {
+    if (errorValue instanceof DOMException && errorValue.name === "AbortError") {
+      throw errorValue;
+    }
+    return 0;
+  }
 };
 
 export const minCharsForMode = (mode: SearchMode): number =>
@@ -62,10 +84,21 @@ export async function fetchUnifiedSearch(
       parseJsonOrThrow<PersonSearchResult>(perRes),
     ]);
 
+    const basePersones = (perJson.data || []).slice(0, mixedSectionLimit);
+    const personesWithTotals = await Promise.all(
+      basePersones.map(async (person) => ({
+        ...person,
+        total: await fetchPersonTotalAmount(person.person_name, signal),
+      }))
+    );
+    const orderedPersones = personesWithTotals.sort(
+      (a, b) => (b.total || 0) - (a.total || 0)
+    );
+
     return {
       empreses: (empJson.data || []).slice(0, mixedSectionLimit),
       organismes: (orgJson.data || []).slice(0, mixedSectionLimit),
-      persones: (perJson.data || []).slice(0, mixedSectionLimit),
+      persones: orderedPersones,
     };
   }
 

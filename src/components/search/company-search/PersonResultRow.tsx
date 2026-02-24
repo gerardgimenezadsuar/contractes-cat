@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { PersonSearchResult } from "@/lib/search";
-import { formatNumber } from "@/lib/utils";
+import { formatCompactNumber, formatNumber } from "@/lib/utils";
 import ResultTypeBadge from "@/components/search/company-search/ResultTypeBadge";
 
 const resultRowClassName =
@@ -31,6 +31,11 @@ export default function PersonResultRow({ result, showTypeBadge, onSelect }: Pro
         </p>
       </div>
       <div className="ml-4 text-right shrink-0">
+        {typeof result.total === "number" && result.total > 0 && (
+          <p className="text-xs font-medium text-gray-700">
+            {formatCompactNumber(result.total)} EUR
+          </p>
+        )}
         <p className="text-xs text-gray-500">
           {formatNumber(result.active_spans)} càrrecs actius
         </p>

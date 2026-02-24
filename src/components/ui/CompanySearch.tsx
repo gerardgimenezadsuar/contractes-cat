@@ -77,6 +77,9 @@ export default function CompanySearch() {
         ...sections.organismes.map((row) => ({ kind: "organisme" as const, ...row })),
         ...sections.persones.map((row) => ({ kind: "persona" as const, ...row })),
       ];
+      if (nextMode === "tots") {
+        merged.sort((a, b) => Number(b.total || 0) - Number(a.total || 0));
+      }
       setResults(merged);
       setOpen(true);
     } catch (errorValue) {
