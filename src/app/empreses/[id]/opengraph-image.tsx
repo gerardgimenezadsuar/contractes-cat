@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 import { fetchCompanyDetail } from "@/lib/api";
-import { formatCompactNumber, formatNumber } from "@/lib/utils";
+import { formatCompactNumber, formatCompactShort, formatNumber, niceAxisTicks } from "@/lib/utils";
 
 export const size = {
   width: 1200,
@@ -32,6 +32,8 @@ export default async function Image({ params }: Props) {
 
   const maxYearly = yearlyPoints.reduce((max, row) => Math.max(max, row.total), 0);
   const numYears = yearlyPoints.length;
+  const { ticks, niceMax } = niceAxisTicks(maxYearly, 3);
+  const CHART_HEIGHT = 130;
 
   return new ImageResponse(
     (
@@ -145,41 +147,84 @@ export default async function Image({ params }: Props) {
               <div style={{ display: "flex", fontSize: 14, color: "#6B7280", fontWeight: 600, marginBottom: 10 }}>
                 Evolució anual
               </div>
-              <div
-                style={{
-                  display: "flex",
-                  flex: 1,
-                  gap: numYears <= 3 ? 20 : 14,
-                  alignItems: "flex-end",
-                  justifyContent: "center",
-                }}
-              >
-                {(numYears > 0
-                  ? yearlyPoints
-                  : [{ year: "—", total: 1 }, { year: "—", total: 1 }, { year: "—", total: 1 }]
-                ).map((row, idx) => {
-                  const pct = maxYearly > 0 ? row.total / maxYearly : 0.3;
-                  const barHeight = Math.max(10, Math.round(pct * 120));
-                  return (
+              <div style={{ display: "flex", flex: 1, position: "relative" }}>
+                {/* Y-axis labels */}
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "space-between",
+                    width: 44,
+                    paddingRight: 8,
+                    height: CHART_HEIGHT,
+                  }}
+                >
+                  {[...ticks].reverse().map((tick, idx) => (
                     <div
-                      key={`${row.year}-${idx}`}
-                      style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}
+                      key={`y-${idx}`}
+                      style={{ display: "flex", fontSize: 11, color: "#9CA3AF", justifyContent: "flex-end" }}
                     >
+                      {formatCompactShort(tick)}
+                    </div>
+                  ))}
+                </div>
+                {/* Grid lines + bars */}
+                <div style={{ display: "flex", flex: 1, position: "relative" }}>
+                  {ticks.map((tick, idx) => {
+                    const bottomPct = niceMax > 0 ? (tick / niceMax) * 100 : 0;
+                    return (
                       <div
+                        key={`grid-${idx}`}
                         style={{
+                          position: "absolute",
+                          left: 0,
+                          right: 0,
+                          bottom: `${bottomPct}%`,
+                          height: 1,
+                          background: "#E5E7EB",
+                          opacity: 0.6,
                           display: "flex",
-                          width: numYears <= 3 ? 44 : 32,
-                          height: barHeight,
-                          background: "#4F46E5",
-                          borderRadius: 4,
                         }}
                       />
-                      <div style={{ display: "flex", fontSize: 13, color: "#9CA3AF" }}>
-                        {String(row.year).slice(-2)}
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                  <div
+                    style={{
+                      display: "flex",
+                      flex: 1,
+                      gap: numYears <= 3 ? 20 : 14,
+                      alignItems: "flex-end",
+                      justifyContent: "center",
+                    }}
+                  >
+                    {(numYears > 0
+                      ? yearlyPoints
+                      : [{ year: "—", total: 1 }, { year: "—", total: 1 }, { year: "—", total: 1 }]
+                    ).map((row, idx) => {
+                      const pct = niceMax > 0 ? row.total / niceMax : 0.3;
+                      const barHeight = Math.max(6, Math.round(pct * CHART_HEIGHT));
+                      return (
+                        <div
+                          key={`${row.year}-${idx}`}
+                          style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              width: numYears <= 3 ? 44 : 32,
+                              height: barHeight,
+                              background: "#4F46E5",
+                              borderRadius: 4,
+                            }}
+                          />
+                          <div style={{ display: "flex", fontSize: 13, color: "#9CA3AF" }}>
+                            {String(row.year).slice(-2)}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
