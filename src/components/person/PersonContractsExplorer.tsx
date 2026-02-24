@@ -2,12 +2,12 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import type { Contract } from "@/lib/types";
+import type { SortState } from "@/lib/table-types";
+import { sortStateToParam } from "@/lib/table-types";
 import ContractsTable from "@/components/tables/ContractsTable";
 import Pagination from "@/components/ui/Pagination";
 import { DEFAULT_PAGE_SIZE } from "@/config/constants";
 import { formatCompactNumber, formatNumber } from "@/lib/utils";
-
-type SortKey = "date-desc" | "date-asc" | "amount-desc" | "amount-asc";
 
 interface Props {
   personName: string;
@@ -30,14 +30,14 @@ export default function PersonContractsExplorer({
   const [total, setTotal] = useState(initialTotalContracts);
   const [totalAmount, setTotalAmount] = useState(initialTotalAmount);
   const [page, setPage] = useState(1);
-  const [sort, setSort] = useState<SortKey>("date-desc");
+  const [sort, setSort] = useState<SortState>({ column: "date", dir: "desc" });
   const [organFilter, setOrganFilter] = useState("");
   const [loading, setLoading] = useState(false);
   const abortRef = useRef<AbortController>(null);
   const debounceRef = useRef<NodeJS.Timeout>(null);
 
   const fetchData = useCallback(
-    async (p: number, s: SortKey, organ: string) => {
+    async (p: number, s: string, organ: string) => {
       if (abortRef.current) abortRef.current.abort();
       const controller = new AbortController();
       abortRef.current = controller;
@@ -68,7 +68,7 @@ export default function PersonContractsExplorer({
   useEffect(() => {
     if (!hasNifTargets) return;
     if (initialContracts.length > 0) return;
-    fetchData(1, sort, organFilter);
+    fetchData(1, sortStateToParam(sort), organFilter);
   }, [fetchData, hasNifTargets, initialContracts.length, organFilter, sort]);
 
   useEffect(() => {
@@ -81,16 +81,16 @@ export default function PersonContractsExplorer({
   const handlePageChange = useCallback(
     (p: number) => {
       setPage(p);
-      fetchData(p, sort, organFilter);
+      fetchData(p, sortStateToParam(sort), organFilter);
     },
     [fetchData, sort, organFilter]
   );
 
   const handleSortChange = useCallback(
-    (newSort: SortKey) => {
+    (newSort: SortState) => {
       setSort(newSort);
       setPage(1);
-      fetchData(1, newSort, organFilter);
+      fetchData(1, sortStateToParam(newSort), organFilter);
     },
     [fetchData, organFilter]
   );
@@ -100,7 +100,10 @@ export default function PersonContractsExplorer({
       setOrganFilter(value);
       setPage(1);
       if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => fetchData(1, sort, value), 400);
+      debounceRef.current = setTimeout(
+        () => fetchData(1, sortStateToParam(sort), value),
+        400
+      );
     },
     [fetchData, sort]
   );
@@ -119,34 +122,20 @@ export default function PersonContractsExplorer({
         }`}
       >
         <div className="border-b border-gray-100 px-3 py-3 sm:px-4">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <input
-              type="text"
-              value={organFilter}
-              onChange={(e) => handleOrganChange(e.target.value)}
-              placeholder="Filtrar per organ..."
-              className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400 sm:max-w-xs"
-            />
-            <div className="flex items-center gap-2">
-              <label htmlFor="person-contracts-sort" className="text-xs text-gray-500">
-                Ordenar per
-              </label>
-              <select
-                id="person-contracts-sort"
-                value={sort}
-                onChange={(e) => handleSortChange(e.target.value as SortKey)}
-                className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700"
-              >
-                <option value="date-desc">Data (mes recents)</option>
-                <option value="date-asc">Data (mes antigues)</option>
-                <option value="amount-desc">Import (mes alt)</option>
-                <option value="amount-asc">Import (mes baix)</option>
-              </select>
-            </div>
-          </div>
+          <input
+            type="text"
+            value={organFilter}
+            onChange={(e) => handleOrganChange(e.target.value)}
+            placeholder="Filtrar per organ..."
+            className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400 sm:max-w-xs"
+          />
         </div>
 
-        <ContractsTable contracts={contracts} />
+        <ContractsTable
+          contracts={contracts}
+          sortState={sort}
+          onSortChange={handleSortChange}
+        />
       </div>
       <Pagination
         currentPage={page}

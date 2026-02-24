@@ -2,6 +2,8 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import type { Contract } from "@/lib/types";
+import type { SortState } from "@/lib/table-types";
+import { sortStateToParam, parseSortParam } from "@/lib/table-types";
 import ContractFilters from "@/components/filters/ContractFilters";
 import ContractsTable from "@/components/tables/ContractsTable";
 import Pagination from "@/components/ui/Pagination";
@@ -23,6 +25,7 @@ const EMPTY_FILTERS = {
 interface Props {
   initialFilters?: typeof EMPTY_FILTERS;
   initialPage?: number;
+  initialSort?: string;
   initialContracts?: Contract[];
   initialTotal?: number;
 }
@@ -30,6 +33,7 @@ interface Props {
 export default function ContractExplorer({
   initialFilters = EMPTY_FILTERS,
   initialPage = 1,
+  initialSort,
   initialContracts = EMPTY_CONTRACTS,
   initialTotal = 0,
 }: Props) {
@@ -37,6 +41,7 @@ export default function ContractExplorer({
   const [contracts, setContracts] = useState<Contract[]>(initialContracts);
   const [total, setTotal] = useState(initialTotal);
   const [page, setPage] = useState(initialPage);
+  const [sort, setSort] = useState<SortState>(parseSortParam(initialSort));
   const [loading, setLoading] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
@@ -45,7 +50,7 @@ export default function ContractExplorer({
   const latestReqIdRef = useRef(0);
 
   const fetchData = useCallback(
-    async (f: typeof EMPTY_FILTERS, p: number) => {
+    async (f: typeof EMPTY_FILTERS, p: number, s: string) => {
       const reqId = ++latestReqIdRef.current;
       if (abortRef.current) {
         abortRef.current.abort();
@@ -63,6 +68,7 @@ export default function ContractExplorer({
         if (f.nom_organ) params.set("nom_organ", f.nom_organ);
         if (f.search) params.set("search", f.search);
         params.set("page", String(p));
+        if (s && s !== "date-desc") params.set("sort", s);
 
         const res = await fetch(`/api/contractes?${params.toString()}`, {
           signal: controller.signal,
@@ -89,7 +95,7 @@ export default function ContractExplorer({
     []
   );
 
-  const buildQueryString = useCallback((f: typeof EMPTY_FILTERS, p: number) => {
+  const buildQueryString = useCallback((f: typeof EMPTY_FILTERS, p: number, s?: string) => {
     const params = new URLSearchParams();
     if (f.year) params.set("year", f.year);
     if (f.tipus_contracte) params.set("tipus_contracte", f.tipus_contracte);
@@ -99,12 +105,13 @@ export default function ContractExplorer({
     if (f.nom_organ) params.set("nom_organ", f.nom_organ);
     if (f.search) params.set("search", f.search);
     if (p > 1) params.set("page", String(p));
+    if (s && s !== "date-desc") params.set("sort", s);
     return params.toString();
   }, []);
 
   const updateUrl = useCallback(
-    (f: typeof EMPTY_FILTERS, p: number) => {
-      const qs = buildQueryString(f, p);
+    (f: typeof EMPTY_FILTERS, p: number, s?: string) => {
+      const qs = buildQueryString(f, p, s);
       const url = qs ? `/contractes?${qs}` : "/contractes";
       window.history.replaceState(null, "", url);
     },
@@ -112,7 +119,8 @@ export default function ContractExplorer({
   );
 
   const handleCopyShareLink = useCallback(async () => {
-    const qs = buildQueryString(filters, page);
+    const sortParam = sortStateToParam(sort);
+    const qs = buildQueryString(filters, page, sortParam);
     const url = `${window.location.origin}${qs ? `/contractes?${qs}` : "/contractes"}`;
     try {
       await navigator.clipboard.writeText(url);
@@ -121,11 +129,11 @@ export default function ContractExplorer({
     } catch (err) {
       console.error("Error copying share link:", err);
     }
-  }, [buildQueryString, filters, page]);
+  }, [buildQueryString, filters, page, sort]);
 
   useEffect(() => {
     if (initialContracts.length === 0) {
-      fetchData(filters, page);
+      fetchData(filters, page, sortStateToParam(sort));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -135,17 +143,18 @@ export default function ContractExplorer({
       const newFilters = { ...filters, [key]: value };
       setFilters(newFilters);
       setPage(1);
-      updateUrl(newFilters, 1);
+      const sp = sortStateToParam(sort);
+      updateUrl(newFilters, 1, sp);
 
       // Debounce text inputs
       if (key === "search" || key === "nom_organ" || key === "amountMin" || key === "amountMax") {
         if (debounceRef.current) clearTimeout(debounceRef.current);
-        debounceRef.current = setTimeout(() => fetchData(newFilters, 1), 400);
+        debounceRef.current = setTimeout(() => fetchData(newFilters, 1, sp), 400);
       } else {
-        fetchData(newFilters, 1);
+        fetchData(newFilters, 1, sp);
       }
     },
-    [filters, fetchData, updateUrl]
+    [filters, sort, fetchData, updateUrl]
   );
 
   useEffect(() => {
@@ -156,20 +165,34 @@ export default function ContractExplorer({
   }, []);
 
   const handleReset = useCallback(() => {
+    const defaultSort: SortState = { column: "date", dir: "desc" };
     setFilters(EMPTY_FILTERS);
+    setSort(defaultSort);
     setPage(1);
     updateUrl(EMPTY_FILTERS, 1);
-    fetchData(EMPTY_FILTERS, 1);
+    fetchData(EMPTY_FILTERS, 1, "date-desc");
   }, [fetchData, updateUrl]);
+
+  const handleSortChange = useCallback(
+    (newSort: SortState) => {
+      setSort(newSort);
+      setPage(1);
+      const sp = sortStateToParam(newSort);
+      updateUrl(filters, 1, sp);
+      fetchData(filters, 1, sp);
+    },
+    [filters, fetchData, updateUrl]
+  );
 
   const handlePageChange = useCallback(
     (p: number) => {
       setPage(p);
-      updateUrl(filters, p);
-      fetchData(filters, p);
+      const sp = sortStateToParam(sort);
+      updateUrl(filters, p, sp);
+      fetchData(filters, p, sp);
       window.scrollTo({ top: 0, behavior: "smooth" });
     },
-    [filters, fetchData, updateUrl]
+    [filters, sort, fetchData, updateUrl]
   );
 
   const hasActiveFilters = Object.values(filters).some((v) => v !== "");
@@ -181,6 +204,8 @@ export default function ContractExplorer({
   if (filters.amountMax) exportParams.set("amountMax", filters.amountMax);
   if (filters.nom_organ) exportParams.set("nom_organ", filters.nom_organ);
   if (filters.search) exportParams.set("search", filters.search);
+  const currentSortParam = sortStateToParam(sort);
+  if (currentSortParam !== "date-desc") exportParams.set("sort", currentSortParam);
   exportParams.set("page", String(page));
   exportParams.set("format", "csv");
 
@@ -243,7 +268,11 @@ export default function ContractExplorer({
             loading ? "opacity-50" : ""
           }`}
         >
-          <ContractsTable contracts={contracts} />
+          <ContractsTable
+            contracts={contracts}
+            sortState={sort}
+            onSortChange={handleSortChange}
+          />
         </div>
 
         <Pagination

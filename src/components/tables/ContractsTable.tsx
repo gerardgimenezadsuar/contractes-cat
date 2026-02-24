@@ -1,7 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { Contract } from "@/lib/types";
+import type { SortState, SortColumn } from "@/lib/table-types";
+import { getNextSortState } from "@/lib/table-types";
+import { useColumnResize, type ColumnDef } from "@/hooks/useColumnResize";
 import {
   formatCurrencyFull,
   formatDate,
@@ -10,89 +13,67 @@ import {
   isSuspiciousContractDate,
 } from "@/lib/utils";
 
+interface TableColumnDef {
+  id: SortColumn;
+  label: string;
+  widthPct: number;
+  xlWidthPct: number;
+  hiddenBelowXl?: boolean;
+  align?: "right";
+}
+
+const TABLE_COLUMNS: TableColumnDef[] = [
+  { id: "denominacio", label: "Denominació", widthPct: 34, xlWidthPct: 28 },
+  { id: "procediment", label: "Procediment", widthPct: 0, xlWidthPct: 10, hiddenBelowXl: true },
+  { id: "adjudicatari", label: "Adjudicatari", widthPct: 21, xlWidthPct: 17 },
+  { id: "amount", label: "Import (sense IVA)", widthPct: 11, xlWidthPct: 10, align: "right" },
+  { id: "date", label: "Data ref.", widthPct: 8, xlWidthPct: 7 },
+  { id: "organ", label: "Organisme", widthPct: 26, xlWidthPct: 28 },
+];
+
+const COLUMN_DEFS: ColumnDef[] = TABLE_COLUMNS.map((c) => ({
+  id: c.id,
+  initialWidthPct: c.xlWidthPct,
+}));
+
 interface Props {
   contracts: Contract[];
-  enableDateSort?: boolean;
-  initialDateSort?: "asc" | "desc";
-  enableAmountSort?: boolean;
-  initialAmountSort?: "asc" | "desc";
+  sortState?: SortState;
+  onSortChange?: (newSort: SortState) => void;
   enableOrganFilter?: boolean;
 }
 
-function getBestDateTimestamp(contract: Contract): number {
-  const bestDate = getBestAvailableContractDate(
-    contract.data_adjudicacio_contracte,
-    contract.data_formalitzacio_contracte,
-    contract.data_publicacio_anunci
-  );
-  if (!bestDate.date) return 0;
-  const timestamp = new Date(bestDate.date).getTime();
-  return Number.isNaN(timestamp) ? 0 : timestamp;
+function splitAwardees(raw?: string): string[] {
+  if (!raw) return [];
+  const cleaned = raw.trim();
+  if (!cleaned) return [];
+  if (cleaned.includes("||")) {
+    return cleaned.split("||").map((s) => s.trim()).filter(Boolean);
+  }
+  if (cleaned.includes(";")) {
+    return cleaned.split(";").map((s) => s.trim()).filter(Boolean);
+  }
+  return [cleaned];
 }
 
 export default function ContractsTable({
   contracts,
-  enableDateSort = false,
-  initialDateSort = "desc",
-  enableAmountSort = false,
-  initialAmountSort = "desc",
+  sortState,
+  onSortChange,
   enableOrganFilter = false,
 }: Props) {
   const [organFilter, setOrganFilter] = useState("");
-  const [sortField, setSortField] = useState<"date" | "amount">(
-    enableDateSort ? "date" : "amount"
-  );
-  const [sortDir, setSortDir] = useState<"asc" | "desc">(
-    enableDateSort ? initialDateSort : initialAmountSort
-  );
   const [expandedAwardees, setExpandedAwardees] = useState<Set<string>>(new Set());
-
-  const splitAwardees = (raw?: string): string[] => {
-    if (!raw) return [];
-    const cleaned = raw.trim();
-    if (!cleaned) return [];
-    if (cleaned.includes("||")) {
-      return cleaned
-        .split("||")
-        .map((s) => s.trim())
-        .filter(Boolean);
-    }
-    if (cleaned.includes(";")) {
-      return cleaned
-        .split(";")
-        .map((s) => s.trim())
-        .filter(Boolean);
-    }
-    return [cleaned];
-  };
+  const tableRef = useRef<HTMLTableElement>(null);
+  const { widths, startResize, isResizing } = useColumnResize(COLUMN_DEFS, tableRef);
+  const hasWidths = Object.keys(widths).length > 0;
 
   const visibleContracts = useMemo(() => {
     const q = organFilter.trim().toUpperCase();
-    const filtered = q
+    return q
       ? contracts.filter((c) => (c.nom_organ || "").toUpperCase().includes(q))
       : contracts;
-
-    if (!(enableDateSort || enableAmountSort)) return filtered;
-
-    return [...filtered].sort((a, b) => {
-      if (sortField === "amount" && enableAmountSort) {
-        const aAmount = parseFloat(a.import_adjudicacio_sense || "0");
-        const bAmount = parseFloat(b.import_adjudicacio_sense || "0");
-        return sortDir === "asc" ? aAmount - bAmount : bAmount - aAmount;
-      }
-
-      const aTs = getBestDateTimestamp(a);
-      const bTs = getBestDateTimestamp(b);
-      return sortDir === "asc" ? aTs - bTs : bTs - aTs;
-    });
-  }, [
-    contracts,
-    enableDateSort,
-    enableAmountSort,
-    organFilter,
-    sortField,
-    sortDir,
-  ]);
+  }, [contracts, organFilter]);
 
   const keyedVisibleContracts = useMemo(() => {
     const seen = new Map<string, number>();
@@ -111,67 +92,99 @@ export default function ContractsTable({
     });
   }, [visibleContracts]);
 
-  const showControls = enableOrganFilter || enableDateSort || enableAmountSort;
+  const handleHeaderClick = (column: SortColumn) => {
+    if (!onSortChange) return;
+    const next = getNextSortState(
+      sortState || { column: "date", dir: "desc" },
+      column
+    );
+    onSortChange(next);
+  };
 
   return (
     <>
-      {showControls && (
+      {enableOrganFilter && (
         <div className="border-b border-gray-100 px-3 py-3 sm:px-4">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            {enableOrganFilter ? (
-              <input
-                type="text"
-                value={organFilter}
-                onChange={(e) => setOrganFilter(e.target.value)}
-                placeholder="Filtrar per òrgan..."
-                className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400 sm:max-w-xs"
-              />
-            ) : (
-              <div />
-            )}
-
-            {(enableDateSort || enableAmountSort) && (
-              <div className="flex items-center gap-2">
-                <label htmlFor="contracts-sort" className="text-xs text-gray-500">
-                  Ordenar per
-                </label>
-                <select
-                  id="contracts-sort"
-                  value={`${sortField}-${sortDir}`}
-                  onChange={(e) => {
-                    const [field, dir] = e.target.value.split("-") as [
-                      "date" | "amount",
-                      "asc" | "desc",
-                    ];
-                    setSortField(field);
-                    setSortDir(dir);
-                  }}
-                  className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700"
-                >
-                  {enableDateSort && <option value="date-desc">Data (més recents)</option>}
-                  {enableDateSort && <option value="date-asc">Data (més antigues)</option>}
-                  {enableAmountSort && <option value="amount-desc">Import (més alt)</option>}
-                  {enableAmountSort && <option value="amount-asc">Import (més baix)</option>}
-                </select>
-              </div>
-            )}
-          </div>
+          <input
+            type="text"
+            value={organFilter}
+            onChange={(e) => setOrganFilter(e.target.value)}
+            placeholder="Filtrar per òrgan..."
+            className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400 sm:max-w-xs"
+          />
         </div>
       )}
 
       {/* Desktop table */}
       <div className="hidden lg:block overflow-x-auto">
-        <table className="min-w-[1040px] w-full table-fixed text-sm">
+        <table
+          ref={tableRef}
+          className={`min-w-[1040px] w-full table-fixed text-sm ${isResizing ? "select-none" : ""}`}
+        >
+          {hasWidths && (
+            <colgroup>
+              {TABLE_COLUMNS.map((col) => (
+                <col
+                  key={col.id}
+                  style={{ width: `${widths[col.id]}px` }}
+                  className={col.hiddenBelowXl ? "hidden xl:table-column" : undefined}
+                />
+              ))}
+            </colgroup>
+          )}
           <thead>
             <tr className="border-b border-gray-200 bg-gray-50">
-              <th className="w-[34%] xl:w-[28%] text-left py-3 px-4 font-medium text-gray-500">Denominació</th>
-              <th className="hidden xl:table-cell xl:w-[10%] text-left py-3 px-4 font-medium text-gray-500">Procediment</th>
-              <th className="w-[21%] xl:w-[17%] text-left py-3 px-4 font-medium text-gray-500">Adjudicatari</th>
-              <th className="w-[11%] xl:w-[10%] text-right py-3 px-4 font-medium text-gray-500">Import (sense IVA)</th>
-              <th className="w-[8%] xl:w-[7%] text-left py-3 px-4 font-medium text-gray-500">
-                Data ref.
-              </th>
-              <th className="w-[26%] xl:w-[28%] text-left py-3 px-4 font-medium text-gray-500">Organisme</th>
+              {TABLE_COLUMNS.map((col, i) => {
+                const isActive = sortState?.column === col.id;
+                const isSortable = !!onSortChange;
+                const isLast = i === TABLE_COLUMNS.length - 1;
+                return (
+                  <th
+                    key={col.id}
+                    className={`
+                      ${col.align === "right" ? "text-right" : "text-left"}
+                      py-3 px-4 font-medium text-gray-500 relative
+                      ${col.hiddenBelowXl ? "hidden xl:table-cell" : ""}
+                      ${isSortable ? "cursor-pointer hover:text-gray-700 hover:bg-gray-100/50 select-none transition-colors" : ""}
+                    `}
+                    style={!hasWidths ? { width: `${col.xlWidthPct}%` } : undefined}
+                    onClick={isSortable ? () => handleHeaderClick(col.id) : undefined}
+                    aria-sort={isActive ? (sortState?.dir === "asc" ? "ascending" : "descending") : undefined}
+                  >
+                    <span className={`inline-flex items-center gap-1 ${col.align === "right" ? "justify-end w-full" : ""}`}>
+                      {col.label}
+                      {isSortable && (
+                        <span className={`inline-flex flex-col leading-none ${isActive ? "text-gray-700" : "text-gray-300"}`}>
+                          <svg width="8" height="5" viewBox="0 0 8 5" className={`${isActive && sortState?.dir === "asc" ? "text-gray-700" : ""}`}>
+                            <path d="M4 0L8 5H0L4 0Z" fill="currentColor" />
+                          </svg>
+                          <svg width="8" height="5" viewBox="0 0 8 5" className={`mt-px ${isActive && sortState?.dir === "desc" ? "text-gray-700" : ""}`}>
+                            <path d="M4 5L0 0H8L4 5Z" fill="currentColor" />
+                          </svg>
+                        </span>
+                      )}
+                    </span>
+                    {/* Resize handle */}
+                    {!isLast && (
+                      <div
+                        onMouseDown={(e) => startResize(i, e)}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          position: "absolute",
+                          right: -3,
+                          top: 0,
+                          bottom: 0,
+                          width: 6,
+                          cursor: "col-resize",
+                          zIndex: 10,
+                        }}
+                        role="separator"
+                        aria-label={`Redimensiona columna ${col.label}`}
+                      />
+                    )}
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
