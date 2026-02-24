@@ -369,6 +369,26 @@ export async function fetchCompaniesCount(
   return parseInt(data[0]?.total || "0", 10);
 }
 
+/** Lightweight paginated list of company ids for sitemap generation. */
+export async function fetchCompanyIdsPage(offset = 0, limit = DEFAULT_PAGE_SIZE): Promise<string[]> {
+  const conditions = [
+    CLEAN_AMOUNT_FILTER,
+    "import_adjudicacio_amb_iva IS NOT NULL",
+    "identificacio_adjudicatari IS NOT NULL",
+  ];
+  const rows = await soqlFetch<{ identificacio_adjudicatari: string }>({
+    $select: "identificacio_adjudicatari",
+    $where: conditions.join(" AND "),
+    $group: "identificacio_adjudicatari",
+    $order: "identificacio_adjudicatari ASC",
+    $limit: String(limit),
+    $offset: String(offset),
+  });
+  return rows
+    .map((row) => String(row.identificacio_adjudicatari || "").trim())
+    .filter((id) => id.length > 0);
+}
+
 // Organismes list (paginated)
 export async function fetchOrgans(
   offset = 0,
@@ -439,6 +459,26 @@ export async function fetchOrgansCount(search?: string): Promise<number> {
   });
 
   return parseInt(data[0]?.total || "0", 10);
+}
+
+/** Lightweight paginated list of organ names for sitemap generation. */
+export async function fetchOrganNamesPage(offset = 0, limit = DEFAULT_PAGE_SIZE): Promise<string[]> {
+  const conditions = [
+    CLEAN_AMOUNT_FILTER,
+    "import_adjudicacio_amb_iva IS NOT NULL",
+    "nom_organ IS NOT NULL",
+  ];
+  const rows = await soqlFetch<{ nom_organ: string }>({
+    $select: "nom_organ",
+    $where: conditions.join(" AND "),
+    $group: "nom_organ",
+    $order: "nom_organ ASC",
+    $limit: String(limit),
+    $offset: String(offset),
+  });
+  return rows
+    .map((row) => String(row.nom_organ || "").trim())
+    .filter((name) => name.length > 0);
 }
 
 export async function fetchOrganDetail(
