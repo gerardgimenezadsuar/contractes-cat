@@ -169,15 +169,7 @@ export default function ContractsTable({
                       <div
                         onMouseDown={(e) => startResize(i, e)}
                         onClick={(e) => e.stopPropagation()}
-                        style={{
-                          position: "absolute",
-                          right: -3,
-                          top: 0,
-                          bottom: 0,
-                          width: 6,
-                          cursor: "col-resize",
-                          zIndex: 10,
-                        }}
+                        className="absolute -right-px top-0 bottom-0 w-[3px] cursor-col-resize z-10 border-r border-gray-300 hover:border-blue-500 active:border-blue-500"
                         role="separator"
                         aria-label={`Redimensiona columna ${col.label}`}
                       />
