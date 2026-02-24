@@ -6,8 +6,6 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/config/constants";
 
-const SOCIAL_IMAGE_URL = `${SITE_URL}/social-card-v1.png`;
-
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -37,24 +35,13 @@ export const metadata: Metadata = {
     siteName: SITE_NAME,
     locale: "ca_ES",
     type: "website",
-    images: [
-      {
-        url: SOCIAL_IMAGE_URL,
-        width: 1200,
-        height: 630,
-        alt: `${SITE_NAME} - Contractació pública a Catalunya`,
-      },
-    ],
   },
   twitter: {
     card: "summary_large_image",
     title: SITE_NAME,
     description: SITE_DESCRIPTION,
-    images: [SOCIAL_IMAGE_URL],
   },
   other: {
-    "twitter:image:src": SOCIAL_IMAGE_URL,
-    "twitter:image:alt": `${SITE_NAME} - Contractació pública a Catalunya`,
     "twitter:domain": "www.contractes.cat",
   },
 };
