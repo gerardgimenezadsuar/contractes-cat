@@ -142,6 +142,7 @@ export async function loadAdminHistory(nif: string): Promise<BormeAdminData | nu
     if (shouldUseProductionProxy(Boolean(client), canReadTurso())) {
       return fetchFromProductionProxy(proxyPathAdminHistory(nif), null);
     }
+    if (!client) return null;
     const normalizedNif = nif.trim().toUpperCase();
     let result;
     try {
@@ -298,6 +299,7 @@ export async function searchPersonsWithTotal(
         { data: [], total: 0 },
       );
     }
+    if (!client) return { data: [], total: 0 };
     const fts = buildPersonSearchFts(query);
     if (!fts) return { data: [], total: 0 };
 
@@ -422,6 +424,7 @@ export async function loadPersonProfile(personName: string): Promise<BormePerson
     if (shouldUseProductionProxy(Boolean(client), canReadTurso())) {
       return fetchFromProductionProxy(proxyPathPersonProfile(personName), null);
     }
+    if (!client) return null;
     const normalizedLookup = normalizePersonText(personName);
     const cachedProfile = getCachedValue(personProfileCache, normalizedLookup);
     if (cachedProfile) return cachedProfile;
