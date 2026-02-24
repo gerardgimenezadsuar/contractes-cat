@@ -502,6 +502,29 @@ export async function loadPersonProfile(personName: string): Promise<BormePerson
   }
 }
 
+/** List all person names for sitemap generation. */
+export async function listAllPersonNames(): Promise<string[]> {
+  try {
+    const client = getDb();
+    if (!client) return [];
+    if (!canReadTurso()) return [];
+
+    const result = await client.execute({
+      sql: `SELECT person_name
+            FROM person_summary
+            ORDER BY num_companies_with_nif DESC, total_spans DESC`,
+      args: [],
+    });
+
+    return result.rows.map((r) => String(r.person_name));
+  } catch (error) {
+    markBlockedRead(error);
+    if (isBlockedReadError(error)) return [];
+    console.error("Failed to list person names from Turso:", error);
+    return [];
+  }
+}
+
 export function getPersonAwardeeTargets(profile: BormePersonProfile): BormePersonAwardeeTargets {
   const nifs = new Set<string>();
   const names = new Set<string>();

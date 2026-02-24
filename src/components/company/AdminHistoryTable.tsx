@@ -1,4 +1,5 @@
 import type { BormeAdminSpan } from "@/lib/borme";
+import { toTitleCase } from "@/lib/person-utils";
 
 const ROLE_LABELS: Record<string, string> = {
   ADMINISTRADOR:    "Administrador/a",
@@ -144,8 +145,3 @@ function AdminRow({ span, isActive }: { span: BormeAdminSpan; isActive: boolean 
   );
 }
 
-function toTitleCase(s: string): string {
-  return s
-    .toLowerCase()
-    .replace(/\b\w/g, (c) => c.toUpperCase());
-}

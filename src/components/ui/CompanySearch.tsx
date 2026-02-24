@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { CompanyAggregation, OrganAggregation } from "@/lib/types";
 import { formatCompactNumber, formatNumber } from "@/lib/utils";
 import SearchLoadingIndicator from "@/components/ui/SearchLoadingIndicator";
+import { formatPersonDisplayName } from "@/lib/person-utils";
 
 type SearchMode = "empresa" | "organisme" | "persona";
 interface PersonSearchResult {
@@ -263,7 +264,7 @@ export default function CompanySearch() {
               >
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-gray-900 truncate">
-                    {result.person_name}
+                    {formatPersonDisplayName(result.person_name)}
                   </p>
                   <p className="text-xs text-gray-500">
                     {formatNumber(result.num_companies)} empreses vinculades

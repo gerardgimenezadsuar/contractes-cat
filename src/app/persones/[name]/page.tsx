@@ -4,6 +4,8 @@ import { cache } from "react";
 import { getPersonAwardeeTargets, loadPersonProfile } from "@/lib/borme";
 import { fetchContractsByAwardeesSummary } from "@/lib/api";
 import { formatCompactNumber, formatDate, formatNumber } from "@/lib/utils";
+import { formatPersonDisplayName } from "@/lib/person-utils";
+import { SITE_URL } from "@/config/constants";
 import StatCard from "@/components/ui/StatCard";
 import SharePageButton from "@/components/ui/SharePageButton";
 import PersonContractsExplorer from "@/components/person/PersonContractsExplorer";
@@ -15,13 +17,60 @@ interface Props {
 }
 
 const getPersonProfile = cache(async (name: string) => loadPersonProfile(name));
+const getContractsSummary = cache(async (nifs: string[]) =>
+  fetchContractsByAwardeesSummary({ nifs })
+);
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { name } = await params;
   const decodedName = decodeURIComponent(name);
+  const profile = await getPersonProfile(decodedName);
+
+  const displayName = formatPersonDisplayName(profile?.person_name || decodedName);
+  const bormeName = profile?.person_name || decodedName;
+
+  const targets = profile ? getPersonAwardeeTargets(profile) : { nifs: [], companyNames: [] };
+  const contractsSummary =
+    targets.nifs.length > 0
+      ? await getContractsSummary(targets.nifs)
+      : { total: 0, totalAmount: 0 };
+
+  const description = profile
+    ? `${displayName}: ${formatNumber(profile.num_companies)} empreses vinculades, ${formatNumber(contractsSummary.total)} contractes públics (${formatCompactNumber(contractsSummary.totalAmount)}). Informació societària del BORME i contractes públics a Catalunya.`
+    : `Informació societària de ${displayName} segons BORME.`;
+
+  const imageUrl = `/persones/${encodeURIComponent(bormeName)}/opengraph-image`;
+
   return {
-    title: decodedName,
-    description: `Informacio societaria de ${decodedName} segons BORME.`,
+    title: displayName,
+    description,
+    keywords: [
+      displayName,
+      bormeName,
+      `${displayName} contractes`,
+      `${displayName} empreses`,
+      "BORME",
+      "contractació pública Catalunya",
+    ],
+    openGraph: {
+      title: displayName,
+      description,
+      type: "profile",
+      images: [
+        {
+          url: imageUrl,
+          width: 1200,
+          height: 630,
+          alt: `Perfil de contractació pública de ${displayName}`,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: displayName,
+      description,
+      images: [imageUrl],
+    },
   };
 }
 
@@ -41,23 +90,67 @@ export default async function PersonDetailPage({ params }: Props) {
     );
   }
 
+  const displayName = formatPersonDisplayName(profile.person_name);
   const targets = getPersonAwardeeTargets(profile);
   const contractsSummary =
     targets.nifs.length > 0
-      ? await fetchContractsByAwardeesSummary({ nifs: targets.nifs })
+      ? await getContractsSummary(targets.nifs)
       : { total: 0, totalAmount: 0 };
   const activeCompanies = profile.companies.filter((c) => c.active_spans > 0).length;
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Person",
+        name: displayName,
+        alternateName: profile.person_name,
+        url: `${SITE_URL}/persones/${encodeURIComponent(profile.person_name)}`,
+        description: `${displayName}: vinculacions societàries i contractes públics a Catalunya.`,
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          {
+            "@type": "ListItem",
+            position: 1,
+            name: "Inici",
+            item: SITE_URL,
+          },
+          {
+            "@type": "ListItem",
+            position: 2,
+            name: "Persones",
+            item: `${SITE_URL}/persones`,
+          },
+          {
+            "@type": "ListItem",
+            position: 3,
+            name: displayName,
+          },
+        ],
+      },
+    ],
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+
       <Link href="/" className="text-sm text-gray-500 hover:text-gray-900 mb-4 inline-block">
         &larr; Tornar a inici
       </Link>
 
       <div className="mb-1 flex items-start justify-between gap-3">
-        <h1 className="text-3xl font-bold text-gray-900">{profile.person_name}</h1>
+        <h1 className="text-3xl font-bold text-gray-900">{displayName}</h1>
         <SharePageButton className="shrink-0" />
       </div>
+      <p className="text-sm text-gray-500 mb-1">
+        Nom al registre: <span className="font-medium text-gray-700">{profile.person_name}</span>
+      </p>
       <p className="text-gray-600 mb-8">
         Vinculacions societàries extretes del BORME. Primer es mostra la informació legal i després els contractes públics de les empreses vinculades.
       </p>

@@ -1,4 +1,5 @@
 import type { BormeAdminSpan } from "@/lib/borme";
+import { toTitleCase } from "@/lib/person-utils";
 
 const ACTIVE_POSITION_ROLES = new Set([
   "ADMINISTRADOR",
@@ -30,12 +31,6 @@ interface ActiveEntry {
   dateStart: string;
   dateEnd: string | null;
   sourcePdf: string | null;
-}
-
-function toTitleCase(s: string): string {
-  return s
-    .toLowerCase()
-    .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 function formatBormeDate(d: string | null | undefined): string {
