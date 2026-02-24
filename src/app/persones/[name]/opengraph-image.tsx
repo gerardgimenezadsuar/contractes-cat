@@ -61,7 +61,7 @@ export default async function Image({ params }: Props) {
             boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
           }}
         >
-          {/* Top: name */}
+          {/* Top: name + subtitle */}
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <div
               style={{
@@ -86,6 +86,16 @@ export default async function Image({ params }: Props) {
             >
               {displayName}
             </div>
+            <div
+              style={{
+                display: "flex",
+                fontSize: 20,
+                color: "#9CA3AF",
+                fontWeight: 500,
+              }}
+            >
+              Vinculacions legals i contractació pública a Catalunya
+            </div>
           </div>
 
           {/* Middle: stat cards */}
@@ -104,6 +114,9 @@ export default async function Image({ params }: Props) {
                   flex: 1,
                 }}
               >
+                <div style={{ display: "flex", fontSize: 18, color: "#6B7280", fontWeight: 500 }}>
+                  {stat.label}
+                </div>
                 <div
                   style={{
                     display: "flex",
@@ -113,9 +126,6 @@ export default async function Image({ params }: Props) {
                   }}
                 >
                   {stat.value}
-                </div>
-                <div style={{ display: "flex", fontSize: 18, color: "#6B7280", fontWeight: 500 }}>
-                  {stat.label}
                 </div>
               </div>
             ))}
