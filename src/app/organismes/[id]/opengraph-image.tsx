@@ -86,66 +86,70 @@ export default async function Image({ params }: Props) {
             </div>
           </div>
 
-          {/* Middle: stats + mini bar chart */}
-          <div style={{ display: "flex", gap: 20 }}>
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 6,
-                background: "#F9FAFB",
-                border: "2px solid #E5E7EB",
-                borderRadius: 16,
-                padding: "24px 32px",
-                flex: 1,
-              }}
-            >
-              <div style={{ display: "flex", fontSize: 16, color: "#16A34A", fontWeight: 600 }}>
-                Import total
+          {/* Middle: stacked stats left + bar chart right */}
+          <div style={{ display: "flex", gap: 20, height: 200 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, width: 280 }}>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 2,
+                  background: "#F9FAFB",
+                  border: "2px solid #E5E7EB",
+                  borderRadius: 14,
+                  padding: "14px 24px",
+                  height: 94,
+                  justifyContent: "center",
+                }}
+              >
+                <div style={{ display: "flex", fontSize: 14, color: "#16A34A", fontWeight: 600 }}>
+                  Import total
+                </div>
+                <div style={{ display: "flex", fontSize: 34, fontWeight: 700, color: "#111827" }}>
+                  {formatCompactNumber(totalAmount)}
+                </div>
               </div>
-              <div style={{ display: "flex", fontSize: 44, fontWeight: 700, color: "#111827" }}>
-                {formatCompactNumber(totalAmount)}
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 2,
+                  background: "#F9FAFB",
+                  border: "2px solid #E5E7EB",
+                  borderRadius: 14,
+                  padding: "14px 24px",
+                  height: 94,
+                  justifyContent: "center",
+                }}
+              >
+                <div style={{ display: "flex", fontSize: 14, color: "#7C3AED", fontWeight: 600 }}>
+                  Contractes
+                </div>
+                <div style={{ display: "flex", fontSize: 34, fontWeight: 700, color: "#111827" }}>
+                  {formatNumber(numContracts)}
+                </div>
               </div>
             </div>
             <div
               style={{
                 display: "flex",
                 flexDirection: "column",
-                gap: 6,
                 background: "#F9FAFB",
                 border: "2px solid #E5E7EB",
-                borderRadius: 16,
-                padding: "24px 32px",
+                borderRadius: 14,
+                padding: "16px 28px 14px",
                 flex: 1,
+                height: 200,
               }}
             >
-              <div style={{ display: "flex", fontSize: 16, color: "#7C3AED", fontWeight: 600 }}>
-                Contractes
-              </div>
-              <div style={{ display: "flex", fontSize: 44, fontWeight: 700, color: "#111827" }}>
-                {formatNumber(numContracts)}
-              </div>
-            </div>
-            {/* Mini bar chart */}
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                background: "#F9FAFB",
-                border: "2px solid #E5E7EB",
-                borderRadius: 16,
-                padding: "16px 24px 12px",
-                flex: 1.5,
-              }}
-            >
-              <div style={{ display: "flex", fontSize: 14, color: "#6B7280", fontWeight: 600, marginBottom: 8 }}>
+              <div style={{ display: "flex", fontSize: 14, color: "#6B7280", fontWeight: 600, marginBottom: 10 }}>
                 Evolució anual
               </div>
               <div
                 style={{
                   display: "flex",
                   flex: 1,
-                  gap: numYears <= 3 ? 16 : 8,
+                  gap: numYears <= 3 ? 20 : 14,
                   alignItems: "flex-end",
                   justifyContent: "center",
                 }}
@@ -155,22 +159,22 @@ export default async function Image({ params }: Props) {
                   : [{ year: "—", total: 1 }, { year: "—", total: 1 }, { year: "—", total: 1 }]
                 ).map((row, idx) => {
                   const pct = maxYearly > 0 ? row.total / maxYearly : 0.3;
-                  const barHeight = Math.max(8, Math.round(pct * 70));
+                  const barHeight = Math.max(10, Math.round(pct * 120));
                   return (
                     <div
                       key={`${row.year}-${idx}`}
-                      style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}
+                      style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}
                     >
                       <div
                         style={{
                           display: "flex",
-                          width: numYears <= 3 ? 32 : 24,
+                          width: numYears <= 3 ? 44 : 32,
                           height: barHeight,
                           background: "#7C3AED",
                           borderRadius: 4,
                         }}
                       />
-                      <div style={{ display: "flex", fontSize: 11, color: "#9CA3AF" }}>
+                      <div style={{ display: "flex", fontSize: 13, color: "#9CA3AF" }}>
                         {String(row.year).slice(-2)}
                       </div>
                     </div>
