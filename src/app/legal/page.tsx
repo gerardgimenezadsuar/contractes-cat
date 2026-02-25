@@ -20,7 +20,7 @@ export default function LegalPage() {
         <p className="text-sm text-amber-900">
           {SITE_NAME} és un projecte independent. No fem perfilat personal ni
           publicitat dirigida. Només utilitzem analítica agregada per entendre
-          l&apos;ús general del web.
+          l'ús general del web.
         </p>
       </section>
 
@@ -53,7 +53,7 @@ export default function LegalPage() {
         </p>
         <p className="text-gray-700">
           Tractem únicament dades tècniques mínimes de navegació necessàries per
-          operar el servei i mesurar-ne l&apos;ús de forma agregada. Tampoc venem
+          operar el servei i mesurar-ne l'ús de forma agregada. Tampoc venem
           dades ni les cedim per a finalitats comercials.
         </p>
       </section>
@@ -66,8 +66,8 @@ export default function LegalPage() {
           Finalitats del tractament:
         </p>
         <ul className="list-disc list-inside text-gray-700 space-y-1 mb-3">
-          <li>Operació tècnica, seguretat i prevenció d&apos;abús.</li>
-          <li>Mesura agregada d&apos;ús i rendiment per millorar el servei.</li>
+          <li>Operació tècnica, seguretat i prevenció d'abús.</li>
+          <li>Mesura agregada d'ús i rendiment per millorar el servei.</li>
         </ul>
         <p className="text-gray-700 mb-3">
           Base jurídica principal: interès legítim del responsable (article
@@ -76,27 +76,27 @@ export default function LegalPage() {
         <p className="text-gray-700">
           En matèria de cookies/tecnologies similars, apliquem criteri estricte
           de minimització i transparència conforme la LSSI i la Guia de cookies
-          de l&apos;AEPD.
+          de l'AEPD.
         </p>
       </section>
 
       <section className="mb-8">
         <h2 className="text-xl font-bold text-gray-900 mb-3">
-          Analítica d&apos;ús (Vercel Analytics)
+          Analítica d'ús (Vercel Analytics)
         </h2>
         <p className="text-gray-700 mb-3">
-          Utilitzem Vercel Analytics per obtenir mètriques agregades d&apos;ús
+          Utilitzem Vercel Analytics per obtenir mètriques agregades d'ús
           (per exemple, visites de pàgina i rendiment general), amb finalitat
           exclusivament estadística i de millora tècnica del servei.
         </p>
         <p className="text-gray-700 mb-3">
-          Segons la configuració actual del projecte, no fem perfilat d&apos;usuari
+          Segons la configuració actual del projecte, no fem perfilat d'usuari
           ni intentem identificar persones de manera individual.
         </p>
         <p className="text-gray-700">
-          Si en el futur s&apos;afegeixen tecnologies de seguiment que exigeixin
-          consentiment previ, s&apos;implementarà el mecanisme corresponent abans
-          d&apos;activar-les.
+          Si en el futur s'afegeixen tecnologies de seguiment que exigeixin
+          consentiment previ, s'implementarà el mecanisme corresponent abans
+          d'activar-les.
         </p>
       </section>
 
@@ -130,7 +130,7 @@ export default function LegalPage() {
         <p className="text-gray-700">
           Conservem les dades tècniques durant el temps necessari per operar i
           protegir el servei, i les dades analítiques en format agregat mentre
-          siguin útils per seguiment d&apos;ús i millora del producte.
+          siguin útils per seguiment d'ús i millora del producte.
         </p>
       </section>
 
@@ -139,11 +139,11 @@ export default function LegalPage() {
           Drets de les persones usuàries
         </h2>
         <p className="text-gray-700 mb-3">
-          Pots exercir, quan sigui aplicable, els drets d&apos;accés,
+          Pots exercir, quan sigui aplicable, els drets d'accés,
           rectificació, supressió, oposició, limitació i portabilitat.
         </p>
         <p className="text-gray-700">
-          També tens dret a presentar reclamació davant l&apos;autoritat de
+          També tens dret a presentar reclamació davant l'autoritat de
           control competent (AEPD).
         </p>
       </section>
@@ -152,7 +152,7 @@ export default function LegalPage() {
         <h2 className="text-xl font-bold text-gray-900 mb-3">Canvis en aquesta política</h2>
         <p className="text-gray-700">
           Aquesta pàgina es revisarà si canvia el funcionament del web, els
-          proveïdors o la normativa aplicable. Data d&apos;última actualització:
+          proveïdors o la normativa aplicable. Data d'última actualització:
           9 de febrer de 2026.
         </p>
       </section>

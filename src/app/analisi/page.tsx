@@ -129,7 +129,7 @@ export default async function AnalisiPage() {
       </p>
       <div className="mb-10 rounded-lg border border-amber-200 bg-amber-50 p-4">
         <p className="text-sm text-amber-900">
-          Metodologia: per coherència estadística, tots els indicadors d&apos;aquesta
+          Metodologia: per coherència estadística, tots els indicadors d'aquesta
           pàgina exclouen contractes amb import inferior a 500 EUR.
         </p>
       </div>
@@ -192,8 +192,8 @@ export default async function AnalisiPage() {
           </p>
           <p className="mt-1 text-xs text-amber-800">
             Interpretació prudent: és un indicador de possible menor competència
-            mitjana en l&apos;adjudicació, no una prova automàtica de frau ni
-            d&apos;irregularitat en cada contracte.
+            mitjana en l'adjudicació, no una prova automàtica de frau ni
+            d'irregularitat en cada contracte.
           </p>
         </div>
       </section>
@@ -301,7 +301,7 @@ export default async function AnalisiPage() {
               : `No hi ha observacions posteriors a ${lastCompleteYear}.`}
           </p>
           <p className="mt-1 text-xs text-gray-600">
-            L&apos;històric anterior a 2020 és limitat (especialment en
+            L'històric anterior a 2020 és limitat (especialment en
             contractes menors). Per interpretar tendència, prioritzem sobretot
             els darrers 3 anys.
           </p>

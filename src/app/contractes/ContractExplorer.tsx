@@ -234,7 +234,7 @@ export default function ContractExplorer({
           </div>
         </div>
         <p className="mb-3 text-xs text-gray-500">
-          Data ref. = data d&apos;adjudicació; si manca, formalització o publicació. Pot haver-hi
+          Data ref. = data d'adjudicació; si manca, formalització o publicació. Pot haver-hi
           registres atípics al dataset original.
         </p>
 

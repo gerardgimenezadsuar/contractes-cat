@@ -162,7 +162,7 @@ export default function OrgansTable({
             {data.length === 0 && !loading && (
               <tr>
                 <td colSpan={5} className="py-8 text-center text-gray-500">
-                  No s&apos;han trobat resultats.
+                  No s'han trobat resultats.
                 </td>
               </tr>
             )}
@@ -209,7 +209,7 @@ export default function OrgansTable({
           );
         })}
         {data.length === 0 && !loading && (
-          <div className="py-8 text-center text-sm text-gray-500">No s&apos;han trobat resultats.</div>
+          <div className="py-8 text-center text-sm text-gray-500">No s'han trobat resultats.</div>
         )}
       </div>
 

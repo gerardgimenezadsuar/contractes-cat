@@ -38,7 +38,7 @@ export default async function EmpresePage({ searchParams }: Props) {
         <SharePageButton className="shrink-0" />
       </div>
       <p className="text-gray-600 mb-8">
-        Rànquing d&apos;empreses per import total de contractes públics
+        Rànquing d'empreses per import total de contractes públics
         adjudicats. Pots filtrar per empresa i també per sector CPV (codi o
         descripció) per veure qui concentra més activitat en cada àmbit.
       </p>
