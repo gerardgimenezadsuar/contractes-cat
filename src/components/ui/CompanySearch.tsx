@@ -129,15 +129,15 @@ export default function CompanySearch() {
   }, []);
 
   return (
-    <div ref={containerRef} className="relative w-full max-w-3xl">
+    <div ref={containerRef} className="relative w-full max-w-3xl lg:mx-auto lg:max-w-[40.5rem]">
       <p className="mb-2 text-sm font-medium text-gray-700">Què vols cercar?</p>
-      <div className="mb-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+      <div className="mb-2 grid grid-cols-1 gap-2 lg:flex lg:justify-center lg:gap-3">
         {(["empresa", "organisme", "persona"] as SearchMode[]).map((searchMode) => (
           <button
             key={searchMode}
             type="button"
             onClick={() => switchMode(searchMode)}
-            className={`rounded-xl border px-3 py-2 text-left text-sm font-semibold transition-colors ${
+            className={`w-full rounded-xl border px-3 py-2 text-center text-sm font-semibold transition-colors lg:w-52 ${
               mode === searchMode
                 ? "border-gray-900 bg-gray-900 text-white"
                 : "border-gray-300 bg-white text-gray-700 hover:border-gray-400"
