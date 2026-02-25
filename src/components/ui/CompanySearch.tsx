@@ -24,15 +24,15 @@ export default function CompanySearch() {
   const modeMeta: Record<SearchMode, { label: string; placeholder: string }> = {
     empresa: {
       label: "Empreses",
-      placeholder: "Ex. Ferrovial, Sorigué, A28037224...",
+      placeholder: "Ex. ACSA, Novartis o A28037224...",
     },
     organisme: {
       label: "Organismes",
-      placeholder: "Ex. Ajuntament de Barcelona, ICS...",
+      placeholder: "Ex. Ajuntament de Vic, Departament de Salut...",
     },
     persona: {
       label: "Persones",
-      placeholder: "Ex. Marta Riba, Jordi Pujol...",
+      placeholder: "Ex. Marta Colet, Jordi Soler...",
     },
   };
   const [mode, setMode] = useState<SearchMode>("empresa");
