@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -23,9 +24,16 @@ export default function Header() {
     <header className="bg-white shadow-sm sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center justify-between h-16">
-          <Link href="/" prefetch className="flex items-center gap-2">
-            <span className="text-xl font-bold text-gray-900">
-              {SITE_NAME}
+          <Link href="/" prefetch className="flex items-center shrink-0">
+            <span className="block h-9 overflow-hidden md:h-10">
+              <Image
+                src="/logo-landing.png"
+                alt={SITE_NAME}
+                width={320}
+                height={180}
+                priority
+                className="h-14 w-auto max-w-[200px] -translate-y-2.5 md:h-18 md:max-w-[240px] md:-translate-y-3.5"
+              />
             </span>
           </Link>
 

@@ -24,11 +24,47 @@ import {
   YearlyTrendChartLazy,
 } from "@/components/charts/LazyCharts";
 import CompanySearch from "@/components/ui/CompanySearch";
+import { safeJsonLd } from "@/lib/seo/jsonld";
+import { SITE_NAME, SITE_URL } from "@/config/constants";
 
 export const metadata: Metadata = {
-  title: "Contractes CAT | Observatori independent de contractació pública",
+  title: "Contractació pública a Catalunya | contractes.cat",
   description:
-    "Explora contractes públics a Catalunya per empresa i organisme amb rànquings, tendències i dades obertes.",
+    "Consulta contractes públics i adjudicacions de la contractació pública a Catalunya per empresa, organisme i persona.",
+  keywords: [
+    "contractes públics Catalunya",
+    "contractació pública Catalunya",
+    "adjudicacions públiques Catalunya",
+    "licitacions Catalunya",
+    "empreses adjudicatàries Catalunya",
+    "organismes contractants Catalunya",
+  ],
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    title: "Contractació pública a Catalunya",
+    description:
+      "Consulta contractes públics i adjudicacions de la contractació pública a Catalunya per empresa, organisme i persona.",
+    url: SITE_URL,
+    siteName: SITE_NAME,
+    type: "website",
+    images: [
+      {
+        url: "/social-card-v1.png",
+        width: 1200,
+        height: 630,
+        alt: "Contractació pública a Catalunya - contractes.cat",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Contractació pública a Catalunya",
+    description:
+      "Consulta contractes públics i adjudicacions de la contractació pública a Catalunya per empresa, organisme i persona.",
+    images: ["/social-card-v1.png"],
+  },
 };
 
 function isAjuntament(name: string): boolean {
@@ -82,9 +118,30 @@ export default async function HomePage() {
 
   const topAjuntaments = topOrgans2024to2026.filter((row) => isAjuntament(row.nom_organ)).slice(0, 5);
   const topAltresOrgans = topOrgans2024to2026.filter((row) => !isAjuntament(row.nom_organ)).slice(0, 5);
+  const homeJsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        name: SITE_NAME,
+        url: SITE_URL,
+        inLanguage: "ca",
+        description:
+          "Contractació pública a Catalunya: cercador i anàlisi d'adjudicacions per empreses, organismes i persones amb dades obertes.",
+      },
+      {
+        "@type": "DataCatalog",
+        name: "Observatori de contractació pública a Catalunya",
+        url: SITE_URL,
+        inLanguage: "ca",
+        about: "Contractació pública a Catalunya",
+      },
+    ],
+  };
 
   return (
     <div>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(homeJsonLd) }} />
       <section className="mb-10 bg-gradient-to-b from-indigo-50/60 to-white">
         <div className="mx-auto max-w-7xl px-4 pb-4 pt-10">
           <div className="mb-2 flex justify-center">
@@ -95,11 +152,11 @@ export default async function HomePage() {
           </div>
           <div className="relative mb-3 mt-2">
             <h1 className="text-3xl font-bold text-gray-900 text-center leading-tight sm:text-4xl">
-              Observatori independent de contractació pública
+              Contractació pública a Catalunya
             </h1>
           </div>
           <p className="mb-5 text-center text-sm text-gray-600 sm:text-base max-w-2xl mx-auto">
-            Troba en segons qui rep contractes públics a Catalunya. Cerca per <span className="font-medium text-gray-900">empresa</span>, <span className="font-medium text-gray-900">organisme</span> o <span className="font-medium text-gray-900">persona vinculada</span>.
+            Observatori independent per consultar qui rep contractes públics a Catalunya. Cerca per <span className="font-medium text-gray-900">empresa</span>, <span className="font-medium text-gray-900">organisme</span> o <span className="font-medium text-gray-900">persona vinculada</span>.
           </p>
           <div className="mb-3 flex justify-center">
             <CompanySearch />
@@ -109,7 +166,6 @@ export default async function HomePage() {
             <Link href="/persones" className="underline hover:text-gray-800">Cerca persones</Link>
             <Link href="/organismes" className="underline hover:text-gray-800">Rànquing organismes</Link>
             <Link href="/contractes" className="underline hover:text-gray-800">Explorador contractes</Link>
-            <Link href="/licitacions" className="underline hover:text-gray-800">Licitacions obertes</Link>
           </div>
         </div>
       </section>
