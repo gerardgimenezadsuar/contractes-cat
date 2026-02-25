@@ -207,11 +207,7 @@ export default function PersonSearchExplorer({
         </div>
       )}
 
-      {!canSearch ? (
-        <div className="rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-500 shadow-sm">
-          Introdueix com a mínim {MIN_SEARCH_CHARS} caràcters per començar la cerca.
-        </div>
-      ) : showEmptyState ? (
+      {canSearch && showEmptyState ? (
         <div className="rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-500 shadow-sm">
           No s&apos;han trobat persones.
         </div>

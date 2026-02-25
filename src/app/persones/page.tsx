@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import SharePageButton from "@/components/ui/SharePageButton";
 import PersonSearchExplorer from "@/components/person/PersonSearchExplorer";
+import PersonesTopVinculacioTable from "@/components/person/PersonesTopVinculacioTable";
+import { loadTopVinculacions } from "@/lib/persones-top";
 
 export const metadata: Metadata = {
   title: "Persones vinculades (BORME)",
@@ -17,6 +19,7 @@ export default async function PersonesPage({ searchParams }: Props) {
   const rawSearch = (params.search || "").trim();
   const parsedPage = parseInt(params.page || "1", 10);
   const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+  const topRows = await loadTopVinculacions();
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -29,6 +32,7 @@ export default async function PersonesPage({ searchParams }: Props) {
       </p>
 
       <PersonSearchExplorer initialQuery={rawSearch} initialPage={page} />
+      <PersonesTopVinculacioTable rows={topRows} />
     </div>
   );
 }

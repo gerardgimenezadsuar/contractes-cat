@@ -47,7 +47,10 @@ next-env.d.ts
 
 # local project data
 /skills/
-/data/
+/data/*
+!/data/persones_network/
+/data/persones_network/*
+!/data/persones_network/top250_active_operacions.csv
 
 # BORME extraction and local processing (keep local-only)
 /borme-dataset/
@@ -55,6 +58,7 @@ next-env.d.ts
 /scripts/borme_*.py
 /scripts/borme_turso_import.py
 /scripts/borme_turso_import.mjs
+/scripts/calc_active_period_operacions.py
 /public/borme/
 /tmp/borme/
 /data/borme/
