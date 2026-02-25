@@ -189,7 +189,7 @@ export default function PersonSearchExplorer({
         </div>
         <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs text-gray-500">
-            Cerca automàtica després de {SEARCH_DEBOUNCE_MS} ms (mínim {MIN_SEARCH_CHARS} caràcters).
+            Cerca automàtica amb un mínim de 3 caràcters.
           </p>
         </div>
       </div>
