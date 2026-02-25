@@ -87,24 +87,24 @@ export default async function HomePage() {
     <div>
       <section className="mb-10 bg-gradient-to-b from-indigo-50/60 to-white">
         <div className="mx-auto max-w-7xl px-4 pb-4 pt-10">
-          <div className="mb-1 flex justify-center">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-white px-3 py-1 text-xs font-medium text-indigo-700 shadow-sm">
+          <div className="mb-2 flex justify-center">
+            <span className="hidden items-center gap-1.5 rounded-full border border-indigo-200 bg-white px-3 py-1 text-xs font-medium text-indigo-700 shadow-sm sm:inline-flex">
               <span className="h-1.5 w-1.5 rounded-full bg-green-500"></span>
               {formatNumber(totalContracts)} contractes · {formatCompactNumber(totalAmount)} adjudicats · Dades obertes
             </span>
           </div>
-          <div className="relative mb-3 mt-3">
-            <h1 className="text-3xl font-bold text-gray-900 text-center sm:text-4xl">
+          <div className="relative mb-3 mt-2">
+            <h1 className="text-3xl font-bold text-gray-900 text-center leading-tight sm:text-4xl">
               Observatori independent de contractació pública
             </h1>
           </div>
           <p className="mb-5 text-center text-sm text-gray-600 sm:text-base max-w-2xl mx-auto">
-            Supervisa qui rep els contractes públics a Catalunya, quant s&apos;adjudica i com evoluciona la despesa. Cerca empreses, persones vinculades i organismes.
+            Troba en segons qui rep contractes públics a Catalunya. Cerca per <span className="font-medium text-gray-900">empresa</span>, <span className="font-medium text-gray-900">organisme</span> o <span className="font-medium text-gray-900">persona vinculada</span>.
           </p>
           <div className="mb-3 flex justify-center">
             <CompanySearch />
           </div>
-          <div className="mb-2 flex flex-wrap items-center justify-center gap-4 text-xs text-gray-500">
+          <div className="mb-2 hidden flex-wrap items-center justify-center gap-4 text-xs text-gray-500 sm:flex">
             <Link href="/empreses" className="underline hover:text-gray-800">Rànquing empreses</Link>
             <Link href="/persones" className="underline hover:text-gray-800">Cerca persones</Link>
             <Link href="/organismes" className="underline hover:text-gray-800">Rànquing organismes</Link>

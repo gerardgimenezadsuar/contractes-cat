@@ -21,6 +21,20 @@ type SearchResult =
 
 export default function CompanySearch() {
   const minCharsForMode = (m: SearchMode): number => (m === "persona" ? 3 : 2);
+  const modeMeta: Record<SearchMode, { label: string; placeholder: string }> = {
+    empresa: {
+      label: "Empreses",
+      placeholder: "Ex. Ferrovial, Sorigué, A28037224...",
+    },
+    organisme: {
+      label: "Organismes",
+      placeholder: "Ex. Ajuntament de Barcelona, ICS...",
+    },
+    persona: {
+      label: "Persones",
+      placeholder: "Ex. Marta Riba, Jordi Pujol...",
+    },
+  };
   const [mode, setMode] = useState<SearchMode>("empresa");
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -116,40 +130,22 @@ export default function CompanySearch() {
 
   return (
     <div ref={containerRef} className="relative w-full max-w-3xl">
-      <div className="mb-2 flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => switchMode("empresa")}
-          className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-            mode === "empresa"
-              ? "border-gray-900 bg-gray-900 text-white"
-              : "border-gray-300 bg-white text-gray-700 hover:border-gray-400"
-          }`}
-        >
-          Empreses
-        </button>
-        <button
-          type="button"
-          onClick={() => switchMode("organisme")}
-          className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-            mode === "organisme"
-              ? "border-gray-900 bg-gray-900 text-white"
-              : "border-gray-300 bg-white text-gray-700 hover:border-gray-400"
-          }`}
-        >
-          Organismes
-        </button>
-        <button
-          type="button"
-          onClick={() => switchMode("persona")}
-          className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-            mode === "persona"
-              ? "border-gray-900 bg-gray-900 text-white"
-              : "border-gray-300 bg-white text-gray-700 hover:border-gray-400"
-          }`}
-        >
-          Persones
-        </button>
+      <p className="mb-2 text-sm font-medium text-gray-700">Què vols cercar?</p>
+      <div className="mb-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+        {(["empresa", "organisme", "persona"] as SearchMode[]).map((searchMode) => (
+          <button
+            key={searchMode}
+            type="button"
+            onClick={() => switchMode(searchMode)}
+            className={`rounded-xl border px-3 py-2 text-left text-sm font-semibold transition-colors ${
+              mode === searchMode
+                ? "border-gray-900 bg-gray-900 text-white"
+                : "border-gray-300 bg-white text-gray-700 hover:border-gray-400"
+            }`}
+          >
+            {modeMeta[searchMode].label}
+          </button>
+        ))}
       </div>
       <p className="mb-2 text-xs text-gray-500">
         {mode === "persona"
@@ -171,17 +167,12 @@ export default function CompanySearch() {
           />
         </svg>
         <input
+          id="home-search-input"
           type="text"
           value={query}
           onChange={handleInput}
           onFocus={() => results.length > 0 && setOpen(true)}
-          placeholder={
-            mode === "empresa"
-              ? "Cerca empresa per nom o NIF..."
-              : mode === "organisme"
-                ? "Cerca organisme per nom..."
-                : "Cerca persona per nom..."
-          }
+          placeholder={modeMeta[mode].placeholder}
           className={`w-full pl-12 py-3 border border-gray-300 rounded-xl text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent focus:shadow-md transition-shadow bg-white ${
             loading ? "pr-28" : "pr-4"
           }`}
@@ -297,10 +288,10 @@ export default function CompanySearch() {
       {open && query.trim().length >= minCharsForMode(mode) && results.length === 0 && !loading && (
         <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg p-4 text-sm text-gray-500 text-center">
           {mode === "empresa"
-            ? "No s&apos;han trobat empreses."
+            ? "No s'han trobat empreses."
             : mode === "organisme"
-              ? "No s&apos;han trobat organismes."
-              : "No s&apos;han trobat persones."}
+              ? "No s'han trobat organismes."
+              : "No s'han trobat persones."}
         </div>
       )}
     </div>
