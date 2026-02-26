@@ -5,19 +5,7 @@ import {
   API_ROUTE_S_MAXAGE_SECONDS,
   API_ROUTE_STALE_WHILE_REVALIDATE_SECONDS,
 } from "@/config/constants";
-
-const SORT_MAP: Record<string, { orderBy: string; orderDir: "ASC" | "DESC" }> = {
-  "date-desc": {
-    orderBy: "coalesce(data_adjudicacio_contracte, data_formalitzacio_contracte, data_publicacio_anunci)",
-    orderDir: "DESC",
-  },
-  "date-asc": {
-    orderBy: "coalesce(data_adjudicacio_contracte, data_formalitzacio_contracte, data_publicacio_anunci)",
-    orderDir: "ASC",
-  },
-  "amount-desc": { orderBy: "import_adjudicacio_sense::number", orderDir: "DESC" },
-  "amount-asc": { orderBy: "import_adjudicacio_sense::number", orderDir: "ASC" },
-};
+import { parseSortParam, COLUMN_ORDER_EXPR } from "@/lib/table-types";
 
 interface Props {
   params: Promise<{ name: string }>;
@@ -28,8 +16,7 @@ export async function GET(request: NextRequest, { params }: Props) {
   const decodedName = decodeURIComponent(name);
 
   const { searchParams } = request.nextUrl;
-  const sortKey = searchParams.get("sort") || "date-desc";
-  const sortOpts = SORT_MAP[sortKey] || SORT_MAP["date-desc"];
+  const sortState = parseSortParam(searchParams.get("sort"));
   const parsedPage = parseInt(searchParams.get("page") || "1", 10);
   const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
   const nomOrgan = (searchParams.get("nom_organ") || "").trim() || undefined;
@@ -65,8 +52,8 @@ export async function GET(request: NextRequest, { params }: Props) {
     fetchContractsByAwardees({
       nifs,
       page,
-      orderBy: sortOpts.orderBy,
-      orderDir: sortOpts.orderDir,
+      orderBy: COLUMN_ORDER_EXPR[sortState.column],
+      orderDir: sortState.dir.toUpperCase() as "ASC" | "DESC",
       nom_organ: nomOrgan,
     }),
     fetchContractsByAwardeesSummary({
