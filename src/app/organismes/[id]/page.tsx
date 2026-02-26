@@ -6,6 +6,7 @@ import {
   fetchOrganRecentContracts,
   fetchOrganTopCompanies,
 } from "@/lib/api";
+import { fetchCurrentEnsOfficeHolders } from "@/lib/electes";
 import {
   formatCurrency,
   formatNumber,
@@ -28,12 +29,19 @@ import OrganContractsExplorer from "@/components/organ/OrganContractsExplorer";
 import OrganTopCompaniesTable from "@/components/organ/OrganTopCompaniesTable";
 
 export const revalidate = 21600;
+const ELECTES_PAGE_SIZE = 10;
 
 interface Props {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 const getOrganDetail = cache(async (id: string) => fetchOrganDetail(id));
+
+function readSingleQueryParam(value: string | string[] | undefined): string {
+  if (Array.isArray(value)) return value[0] || "";
+  return value || "";
+}
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
@@ -64,9 +72,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   });
 }
 
-export default async function OrganDetailPage({ params }: Props) {
-  const { id } = await params;
+export default async function OrganDetailPage({ params, searchParams }: Props) {
+  const [{ id }, query] = await Promise.all([params, searchParams]);
   const decodedId = decodeURIComponent(id);
+  const rawElectesPage = readSingleQueryParam(query.electes_page);
+  const parsedElectesPage = parseInt(rawElectesPage, 10);
+  const electesPage = Number.isFinite(parsedElectesPage) && parsedElectesPage > 0
+    ? parsedElectesPage
+    : 1;
 
   const [{ organ, yearly }, recentContracts, topCompanies] = await Promise.all([
     getOrganDetail(decodedId),
@@ -84,6 +97,11 @@ export default async function OrganDetailPage({ params }: Props) {
       </div>
     );
   }
+
+  const electes = await fetchCurrentEnsOfficeHolders(organ.nom_organ, {
+    page: electesPage,
+    pageSize: ELECTES_PAGE_SIZE,
+  });
 
   const totalAmount = parseFloat(organ.total);
   const numContracts = parseInt(organ.num_contracts, 10);
@@ -105,6 +123,27 @@ export default async function OrganDetailPage({ params }: Props) {
   ).date;
   const entityPath = `/organismes/${encodeURIComponent(organ.nom_organ)}`;
   const organDescription = `${formatCompactNumber(totalAmount)} adjudicats en ${formatNumber(numContracts)} contractes públics per ${organ.nom_organ}.`;
+  const electesTotalPages = Math.max(1, Math.ceil(electes.totalCurrentRoles / electes.pageSize));
+  const hasElectes = electes.totalCurrentRoles > 0;
+  const hasTopCompanies = topCompanies.length > 0;
+  const electesBasePath = `/organismes/${encodeURIComponent(organ.nom_organ)}`;
+  const buildElectesPageHref = (targetPage: number): string => {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (key === "electes_page") continue;
+      if (Array.isArray(value)) {
+        for (const v of value) {
+          if (v) params.append(key, v);
+        }
+      } else if (value) {
+        params.set(key, value);
+      }
+    }
+    if (targetPage > 1) params.set("electes_page", String(targetPage));
+    const qs = params.toString();
+    return qs ? `${electesBasePath}?${qs}` : electesBasePath;
+  };
+
   const jsonLd = buildEntityJsonLdGraph(
     buildEntityPrimaryJsonLd({
       schemaType: "GovernmentOrganization",
@@ -118,6 +157,73 @@ export default async function OrganDetailPage({ params }: Props) {
       { name: organ.nom_organ },
     ])
   );
+
+  const electesCard = hasElectes ? (
+    <div className="min-w-0">
+      <h2 className="text-xl font-bold text-gray-900 mb-1">Càrrecs electes actuals</h2>
+      <p className="mb-3 text-xs text-gray-500">
+        Font: Transparència Catalunya. Llistat inferit per darrer nomenament conegut per plaça.
+      </p>
+      <div className="bg-white rounded-lg border border-gray-100 shadow-sm overflow-hidden">
+        <div className="border-b border-gray-100 bg-gray-50 px-3 py-2.5 text-xs text-gray-700">
+          <span className="font-medium">{formatNumber(electes.totalCurrentRoles)}</span> càrrecs inferits.
+        </div>
+        <ul className="divide-y divide-gray-100">
+          {electes.rows.map((row) => (
+            <li
+              key={row.key}
+              className="px-3 py-2.5 flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <Link
+                href={`/persones?search=${encodeURIComponent(row.personName)}`}
+                className="text-sm font-medium text-gray-900 hover:underline"
+              >
+                {row.personName}
+              </Link>
+              <span className="inline-flex w-fit shrink-0 rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-[11px] font-medium text-gray-700">
+                {row.carrec}
+              </span>
+            </li>
+          ))}
+        </ul>
+        {electesTotalPages > 1 ? (
+          <div className="border-t border-gray-100 px-3 py-2.5 flex flex-col gap-2 text-xs sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-gray-600">
+              Pàgina {formatNumber(electes.page)} de {formatNumber(electesTotalPages)}
+            </p>
+            <div className="flex items-center gap-1.5">
+              {electes.page > 1 ? (
+                <Link
+                  href={buildElectesPageHref(electes.page - 1)}
+                  scroll={false}
+                  className="px-2.5 py-1 rounded border border-gray-300 hover:bg-gray-50"
+                >
+                  Anterior
+                </Link>
+              ) : (
+                <span className="px-2.5 py-1 rounded border border-gray-200 text-gray-400">
+                  Anterior
+                </span>
+              )}
+              {electes.page < electesTotalPages ? (
+                <Link
+                  href={buildElectesPageHref(electes.page + 1)}
+                  scroll={false}
+                  className="px-2.5 py-1 rounded border border-gray-300 hover:bg-gray-50"
+                >
+                  Següent
+                </Link>
+              ) : (
+                <span className="px-2.5 py-1 rounded border border-gray-200 text-gray-400">
+                  Següent
+                </span>
+              )}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  ) : null;
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -219,9 +325,28 @@ export default async function OrganDetailPage({ params }: Props) {
         </div>
       </section>
 
-      {topCompanies.length > 0 && (
-        <OrganTopCompaniesTable rows={topCompanies} organTotalAmount={totalAmount} />
-      )}
+      {hasTopCompanies || hasElectes ? (
+        <section className="mb-12">
+          {hasTopCompanies && hasElectes ? (
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
+              <div className="min-w-0 xl:col-span-2">
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">Empreses adjudicatàries principals</h2>
+                <OrganTopCompaniesTable rows={topCompanies} organTotalAmount={totalAmount} />
+              </div>
+              <div className="min-w-0 xl:col-span-1">{electesCard}</div>
+            </div>
+          ) : null}
+
+          {hasTopCompanies && !hasElectes ? (
+            <div className="min-w-0">
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">Empreses adjudicatàries principals</h2>
+              <OrganTopCompaniesTable rows={topCompanies} organTotalAmount={totalAmount} />
+            </div>
+          ) : null}
+
+          {!hasTopCompanies && hasElectes ? electesCard : null}
+        </section>
+      ) : null}
 
       <section>
         <OrganContractsExplorer organName={organ.nom_organ} />

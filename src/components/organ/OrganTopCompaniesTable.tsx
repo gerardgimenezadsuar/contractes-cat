@@ -33,9 +33,7 @@ export default function OrganTopCompaniesTable({ rows, organTotalAmount }: Props
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
   return (
-    <section className="mb-12">
-      <h2 className="text-2xl font-bold text-gray-900 mb-4">Empreses adjudicatàries principals</h2>
-
+    <>
       <div className="bg-white rounded-lg border border-gray-100 shadow-sm overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -129,6 +127,6 @@ export default function OrganTopCompaniesTable({ rows, organTotalAmount }: Props
       <p className="mt-2 text-xs text-gray-500">
         Import calculat sobre contractes amb import (amb IVA) informat.
       </p>
-    </section>
+    </>
   );
 }

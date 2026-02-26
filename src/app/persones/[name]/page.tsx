@@ -375,7 +375,11 @@ export default async function PersonDetailPage({ params, searchParams }: Props) 
       {publicOffice.periods.length > 0 ? (
         <section className="mb-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-1">Càrrecs públics</h2>
-          <p className="mb-3 text-sm text-gray-500">Font: Transparència Catalunya</p>
+          <p className="mb-1 text-sm text-gray-500">Font: Transparència Catalunya</p>
+          <p className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            Avís: aquesta secció vincula càrrecs públics per coincidència de nom. La persona mostrada pot tenir un nom
+            similar al d&apos;un càrrec electe i no haver ocupat necessàriament aquest càrrec.
+          </p>
           <div className="bg-white rounded-lg border border-gray-100 shadow-sm overflow-hidden mb-8">
             {singleRangeSummary ? (
               <div className="border-b border-gray-100 bg-gray-50 px-4 py-3 text-sm text-gray-700">
