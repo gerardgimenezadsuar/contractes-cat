@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import type { CompanyAggregation } from "@/lib/types";
 import { formatCurrency, formatNumber } from "@/lib/utils";
+import { buildCompanyHref } from "@/lib/company-identity";
 
 interface Props {
   rows: CompanyAggregation[];
@@ -69,7 +70,7 @@ export default function OrganTopCompaniesTable({ rows, organTotalAmount }: Props
                 >
                   <td className="py-3 px-4">
                     <Link
-                      href={`/empreses/${encodeURIComponent(company.identificacio_adjudicatari)}`}
+                      href={buildCompanyHref(company.identificacio_adjudicatari, companyLabel)}
                       className="font-medium text-gray-900 hover:underline"
                     >
                       {companyLabel}

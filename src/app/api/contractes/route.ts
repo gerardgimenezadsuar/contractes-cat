@@ -87,6 +87,7 @@ export async function GET(request: NextRequest) {
     nom_organ: searchParams.get("nom_organ") || undefined,
     search: searchParams.get("search") || undefined,
     nif: searchParams.get("nif") || undefined,
+    awardee_name: searchParams.get("awardee_name") || undefined,
     page,
     ...(sortOpts && { orderBy: sortOpts.orderBy, orderDir: sortOpts.orderDir }),
   };

@@ -16,6 +16,10 @@ interface Props {
   initialTotalContracts?: number;
   initialTotalAmount?: number;
   hasNifTargets: boolean;
+  initialOrganFilter?: string;
+  initialDateFrom?: string;
+  initialDateTo?: string;
+  initialNifWindows?: string;
 }
 
 export default function PersonContractsExplorer({
@@ -25,19 +29,25 @@ export default function PersonContractsExplorer({
   initialTotalContracts = 0,
   initialTotalAmount = 0,
   hasNifTargets,
+  initialOrganFilter = "",
+  initialDateFrom = "",
+  initialDateTo = "",
+  initialNifWindows = "",
 }: Props) {
   const [contracts, setContracts] = useState(initialContracts);
   const [total, setTotal] = useState(initialTotalContracts);
   const [totalAmount, setTotalAmount] = useState(initialTotalAmount);
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState<SortKey>("date-desc");
-  const [organFilter, setOrganFilter] = useState("");
+  const [organFilter, setOrganFilter] = useState(initialOrganFilter);
+  const [dateFrom, setDateFrom] = useState(initialDateFrom);
+  const [dateTo, setDateTo] = useState(initialDateTo);
   const [loading, setLoading] = useState(false);
   const abortRef = useRef<AbortController>(null);
   const debounceRef = useRef<NodeJS.Timeout>(null);
 
   const fetchData = useCallback(
-    async (p: number, s: SortKey, organ: string) => {
+    async (p: number, s: SortKey, organ: string, from: string, to: string) => {
       if (abortRef.current) abortRef.current.abort();
       const controller = new AbortController();
       abortRef.current = controller;
@@ -45,6 +55,9 @@ export default function PersonContractsExplorer({
       try {
         const params = new URLSearchParams({ page: String(p), sort: s });
         if (organ.trim()) params.set("nom_organ", organ.trim());
+        if (from) params.set("date_from", from);
+        if (to) params.set("date_to", to);
+        if (initialNifWindows) params.set("nif_windows", initialNifWindows);
         if (personNifs.length > 0) params.set("nifs", personNifs.join(","));
         const res = await fetch(
           `/api/persones/${encodeURIComponent(personName)}/contractes?${params.toString()}`,
@@ -62,14 +75,22 @@ export default function PersonContractsExplorer({
         setLoading(false);
       }
     },
-    [personName, personNifs]
+    [initialNifWindows, personName, personNifs]
   );
 
   useEffect(() => {
     if (!hasNifTargets) return;
     if (initialContracts.length > 0) return;
-    fetchData(1, sort, organFilter);
-  }, [fetchData, hasNifTargets, initialContracts.length, organFilter, sort]);
+    fetchData(1, sort, organFilter, dateFrom, dateTo);
+  }, [fetchData, hasNifTargets, initialContracts.length, organFilter, sort, dateFrom, dateTo]);
+
+  // Keep client-side controls in sync with URL-derived server props after in-page navigations.
+  useEffect(() => {
+    setOrganFilter(initialOrganFilter);
+    setDateFrom(initialDateFrom);
+    setDateTo(initialDateTo);
+    setPage(1);
+  }, [initialOrganFilter, initialDateFrom, initialDateTo]);
 
   useEffect(() => {
     return () => {
@@ -81,18 +102,18 @@ export default function PersonContractsExplorer({
   const handlePageChange = useCallback(
     (p: number) => {
       setPage(p);
-      fetchData(p, sort, organFilter);
+      fetchData(p, sort, organFilter, dateFrom, dateTo);
     },
-    [fetchData, sort, organFilter]
+    [fetchData, sort, organFilter, dateFrom, dateTo]
   );
 
   const handleSortChange = useCallback(
     (newSort: SortKey) => {
       setSort(newSort);
       setPage(1);
-      fetchData(1, newSort, organFilter);
+      fetchData(1, newSort, organFilter, dateFrom, dateTo);
     },
-    [fetchData, organFilter]
+    [fetchData, organFilter, dateFrom, dateTo]
   );
 
   const handleOrganChange = useCallback(
@@ -100,9 +121,27 @@ export default function PersonContractsExplorer({
       setOrganFilter(value);
       setPage(1);
       if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => fetchData(1, sort, value), 400);
+      debounceRef.current = setTimeout(() => fetchData(1, sort, value, dateFrom, dateTo), 400);
     },
-    [fetchData, sort]
+    [fetchData, sort, dateFrom, dateTo]
+  );
+
+  const handleDateFromChange = useCallback(
+    (value: string) => {
+      setDateFrom(value);
+      setPage(1);
+      fetchData(1, sort, organFilter, value, dateTo);
+    },
+    [dateTo, fetchData, organFilter, sort]
+  );
+
+  const handleDateToChange = useCallback(
+    (value: string) => {
+      setDateTo(value);
+      setPage(1);
+      fetchData(1, sort, organFilter, dateFrom, value);
+    },
+    [dateFrom, fetchData, organFilter, sort]
   );
 
   return (
@@ -120,13 +159,29 @@ export default function PersonContractsExplorer({
       >
         <div className="border-b border-gray-100 px-3 py-3 sm:px-4">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <input
-              type="text"
-              value={organFilter}
-              onChange={(e) => handleOrganChange(e.target.value)}
-              placeholder="Filtrar per organ..."
-              className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400 sm:max-w-xs"
-            />
+            <div className="flex w-full flex-col gap-2 sm:max-w-2xl sm:flex-row">
+              <input
+                type="text"
+                value={organFilter}
+                onChange={(e) => handleOrganChange(e.target.value)}
+                placeholder="Filtrar per organ..."
+                className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400 sm:max-w-xs"
+              />
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => handleDateFromChange(e.target.value)}
+                className="rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400"
+                aria-label="Data inici"
+              />
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => handleDateToChange(e.target.value)}
+                className="rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400"
+                aria-label="Data fi"
+              />
+            </div>
             <div className="flex items-center gap-2">
               <label htmlFor="person-contracts-sort" className="text-xs text-gray-500">
                 Ordenar per

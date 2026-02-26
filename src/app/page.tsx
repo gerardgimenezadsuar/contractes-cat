@@ -26,6 +26,7 @@ import {
 import CompanySearch from "@/components/ui/CompanySearch";
 import { safeJsonLd } from "@/lib/seo/jsonld";
 import { SITE_NAME, SITE_URL } from "@/config/constants";
+import { buildCompanyHref } from "@/lib/company-identity";
 
 export const metadata: Metadata = {
   title: "Contractació pública a Catalunya | contractes.cat",
@@ -361,7 +362,10 @@ export default async function HomePage() {
                   <p className="mt-1 line-clamp-2 text-xs text-gray-600">
                     {c.identificacio_adjudicatari ? (
                       <Link
-                        href={`/empreses/${encodeURIComponent(c.identificacio_adjudicatari)}`}
+                        href={buildCompanyHref(
+                          c.identificacio_adjudicatari,
+                          c.denominacio_adjudicatari || ""
+                        )}
                         className="hover:underline hover:text-indigo-600"
                       >
                         {c.denominacio_adjudicatari || "—"}
@@ -421,7 +425,10 @@ export default async function HomePage() {
                       <td className="px-4 py-3 text-gray-700" title={c.denominacio_adjudicatari || ""}>
                         {c.identificacio_adjudicatari ? (
                           <Link
-                            href={`/empreses/${encodeURIComponent(c.identificacio_adjudicatari)}`}
+                            href={buildCompanyHref(
+                              c.identificacio_adjudicatari,
+                              c.denominacio_adjudicatari || ""
+                            )}
                             className="hover:underline hover:text-indigo-600"
                           >
                             {c.denominacio_adjudicatari || "—"}

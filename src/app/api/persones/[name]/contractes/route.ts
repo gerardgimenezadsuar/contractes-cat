@@ -23,6 +23,25 @@ interface Props {
   params: Promise<{ name: string }>;
 }
 
+function parseNifWindowsParam(raw: string) {
+  return raw
+    .split(";")
+    .map((chunk) => chunk.trim())
+    .filter(Boolean)
+    .map((chunk) => {
+      const [nifRaw, fromRaw, toRaw] = chunk.split(",");
+      const nif = (nifRaw || "").trim().toUpperCase();
+      const dateFrom = (fromRaw || "").trim();
+      const dateTo = (toRaw || "").trim();
+      return {
+        nif,
+        dateFrom: /^\d{4}-\d{2}-\d{2}$/.test(dateFrom) ? dateFrom : undefined,
+        dateTo: /^\d{4}-\d{2}-\d{2}$/.test(dateTo) ? dateTo : undefined,
+      };
+    })
+    .filter((item) => /^[A-Z0-9]{8,12}$/.test(item.nif));
+}
+
 export async function GET(request: NextRequest, { params }: Props) {
   const { name } = await params;
   const decodedName = decodeURIComponent(name);
@@ -33,6 +52,12 @@ export async function GET(request: NextRequest, { params }: Props) {
   const parsedPage = parseInt(searchParams.get("page") || "1", 10);
   const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
   const nomOrgan = (searchParams.get("nom_organ") || "").trim() || undefined;
+  const dateFrom = (searchParams.get("date_from") || "").trim();
+  const dateTo = (searchParams.get("date_to") || "").trim();
+  const safeDateFrom = /^\d{4}-\d{2}-\d{2}$/.test(dateFrom) ? dateFrom : undefined;
+  const safeDateTo = /^\d{4}-\d{2}-\d{2}$/.test(dateTo) ? dateTo : undefined;
+  const nifWindowsParam = (searchParams.get("nif_windows") || "").trim();
+  const nifDateWindows = parseNifWindowsParam(nifWindowsParam);
   const nifsParam = (searchParams.get("nifs") || "").trim();
 
   let nifs: string[] = nifsParam
@@ -68,10 +93,16 @@ export async function GET(request: NextRequest, { params }: Props) {
       orderBy: sortOpts.orderBy,
       orderDir: sortOpts.orderDir,
       nom_organ: nomOrgan,
+      dateFrom: safeDateFrom,
+      dateTo: safeDateTo,
+      nifDateWindows,
     }),
     fetchContractsByAwardeesSummary({
       nifs,
       nom_organ: nomOrgan,
+      dateFrom: safeDateFrom,
+      dateTo: safeDateTo,
+      nifDateWindows,
     }),
   ]);
 

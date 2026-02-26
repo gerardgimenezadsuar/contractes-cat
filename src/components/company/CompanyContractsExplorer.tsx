@@ -9,6 +9,7 @@ import { formatNumber } from "@/lib/utils";
 
 interface Props {
   nif: string;
+  awardeeName?: string;
   initialContracts: Contract[];
   totalContracts: number;
 }
@@ -17,6 +18,7 @@ type SortKey = "date-desc" | "date-asc" | "amount-desc" | "amount-asc";
 
 export default function CompanyContractsExplorer({
   nif,
+  awardeeName,
   initialContracts,
   totalContracts,
 }: Props) {
@@ -39,6 +41,7 @@ export default function CompanyContractsExplorer({
       setLoading(true);
       try {
         const params = new URLSearchParams({ nif, page: String(p), sort: s });
+        if (awardeeName) params.set("awardee_name", awardeeName);
         if (organ.trim()) params.set("nom_organ", organ.trim());
         const res = await fetch(`/api/contractes?${params.toString()}`, {
           signal: controller.signal,
@@ -54,7 +57,7 @@ export default function CompanyContractsExplorer({
         setLoading(false);
       }
     },
-    [nif]
+    [nif, awardeeName]
   );
 
   useEffect(() => {

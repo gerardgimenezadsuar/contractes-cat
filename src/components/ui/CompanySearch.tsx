@@ -6,6 +6,7 @@ import type { CompanyAggregation, OrganAggregation } from "@/lib/types";
 import { formatCompactNumber, formatNumber } from "@/lib/utils";
 import SearchLoadingIndicator from "@/components/ui/SearchLoadingIndicator";
 import { formatPersonDisplayName } from "@/lib/person-utils";
+import { buildCompanyHref } from "@/lib/company-identity";
 
 type SearchMode = "empresa" | "organisme" | "persona";
 interface PersonSearchResult {
@@ -196,8 +197,11 @@ export default function CompanySearch() {
             if (result.kind === "empresa") {
               return (
                 <Link
-                  key={`empresa-${result.identificacio_adjudicatari}`}
-                  href={`/empreses/${encodeURIComponent(result.identificacio_adjudicatari)}`}
+                  key={`empresa-${result.identificacio_adjudicatari}-${result.denominacio_adjudicatari}`}
+                  href={buildCompanyHref(
+                    result.identificacio_adjudicatari,
+                    result.denominacio_adjudicatari
+                  )}
                   onClick={() => setOpen(false)}
                   className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
                 >

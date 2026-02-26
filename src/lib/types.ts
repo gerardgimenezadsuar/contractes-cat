@@ -99,6 +99,7 @@ export interface ContractFilters {
   nom_organ?: string;
   search?: string;
   nif?: string;
+  awardee_name?: string;
   page?: number;
   pageSize?: number;
   orderBy?: string;

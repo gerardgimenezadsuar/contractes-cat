@@ -7,6 +7,7 @@ import { formatCurrency, formatNumber } from "@/lib/utils";
 import SearchInput from "@/components/ui/SearchInput";
 import Pagination from "@/components/ui/Pagination";
 import { CPV_DIVISIONS, DEFAULT_PAGE_SIZE } from "@/config/constants";
+import { buildCompanyHref } from "@/lib/company-identity";
 
 interface Props {
   initialData: CompanyAggregation[];
@@ -371,7 +372,10 @@ export default function CompaniesTable({
                   <td className="py-3 px-4 text-gray-400">{rank}</td>
                   <td className="py-3 px-4 break-words">
                     <Link
-                      href={`/empreses/${encodeURIComponent(company.identificacio_adjudicatari)}`}
+                      href={buildCompanyHref(
+                        company.identificacio_adjudicatari,
+                        isUte && !isExpanded ? names[0] || company.denominacio_adjudicatari : company.denominacio_adjudicatari
+                      )}
                       className="text-gray-900 hover:underline font-medium break-words"
                     >
                       {isUte && !isExpanded ? names[0] : company.denominacio_adjudicatari}
@@ -457,7 +461,10 @@ export default function CompaniesTable({
               <div className="mb-2 flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <Link
-                    href={`/empreses/${encodeURIComponent(company.identificacio_adjudicatari)}`}
+                    href={buildCompanyHref(
+                      company.identificacio_adjudicatari,
+                      names[0] || company.denominacio_adjudicatari
+                    )}
                     className="text-sm font-semibold text-gray-900 hover:underline break-words"
                   >
                     {names[0]}

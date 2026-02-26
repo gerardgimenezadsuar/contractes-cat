@@ -31,14 +31,18 @@ export const revalidate = 21600;
 
 interface Props {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ name?: string }>;
 }
 
-const getCompanyDetail = cache(async (id: string) => fetchCompanyDetail(id));
+const getCompanyDetail = cache(async (id: string, companyName?: string) =>
+  fetchCompanyDetail(id, companyName)
+);
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const { id } = await params;
+  const { name } = await searchParams;
   const decodedId = decodeURIComponent(id);
-  const { company } = await getCompanyDetail(decodedId);
+  const { company } = await getCompanyDetail(decodedId, name);
   const companyName = company?.denominacio_adjudicatari || decodedId;
   const canonicalCompanyId = company?.identificacio_adjudicatari || decodedId;
   const totalAmount = parseFloat(company?.total || "0");
@@ -66,16 +70,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   });
 }
 
-export default async function CompanyDetailPage({ params }: Props) {
+export default async function CompanyDetailPage({ params, searchParams }: Props) {
   const { id } = await params;
+  const { name } = await searchParams;
   const decodedId = decodeURIComponent(id);
 
   const [{ company, yearly }, contracts, contractsCount, topOrgans, lastAwardDate] = await Promise.all([
-    getCompanyDetail(decodedId),
-    fetchCompanyContracts(decodedId, 0, 50),
-    fetchCompanyContractsCount(decodedId),
-    fetchCompanyTopOrgans(decodedId, 10),
-    fetchCompanyLastAwardDate(decodedId),
+    getCompanyDetail(decodedId, name),
+    fetchCompanyContracts(decodedId, name, 0, 50),
+    fetchCompanyContractsCount(decodedId, name),
+    fetchCompanyTopOrgans(decodedId, name, 10),
+    fetchCompanyLastAwardDate(decodedId, name),
   ]);
 
   const adminHistory = await loadAdminHistory(decodedId);
@@ -203,6 +208,7 @@ export default async function CompanyDetailPage({ params }: Props) {
       <section>
         <CompanyContractsExplorer
           nif={company.identificacio_adjudicatari}
+          awardeeName={company.denominacio_adjudicatari}
           initialContracts={contracts}
           totalContracts={contractsCount}
         />
