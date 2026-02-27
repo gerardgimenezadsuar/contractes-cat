@@ -11,6 +11,7 @@ import {
   CartesianGrid,
 } from "recharts";
 import { formatCompactNumber, formatNumber } from "@/lib/utils";
+import { useTheme } from "@/components/theme/ThemeProvider";
 
 interface SectorData {
   sector: string;
@@ -25,6 +26,18 @@ interface Props {
 
 export default function CpvSectorChart({ data }: Props) {
   const [isMobile, setIsMobile] = useState(false);
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+
+  const axisTickColor = isDark ? "#9ca3af" : "#4b5563";
+  const gridColor = isDark ? "#1f2937" : "#e5e7eb";
+  const tooltipBg = isDark ? "rgba(15,23,42,0.97)" : "#ffffff";
+  const tooltipBorder = isDark ? "#1f2937" : "#e5e7eb";
+  const tooltipLabelColor = isDark ? "#9ca3af" : "#6b7280";
+  const tooltipItemColor = isDark ? "#f9fafb" : "#111827";
+  const hoverCursorFill = isDark
+    ? "rgba(148, 163, 184, 0.22)"
+    : "rgba(148, 163, 184, 0.15)";
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 640);
@@ -53,18 +66,19 @@ export default function CpvSectorChart({ data }: Props) {
         layout="vertical"
         margin={{ top: 5, right: 30, left: isMobile ? 0 : 20, bottom: 5 }}
       >
-        <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={gridColor} />
         <XAxis
           type="number"
           tickFormatter={(v) => formatCompactNumber(v)}
           fontSize={isMobile ? 10 : 12}
+          tick={{ fill: axisTickColor }}
         />
         <YAxis
           type="category"
           dataKey="name"
           width={isMobile ? 140 : 250}
           fontSize={isMobile ? 10 : 11}
-          tick={{ fill: "#374151" }}
+          tick={{ fill: axisTickColor }}
         />
         <Tooltip
           formatter={(value) => [
@@ -76,7 +90,18 @@ export default function CpvSectorChart({ data }: Props) {
             if (!entry) return _label;
             return `${entry.fullName} (CPV ${entry.code}) — ${formatNumber(entry.num_contracts)} contractes`;
           }}
-          contentStyle={{ borderRadius: "8px", border: "1px solid #e5e7eb", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.07)" }}
+          contentStyle={{
+            borderRadius: "8px",
+            border: `1px solid ${tooltipBorder}`,
+            boxShadow: isDark
+              ? "0 18px 45px rgba(15,23,42,0.8)"
+              : "0 4px 6px -1px rgb(0 0 0 / 0.07)",
+            backgroundColor: tooltipBg,
+            color: tooltipItemColor,
+          }}
+          labelStyle={{ color: tooltipLabelColor, fontSize: 12 }}
+          itemStyle={{ color: tooltipItemColor, fontSize: 13 }}
+          cursor={{ fill: hoverCursorFill }}
         />
         <Bar dataKey="total" fill="#2563eb" radius={[0, 4, 4, 0]} />
       </BarChart>

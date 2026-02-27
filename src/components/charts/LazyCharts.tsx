@@ -9,7 +9,7 @@ import type {
 } from "@/lib/types";
 
 function ChartSkeleton({ className }: { className: string }) {
-  return <div className={`${className} w-full animate-pulse rounded bg-gray-100`} aria-hidden="true" />;
+  return <div className={`${className} w-full animate-pulse rounded skeleton-block`} aria-hidden="true" />;
 }
 
 const CompanyBarChartLazyImpl = dynamic(() => import("@/components/charts/CompanyBarChart"), {

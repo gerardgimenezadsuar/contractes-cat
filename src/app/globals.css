@@ -18,6 +18,160 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* Botó de canvi de tema: contrast alt en clar i fosc */
+.theme-toggle {
+  border: 1px solid #e5e7eb; /* gray-200 */
+  background-color: rgba(249, 250, 251, 0.9); /* gray-50 */
+  color: #374151; /* gray-700 */
+}
+
+.theme-toggle:hover {
+  background-color: #e5e7eb;
+  cursor: pointer;
+}
+
+:root[data-theme="dark"] .theme-toggle {
+  border-color: #4b5563; /* gray-600 */
+  background-color: #e5e7eb; /* gray-200 */
+  color: #111827; /* gray-900 per màxim contrast */
+}
+
+:root[data-theme="dark"] .theme-toggle:hover {
+  background-color: #d1d5db; /* gray-300 */
+}
+
+/* Hero gradient d'inici: clar i fosc */
+.hero-gradient {
+  background:
+    radial-gradient(circle at top center, rgba(79, 70, 229, 0.14), transparent 55%),
+    linear-gradient(to bottom, #eef2ff, #ffffff);
+}
+
+:root[data-theme="dark"] .hero-gradient {
+  background:
+    radial-gradient(circle at top center, rgba(129, 140, 248, 0.28), transparent 55%),
+    linear-gradient(to bottom, #020617, #020617);
+}
+
+/* Caixa de cerca de persones (BORME) */
+.person-search-shell {
+  background:
+    radial-gradient(circle at top left, rgba(99, 102, 241, 0.18), transparent 55%),
+    linear-gradient(to bottom, #eef2ff, #ffffff);
+}
+
+:root[data-theme="dark"] .person-search-shell {
+  background:
+    radial-gradient(circle at top left, rgba(129, 140, 248, 0.25), transparent 55%),
+    linear-gradient(to bottom, #020617, #020617);
+  border-color: #1f2937; /* gray-800 */
+}
+
+.person-search-status {
+  background-color: #e0e7ff; /* indigo-100 */
+}
+
+:root[data-theme="dark"] .person-search-status {
+  background-color: #111827; /* gray-900 */
+  border-color: #312e81; /* indigo-900 */
+  color: #e5e7eb; /* gray-200 */
+}
+
+/* Tema fosc basat en data-theme al <html> */
+:root[data-theme="dark"] {
+  --background: #020617; /* slate-950 aproximat */
+  --foreground: #e5e7eb; /* gray-200 */
+}
+
+:root[data-theme="dark"] body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+/* Ajustos generals de colors en mode fosc per classes utilitzades sovint */
+:root[data-theme="dark"] .bg-white,
+:root[data-theme="dark"] .bg-gray-50 {
+  background-color: #020617;
+}
+
+:root[data-theme="dark"] .text-gray-900,
+:root[data-theme="dark"] .text-gray-800,
+:root[data-theme="dark"] .text-gray-700 {
+  color: #f9fafb;
+}
+
+:root[data-theme="dark"] .text-gray-600,
+:root[data-theme="dark"] .text-gray-500,
+:root[data-theme="dark"] .text-gray-400 {
+  color: #9ca3af;
+}
+
+:root[data-theme="dark"] .border-gray-200 {
+  border-color: #1f2937;
+}
+
+/* Header i footer més foscos */
+:root[data-theme="dark"] header {
+  background-color: #020617;
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.9);
+}
+
+:root[data-theme="dark"] footer {
+  background-color: #020617;
+  border-top-color: #1f2937;
+}
+
+/* Hover coherent a files de taula (contractes recents) */
+.table-row-hover {
+  transition: background-color 150ms ease;
+}
+
+.table-row-hover:hover {
+  background-color: #f9fafb;
+}
+
+:root[data-theme="dark"] .table-row-hover:hover {
+  background-color: rgba(15, 23, 42, 0.85);
+}
+
+/* Pills de NIF: més contrast en clar i fosc */
+.nif-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 0.375rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  background-color: #e5e7eb; /* gray-200 */
+  color: #111827; /* gray-900 */
+}
+
+:root[data-theme="dark"] .nif-pill {
+  background-color: #111827; /* gray-900 */
+  color: #e5e7eb; /* gray-200 */
+  border: 1px solid #4b5563; /* gray-600 */
+}
+
+/* Skeletons / placeholders coherents en light i dark */
+.skeleton-card {
+  background-color: #f9fafb;
+  border: 1px solid #e5e7eb;
+}
+
+.skeleton-block {
+  background-color: #e5e7eb;
+}
+
+:root[data-theme="dark"] .skeleton-card {
+  background-color: #020617;
+  border-color: #1f2937;
+}
+
+:root[data-theme="dark"] .skeleton-block {
+  background-color: #111827;
+}
+
 /* Prevent iOS auto-zoom on input focus — 16px is the minimum to avoid it */
 input,
 select,
