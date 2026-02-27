@@ -6,6 +6,8 @@ import {
   DEFAULT_PAGE_SIZE,
 } from "@/config/constants";
 
+export const preferredRegion = ["cdg1"];
+
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const rawSearch = (searchParams.get("search") || "").trim();

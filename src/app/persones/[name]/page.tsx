@@ -93,12 +93,14 @@ export default async function PersonDetailPage({ params, searchParams }: Props) 
   const displayName = formatPersonDisplayName(profile.person_name);
   const personNameForHref = profile.person_name;
   const targets = getPersonAwardeeTargets(profile);
-  const contractsSummary =
-    targets.nifs.length > 0
-      ? await getContractsSummary(targets.nifs)
-      : { total: 0, totalAmount: 0 };
   const activeCompanies = profile.companies.filter((c) => c.active_spans > 0).length;
-  const publicOffice = await fetchPublicOfficeProfile(profile.person_name);
+
+  const [contractsSummary, publicOffice] = await Promise.all([
+    targets.nifs.length > 0
+      ? getContractsSummary(targets.nifs)
+      : Promise.resolve({ total: 0, totalAmount: 0 }),
+    fetchPublicOfficeProfile(profile.person_name),
+  ]);
 
   const safeDateFrom = /^\d{4}-\d{2}-\d{2}$/.test(query?.date_from || "")
     ? query.date_from || ""
