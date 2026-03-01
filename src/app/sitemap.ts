@@ -11,6 +11,7 @@ import {
 const STATIC_ROUTES = [
   "",
   "/about",
+  "/cli",
   "/analisi",
   "/contractes",
   "/empreses",

@@ -80,6 +80,11 @@ export default function Footer() {
                   Codi obert a GitHub
                 </a>
               </li>
+              <li>
+                <Link href="/cli" prefetch className="text-gray-600 hover:text-gray-900">
+                  CLI per desenvolupadors
+                </Link>
+              </li>
             </ul>
           </div>
         </div>

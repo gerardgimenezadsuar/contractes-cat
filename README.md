@@ -52,6 +52,27 @@ Desplegat a [Vercel](https://vercel.com). Per desplegar la teva pròpia instànc
 pnpm run build
 ```
 
+## CLI (`@gerardgimenezadsuar/contractes-cli`)
+
+El repositori inclou una CLI perquè persones i agents puguin consultar dades sense UI:
+
+```bash
+npx @gerardgimenezadsuar/contractes-cli help
+npx @gerardgimenezadsuar/contractes-cli search-contracts --search "neteja" --year 2025
+npx @gerardgimenezadsuar/contractes-cli search-companies --search "ferrovial"
+```
+
+Documentació de la CLI:
+
+- [`packages/contractes-cli/README.md`](packages/contractes-cli/README.md)
+
+## Descobribilitat per agents (ChatGPT/Claude)
+
+- `llms.txt` al root del repo (lectura a GitHub)
+- `public/llms.txt` publicat a `https://www.contractes.cat/llms.txt`
+- README de la CLI amb exemples copy-paste
+- Metadata NPM (`keywords`, `description`) per millorar la cerca
+
 ## Llicència
 
 AGPL-3.0. Consulta el fitxer [LICENSE](LICENSE) per a més detalls.

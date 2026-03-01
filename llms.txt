@@ -1,0 +1,26 @@
+# contractes-cat repository
+
+Open-source project for public procurement analysis in Catalonia.
+
+## CLI package for agents and automation
+
+- Package path: `packages/contractes-cli`
+- NPM package: `@gerardgimenezadsuar/contractes-cli`
+- Binary: `contractes`
+- CLI docs: `packages/contractes-cli/README.md`
+
+## Recommended usage pattern for agents
+
+1. Run `contractes help`.
+2. Use `search-contracts` for filtered contract lists.
+3. Use `search-companies` and `search-organs` for entity pivots.
+4. Use `attribution` when reporting externally.
+
+## Data attribution
+
+- Dataset id: `ybgg-dgi6`
+- Publisher: `Departament d'Economia i Hisenda`
+- Source URL:
+  `https://analisi.transparenciacatalunya.cat/Sector-P-blic/Contractaci-del-sector-p-blic-de-la-Generalitat-d/ybgg-dgi6`
+- License/terms URL:
+  `https://administraciodigital.gencat.cat/ca/dades/dades-obertes/informacio-practica/llicencies/`

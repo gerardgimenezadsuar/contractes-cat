@@ -1,0 +1,33 @@
+# contractes.cat
+
+Independent open-data project about public procurement in Catalonia.
+
+## CLI
+
+- Package: `@gerardgimenezadsuar/contractes-cli`
+- Binary: `contractes`
+- Install: `npm install -g @gerardgimenezadsuar/contractes-cli`
+- Quick help: `contractes help`
+
+## Main CLI commands
+
+- `contractes search-contracts --search "<text>" [--year YYYY] [--nif <id>] [--page N]`
+- `contractes search-companies --search "<text>" [--cpv 72,48] [--page N]`
+- `contractes search-organs --search "<text>" [--limit N] [--page N]`
+- `contractes organ-top-companies --organ "<organ name>" [--limit N]`
+- `contractes person-contracts --name "<person>" [--date-from YYYY-MM-DD] [--date-to YYYY-MM-DD]`
+- `contractes attribution`
+
+## API base URL
+
+- Production: `https://www.contractes.cat`
+- Override for CLI: `CONTRACTES_API_BASE=<url>`
+
+## Attribution
+
+Dataset shown by contractes.cat comes from:
+
+- Dataset id: `ybgg-dgi6`
+- Publisher: `Departament d'Economia i Hisenda`
+- Source portal: `https://analisi.transparenciacatalunya.cat`
+- License/terms: `https://administraciodigital.gencat.cat/ca/dades/dades-obertes/informacio-practica/llicencies/`

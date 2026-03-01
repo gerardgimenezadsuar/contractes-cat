@@ -1,0 +1,41 @@
+{
+  "name": "@gerardgimenezadsuar/contractes-cli",
+  "version": "0.1.0",
+  "description": "CLI to query Catalonia public contract data from contractes.cat",
+  "type": "module",
+  "bin": {
+    "contractes": "bin/contractes.js"
+  },
+  "scripts": {
+    "check": "node --check bin/contractes.js",
+    "start": "node bin/contractes.js --help"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "contractes",
+    "contractes-cat",
+    "catalonia",
+    "public-procurement",
+    "open-data",
+    "socrata",
+    "cli",
+    "chatgpt",
+    "claude",
+    "ai-agent"
+  ],
+  "license": "AGPL-3.0",
+  "homepage": "https://www.contractes.cat",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gerardgimenezadsuar/contractes-cat.git",
+    "directory": "packages/contractes-cli"
+  },
+  "bugs": {
+    "url": "https://github.com/gerardgimenezadsuar/contractes-cat/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
