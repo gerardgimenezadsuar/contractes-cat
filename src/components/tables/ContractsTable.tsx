@@ -193,7 +193,7 @@ export default function ContractsTable({
               return (
                 <tr
                   key={rowKey}
-                  className="border-b border-gray-100 hover:bg-gray-50"
+                  className="border-b border-gray-100 table-row-hover"
                 >
                   <td className="py-3 px-4 truncate" title={c.denominacio}>
                     {publicationUrl ? (

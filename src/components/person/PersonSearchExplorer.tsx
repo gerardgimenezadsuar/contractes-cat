@@ -157,7 +157,7 @@ export default function PersonSearchExplorer({
 
   return (
     <div>
-      <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/70 via-white to-sky-50/70 p-4 sm:p-5 mb-5">
+      <div className="rounded-2xl border border-indigo-100 person-search-shell p-4 sm:p-5 mb-5">
         <div className="relative">
           <svg
             className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400"
@@ -202,7 +202,7 @@ export default function PersonSearchExplorer({
         ) : null
       )}
       {canSearch && loading && (
-        <div className="mb-3 rounded-lg border border-indigo-100 bg-indigo-50/60 px-3 py-2 text-xs text-indigo-700">
+        <div className="mb-3 rounded-lg border border-indigo-100 person-search-status px-3 py-2 text-xs text-indigo-700">
           Cercant resultats per a <span className="font-semibold">{trimmed}</span>. La primera cerca pot trigar uns segons.
         </div>
       )}

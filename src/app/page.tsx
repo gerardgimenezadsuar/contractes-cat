@@ -143,7 +143,7 @@ export default async function HomePage() {
   return (
     <div>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(homeJsonLd) }} />
-      <section className="mb-10 bg-gradient-to-b from-indigo-50/60 to-white">
+      <section className="mb-10 hero-gradient">
         <div className="mx-auto max-w-7xl px-4 pb-4 pt-10">
           <div className="mb-2 flex justify-center">
             <span className="hidden items-center gap-1.5 rounded-full border border-indigo-200 bg-white px-3 py-1 text-xs font-medium text-indigo-700 shadow-sm sm:inline-flex">
@@ -406,7 +406,10 @@ export default async function HomePage() {
                   );
                   const publicationUrl = getPublicationUrl(c.enllac_publicacio);
                   return (
-                    <tr key={`${c.codi_expedient}-${index}`} className="border-b border-gray-100 align-top hover:bg-gray-50">
+                    <tr
+                      key={`${c.codi_expedient}-${index}`}
+                      className="border-b border-gray-100 align-top table-row-hover"
+                    >
                       <td className="px-4 py-3 text-xs text-gray-700">{formatDate(bestDate.date)}</td>
                       <td className="px-4 py-3 text-gray-900" title={c.denominacio || ""}>
                         {publicationUrl ? (

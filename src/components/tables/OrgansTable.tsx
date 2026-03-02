@@ -143,7 +143,7 @@ export default function OrgansTable({
               const rank = (page - 1) * DEFAULT_PAGE_SIZE + idx + 1;
 
               return (
-                <tr key={`${organ.nom_organ}-${idx}`} className="border-b border-gray-100 hover:bg-gray-50">
+                <tr key={`${organ.nom_organ}-${idx}`} className="border-b border-gray-100 table-row-hover">
                   <td className="py-3 px-4 text-gray-400">{rank}</td>
                   <td className="py-3 px-4 break-words">
                     <Link

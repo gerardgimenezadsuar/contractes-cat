@@ -367,7 +367,7 @@ export default function CompaniesTable({
               return (
                 <tr
                   key={`${company.identificacio_adjudicatari}-${company.denominacio_adjudicatari}-${idx}`}
-                  className="border-b border-gray-100 hover:bg-gray-50"
+                  className="border-b border-gray-100 table-row-hover"
                 >
                   <td className="py-3 px-4 text-gray-400">{rank}</td>
                   <td className="py-3 px-4 break-words">
@@ -405,14 +405,14 @@ export default function CompaniesTable({
                   <td className="py-3 px-4">
                     <div className="flex flex-wrap gap-1.5 items-center">
                       {isUte && !isExpanded ? (
-                        <span className="inline-flex rounded-md bg-gray-100 px-2 py-1 text-[11px] font-mono text-gray-700">
+                        <span className="nif-pill">
                           {nifs[0]}
                         </span>
                       ) : (
                         nifs.map((nif) => (
                           <span
                             key={`${company.identificacio_adjudicatari}-${nif}`}
-                            className="inline-flex rounded-md bg-gray-100 px-2 py-1 text-[11px] font-mono text-gray-700"
+                            className="nif-pill"
                           >
                             {nif}
                           </span>
@@ -483,7 +483,7 @@ export default function CompaniesTable({
               <div className="mb-3 flex flex-wrap gap-1.5">
                 <span
                   key={`m-${company.identificacio_adjudicatari}-${nifs[0]}`}
-                  className="inline-flex rounded-md bg-gray-100 px-2 py-1 text-[11px] font-mono text-gray-700"
+                  className="nif-pill"
                 >
                   {nifs[0]}
                 </span>
