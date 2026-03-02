@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchContracts, fetchContractsCount } from "@/lib/api";
+import { csvEscape } from "@/lib/csv-escape";
 import {
   API_ROUTE_S_MAXAGE_SECONDS,
   API_ROUTE_STALE_WHILE_REVALIDATE_SECONDS,
 } from "@/config/constants";
 
-function csvEscape(value: unknown): string {
-  const str = value == null ? "" : String(value);
-  if (/[",\n]/.test(str)) return `"${str.replace(/"/g, "\"\"")}"`;
-  return str;
-}
+export const runtime = "edge";
+export const preferredRegion = ["cdg1"];
 
 function toContractsCsv(
   rows: Awaited<ReturnType<typeof fetchContracts>>

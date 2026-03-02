@@ -1,16 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchOrgans, fetchOrgansCount } from "@/lib/api";
+import { csvEscape } from "@/lib/csv-escape";
 import {
   DEFAULT_PAGE_SIZE,
   API_ROUTE_S_MAXAGE_SECONDS,
   API_ROUTE_STALE_WHILE_REVALIDATE_SECONDS,
 } from "@/config/constants";
 
-function csvEscape(value: unknown): string {
-  const str = value == null ? "" : String(value);
-  if (/[",\n]/.test(str)) return `"${str.replace(/"/g, '""')}"`;
-  return str;
-}
+export const runtime = "edge";
+export const preferredRegion = ["cdg1"];
 
 function toOrgansCsv(rows: Awaited<ReturnType<typeof fetchOrgans>>): string {
   const header = ["nom_organ", "total", "num_contracts"];
@@ -46,9 +44,8 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  const data = await fetchOrgans(offset, limit, search || undefined, { includeCurrentYear });
-
   if (!includeTotal) {
+    const data = await fetchOrgans(offset, limit, search || undefined, { includeCurrentYear });
     return NextResponse.json(
       { data },
       {
@@ -59,7 +56,10 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const total = await fetchOrgansCount(search || undefined);
+  const [data, total] = await Promise.all([
+    fetchOrgans(offset, limit, search || undefined, { includeCurrentYear }),
+    fetchOrgansCount(search || undefined),
+  ]);
 
   return NextResponse.json(
     { data, total },

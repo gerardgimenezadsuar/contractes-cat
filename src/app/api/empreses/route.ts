@@ -1,16 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchCompanies, fetchCompaniesCount } from "@/lib/api";
+import { csvEscape } from "@/lib/csv-escape";
 import {
   DEFAULT_PAGE_SIZE,
   API_ROUTE_S_MAXAGE_SECONDS,
   API_ROUTE_STALE_WHILE_REVALIDATE_SECONDS,
 } from "@/config/constants";
 
-function csvEscape(value: unknown): string {
-  const str = value == null ? "" : String(value);
-  if (/[",\n]/.test(str)) return `"${str.replace(/"/g, "\"\"")}"`;
-  return str;
-}
+export const runtime = "edge";
+export const preferredRegion = ["cdg1"];
 
 function toCompaniesCsv(
   rows: Awaited<ReturnType<typeof fetchCompanies>>
@@ -67,14 +65,13 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  const data = await fetchCompanies(
-    offset,
-    DEFAULT_PAGE_SIZE,
-    search || undefined,
-    cpvFilters.length > 0 ? cpvFilters : undefined
-  );
-
   if (!includeTotal) {
+    const data = await fetchCompanies(
+      offset,
+      DEFAULT_PAGE_SIZE,
+      search || undefined,
+      cpvFilters.length > 0 ? cpvFilters : undefined
+    );
     return NextResponse.json(
       { data },
       {
@@ -85,10 +82,18 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const total = await fetchCompaniesCount(
-    search || undefined,
-    cpvFilters.length > 0 ? cpvFilters : undefined
-  );
+  const [data, total] = await Promise.all([
+    fetchCompanies(
+      offset,
+      DEFAULT_PAGE_SIZE,
+      search || undefined,
+      cpvFilters.length > 0 ? cpvFilters : undefined
+    ),
+    fetchCompaniesCount(
+      search || undefined,
+      cpvFilters.length > 0 ? cpvFilters : undefined
+    ),
+  ]);
 
   return NextResponse.json(
     { data, total },

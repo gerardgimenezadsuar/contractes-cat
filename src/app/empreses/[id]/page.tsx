@@ -75,15 +75,15 @@ export default async function CompanyDetailPage({ params, searchParams }: Props)
   const { name } = await searchParams;
   const decodedId = decodeURIComponent(id);
 
-  const [{ company, yearly }, contracts, contractsCount, topOrgans, lastAwardDate] = await Promise.all([
+  const [{ company, yearly }, contracts, contractsCount, topOrgans, lastAwardDate, adminHistory] = await Promise.all([
     getCompanyDetail(decodedId, name),
     fetchCompanyContracts(decodedId, name, 0, 50),
     fetchCompanyContractsCount(decodedId, name),
     fetchCompanyTopOrgans(decodedId, name, 10),
     fetchCompanyLastAwardDate(decodedId, name),
+    loadAdminHistory(decodedId),
   ]);
 
-  const adminHistory = await loadAdminHistory(decodedId);
   const hasBormeData = Boolean(adminHistory && adminHistory.spans.length > 0);
 
   if (!company) {
