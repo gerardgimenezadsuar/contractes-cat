@@ -439,9 +439,14 @@ export default async function PersonDetailPage({ params, searchParams }: Props) 
                         <td className="py-2.5 px-3 text-gray-700">
                           <div>{formatNumber(overlapByOrgan.total)} contractes</div>
                           <div className="text-xs text-gray-500 mt-1">{formatCompactNumber(overlapByOrgan.totalAmount)}</div>
-                          <Link href={scrutinyHrefEns} className="mt-1 inline-block text-sm text-blue-600 hover:underline">
-                            Veure contractes d&apos;aquest ens
-                          </Link>
+                          {Number(overlapByOrgan.total) > 0 && (
+                            <Link
+                              href={scrutinyHrefEns}
+                              className="mt-1 inline-block text-sm text-blue-600 hover:underline"
+                            >
+                              Veure contractes d&apos;aquest ens
+                            </Link>
+                            )}
                         </td>
                       </tr>
                     );
