@@ -339,16 +339,16 @@ export default function CompaniesTable({
         <table className="w-full table-fixed text-sm">
           <thead>
             <tr className="border-b border-gray-200 bg-gray-50">
-              <th className="w-12 text-left py-3 px-4 font-medium text-gray-500">#</th>
-              <th className="text-left py-3 px-4 font-medium text-gray-500">Empresa</th>
-              <th className="w-44 text-left py-3 px-4 font-medium text-gray-500">NIF</th>
-              <th className="w-36 text-right py-3 px-4 font-medium text-gray-500">
+              <th scope="col" className="w-12 text-left py-3 px-4 font-medium text-gray-500">#</th>
+              <th scope="col" className="text-left py-3 px-4 font-medium text-gray-500">Empresa</th>
+              <th scope="col" className="w-44 text-left py-3 px-4 font-medium text-gray-500">NIF</th>
+              <th scope="col" className="w-36 text-right py-3 px-4 font-medium text-gray-500">
                 Import {new Date().getFullYear()} {hasCpvFilter ? "(CPV)" : ""}
               </th>
-              <th className="w-36 text-right py-3 px-4 font-medium text-gray-500">
+              <th scope="col" className="w-36 text-right py-3 px-4 font-medium text-gray-500">
                 {hasCpvFilter ? "Import filtrat CPV" : "Import històric"}
               </th>
-              <th className="w-28 text-right py-3 px-4 font-medium text-gray-500">
+              <th scope="col" className="w-28 text-right py-3 px-4 font-medium text-gray-500">
                 {hasCpvFilter ? "Contractes CPV" : "Contractes"}
               </th>
             </tr>

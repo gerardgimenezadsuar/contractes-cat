@@ -164,14 +164,14 @@ export default function ContractsTable({
         <table className="min-w-[1040px] w-full table-fixed text-sm">
           <thead>
             <tr className="border-b border-gray-200 bg-gray-50">
-              <th className="w-[34%] xl:w-[28%] text-left py-3 px-4 font-medium text-gray-500">Denominació</th>
-              <th className="hidden xl:table-cell xl:w-[10%] text-left py-3 px-4 font-medium text-gray-500">Procediment</th>
-              <th className="w-[21%] xl:w-[17%] text-left py-3 px-4 font-medium text-gray-500">Adjudicatari</th>
-              <th className="w-[11%] xl:w-[10%] text-right py-3 px-4 font-medium text-gray-500">Import (sense IVA)</th>
-              <th className="w-[8%] xl:w-[7%] text-left py-3 px-4 font-medium text-gray-500">
+              <th scope="col" className="w-[34%] xl:w-[28%] text-left py-3 px-4 font-medium text-gray-500">Denominació</th>
+              <th scope="col" className="hidden xl:table-cell xl:w-[10%] text-left py-3 px-4 font-medium text-gray-500">Procediment</th>
+              <th scope="col" className="w-[21%] xl:w-[17%] text-left py-3 px-4 font-medium text-gray-500">Adjudicatari</th>
+              <th scope="col" className="w-[11%] xl:w-[10%] text-right py-3 px-4 font-medium text-gray-500">Import (sense IVA)</th>
+              <th scope="col" className="w-[8%] xl:w-[7%] text-left py-3 px-4 font-medium text-gray-500">
                 Data ref.
               </th>
-              <th className="w-[26%] xl:w-[28%] text-left py-3 px-4 font-medium text-gray-500">Organisme</th>
+              <th scope="col" className="w-[26%] xl:w-[28%] text-left py-3 px-4 font-medium text-gray-500">Organisme</th>
             </tr>
           </thead>
           <tbody>
@@ -204,6 +204,7 @@ export default function ContractsTable({
                         className="text-gray-900 hover:underline"
                       >
                         {c.denominacio || "—"}
+                        <span className="sr-only"> (obre en una nova pestanya)</span>
                       </a>
                     ) : (
                       c.denominacio || "—"
@@ -305,6 +306,7 @@ export default function ContractsTable({
                   className="text-sm font-semibold text-gray-900 line-clamp-2 hover:underline"
                 >
                   {c.denominacio || "Sense denominació"}
+                  <span className="sr-only"> (obre en una nova pestanya)</span>
                 </a>
               ) : (
                 <p className="text-sm font-semibold text-gray-900 line-clamp-2">

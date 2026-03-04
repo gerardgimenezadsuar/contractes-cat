@@ -128,11 +128,11 @@ export default function OrgansTable({
         <table className="w-full table-fixed text-sm">
           <thead>
             <tr className="border-b border-gray-200 bg-gray-50">
-              <th className="w-12 text-left py-3 px-4 font-medium text-gray-500">#</th>
-              <th className="text-left py-3 px-4 font-medium text-gray-500">Organisme</th>
-              <th className="w-36 text-right py-3 px-4 font-medium text-gray-500">Import {new Date().getFullYear()}</th>
-              <th className="w-36 text-right py-3 px-4 font-medium text-gray-500">Import històric</th>
-              <th className="w-28 text-right py-3 px-4 font-medium text-gray-500">Contractes</th>
+              <th scope="col" className="w-12 text-left py-3 px-4 font-medium text-gray-500">#</th>
+              <th scope="col" className="text-left py-3 px-4 font-medium text-gray-500">Organisme</th>
+              <th scope="col" className="w-36 text-right py-3 px-4 font-medium text-gray-500">Import {new Date().getFullYear()}</th>
+              <th scope="col" className="w-36 text-right py-3 px-4 font-medium text-gray-500">Import històric</th>
+              <th scope="col" className="w-28 text-right py-3 px-4 font-medium text-gray-500">Contractes</th>
             </tr>
           </thead>
           <tbody>

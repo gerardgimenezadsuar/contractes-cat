@@ -22,13 +22,14 @@ export default function StatCard({
       <p className="flex items-center gap-1 text-sm font-medium text-gray-500">
         <span>{title}</span>
         {titleTooltip && (
-          <span
+          <button
+            type="button"
             className="cursor-help select-none text-xs leading-none text-gray-400"
             title={titleTooltip}
             aria-label={titleTooltip}
           >
             i
-          </span>
+          </button>
         )}
       </p>
       <p className={`mt-1 font-bold text-gray-900 ${compact ? "text-2xl" : "text-3xl"}`}>{value}</p>
@@ -36,7 +37,7 @@ export default function StatCard({
         <p className={`mt-1 text-sm font-medium ${trend >= 0 ? "text-green-600" : "text-red-600"}`}>
           {trend >= 0 ? "▲" : "▼"} {Math.abs(trend).toFixed(1)}%
           {trendLabel && (
-            <span className="ml-1 font-normal text-gray-400 text-xs">{trendLabel}</span>
+            <span className="ml-1 font-normal text-gray-500 text-xs">{trendLabel}</span>
           )}
         </p>
       )}
