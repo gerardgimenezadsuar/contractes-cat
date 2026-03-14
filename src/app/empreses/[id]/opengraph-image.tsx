@@ -245,8 +245,8 @@ export default async function Image({ params }: Props) {
                 Dades obertes · Contractació pública de Catalunya
               </div>
             </div>
-            <div style={{ display: "flex", fontSize: 30, fontWeight: 700, color: "#111827" }}>
-              contractes.cat
+            <div style={{ display: "flex", fontSize: 20, fontWeight: 600, color: "#4F46E5" }}>
+              Veure contractes a contractes.cat →
             </div>
           </div>
         </div>

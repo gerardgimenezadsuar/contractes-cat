@@ -56,9 +56,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     : `Detall dels contractes públics de ${organName}.`;
 
   const entityPath = `/organismes/${encodeURIComponent(canonicalOrganId)}`;
+  const ogTitle = `${organName} — Contractes públics | contractes.cat`;
+  const ogDescription = organ
+    ? `Consulta els ${formatNumber(totalContracts)} contractes públics de ${organName} per ${formatCompactNumber(totalAmount)}. Dades obertes de contractació pública a Catalunya.`
+    : `Consulta els contractes públics de ${organName}. Dades obertes de contractació pública a Catalunya.`;
+
   return buildEntityMetadata({
     title: organName,
     description,
+    ogTitle,
+    ogDescription,
     path: entityPath,
     imagePath: `${entityPath}/opengraph-image`,
     imageAlt: `Resum de contractació pública de ${organName}`,

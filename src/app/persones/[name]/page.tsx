@@ -55,9 +55,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     : `Informació societària de ${displayName} segons BORME.`;
 
   const entityPath = `/persones/${encodeURIComponent(bormeName)}`;
+  const ogTitle = `${displayName} — Perfil societari | contractes.cat`;
+  const ogDescription = profile
+    ? `Consulta el perfil de ${displayName}: ${formatNumber(profile.num_companies)} empreses vinculades i ${formatNumber(contractsSummary.total)} contractes públics (${formatCompactNumber(contractsSummary.totalAmount)}). Dades del BORME i contractació pública a Catalunya.`
+    : `Consulta el perfil societari de ${displayName} amb dades del BORME i contractació pública a Catalunya.`;
+
   return buildEntityMetadata({
     title: displayName,
     description,
+    ogTitle,
+    ogDescription,
     path: entityPath,
     imagePath: `${entityPath}/opengraph-image`,
     imageAlt: `Perfil de contractació pública de ${displayName}`,
