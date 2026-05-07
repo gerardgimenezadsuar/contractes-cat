@@ -24,6 +24,7 @@ import {
   YearlyTrendChartLazy,
 } from "@/components/charts/LazyCharts";
 import CompanySearch from "@/components/ui/CompanySearch";
+import AdBanner from "@/components/layout/AdBanner";
 import { safeJsonLd } from "@/lib/seo/jsonld";
 import { SITE_NAME, SITE_URL } from "@/config/constants";
 import { buildCompanyHref } from "@/lib/company-identity";
@@ -143,6 +144,7 @@ export default async function HomePage() {
   return (
     <div>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(homeJsonLd) }} />
+      <AdBanner />
       <section className="mb-10 bg-gradient-to-b from-indigo-50/60 to-white">
         <div className="mx-auto max-w-7xl px-4 pb-4 pt-10">
           <div className="mb-2 flex justify-center">

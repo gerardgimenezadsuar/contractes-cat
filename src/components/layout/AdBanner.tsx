@@ -1,16 +1,16 @@
 import Link from "next/link";
 
 const LICITABOT_URL =
-  "https://licitabot.net/?utm_source=contractes.cat&utm_medium=banner&utm_campaign=site_promo&utm_content=top_banner";
+  "https://licitabot.net/?utm_source=contractes.cat&utm_medium=banner&utm_campaign=site_promo&utm_content=home_top";
 
 export default function AdBanner() {
   return (
     <aside
       aria-label="Anunci patrocinat"
-      className="border-b border-amber-200 bg-gradient-to-r from-amber-50 via-amber-50 to-orange-50"
+      className="border-b border-amber-200 bg-amber-50"
     >
-      <div className="max-w-7xl mx-auto px-4 py-1.5 flex items-center justify-center gap-2 text-xs sm:text-sm">
-        <span className="hidden sm:inline-flex shrink-0 items-center rounded-sm border border-amber-300 bg-white px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+      <div className="max-w-7xl mx-auto px-3 py-1 flex items-center justify-center gap-1.5 text-[11px] sm:text-xs leading-tight">
+        <span className="shrink-0 rounded-sm border border-amber-300 bg-white px-1 py-px text-[9px] font-semibold uppercase tracking-wide text-amber-700">
           Anunci
         </span>
         <Link
@@ -18,20 +18,14 @@ export default function AdBanner() {
           target="_blank"
           rel="noopener noreferrer sponsored"
           prefetch={false}
-          className="group inline-flex items-center gap-1.5 text-amber-900 hover:text-amber-950"
+          className="group inline-flex items-center gap-1 text-amber-900 hover:text-amber-950"
         >
           <span className="font-semibold">Licitabot</span>
-          <span className="hidden sm:inline text-amber-800/80">·</span>
-          <span className="text-amber-800/90">
-            <span className="sm:hidden">Assistent IA per a licitacions</span>
-            <span className="hidden sm:inline">
-              Assistent d&apos;IA per a licitacions públiques
-            </span>
-          </span>
-          <span className="ml-1 inline-flex items-center gap-0.5 font-medium underline-offset-2 group-hover:underline">
+          <span className="text-amber-800/90">· assistent IA per a licitacions</span>
+          <span className="ml-0.5 inline-flex items-center font-medium underline-offset-2 group-hover:underline">
             Prova-ho
             <svg
-              className="h-3 w-3 transition-transform group-hover:translate-x-0.5"
+              className="ml-0.5 h-2.5 w-2.5 transition-transform group-hover:translate-x-0.5"
               viewBox="0 0 20 20"
               fill="currentColor"
               aria-hidden="true"
