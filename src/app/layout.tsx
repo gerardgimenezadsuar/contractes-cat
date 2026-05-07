@@ -4,6 +4,7 @@ import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+import AdBanner from "@/components/layout/AdBanner";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/config/constants";
 
 const geistSans = Geist({
@@ -57,6 +58,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col`}
       >
         <Header />
+        <AdBanner />
         <main className="flex-1">{children}</main>
         <Footer />
         <Analytics />
