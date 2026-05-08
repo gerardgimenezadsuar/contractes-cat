@@ -16,6 +16,9 @@ const NAV_ITEMS = [
   { href: "/about", label: "Sobre" },
 ];
 
+const COM_LICITAR_URL =
+  "https://licitabot.net/?utm_source=contractes.cat&utm_medium=mobile_nav&utm_campaign=site_promo&utm_content=com_licitar";
+
 export default function Header() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -104,6 +107,24 @@ export default function Header() {
                 </Link>
               );
             })}
+            <a
+              href={COM_LICITAR_URL}
+              target="_blank"
+              rel="noopener noreferrer sponsored"
+              onClick={() => setMobileOpen(false)}
+              className="mt-2 flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium text-amber-800 bg-amber-50 border border-amber-200 hover:bg-amber-100"
+            >
+              <span>Com licitar?</span>
+              <svg
+                className="h-4 w-4 text-amber-700"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                aria-hidden="true"
+              >
+                <path d="M11 3a1 1 0 1 0 0 2h2.586l-6.293 6.293a1 1 0 1 0 1.414 1.414L15 6.414V9a1 1 0 1 0 2 0V4a1 1 0 0 0-1-1h-5Z" />
+                <path d="M5 5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-3a1 1 0 1 0-2 0v3H5V7h3a1 1 0 0 0 0-2H5Z" />
+              </svg>
+            </a>
           </nav>
         )}
       </div>
