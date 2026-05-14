@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { track } from "@vercel/analytics";
 
 const LICITABOT_URL =
   "https://licitabot.net/?utm_source=contractes.cat&utm_medium=banner&utm_campaign=site_promo&utm_content=home_top";
@@ -18,6 +21,9 @@ export default function AdBanner() {
           target="_blank"
           rel="noopener noreferrer sponsored"
           prefetch={false}
+          onClick={() =>
+            track("ad_click", { ad: "licitabot", placement: "home_top" })
+          }
           className="group inline-flex items-center gap-1 text-amber-900 hover:text-amber-950"
         >
           <span className="font-semibold">Licitabot</span>
