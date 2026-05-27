@@ -5,6 +5,9 @@ import {
   API_ROUTE_STALE_WHILE_REVALIDATE_SECONDS,
 } from "@/config/constants";
 
+export const runtime = "edge";
+export const preferredRegion = ["cdg1"];
+
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const organ = searchParams.get("organ") || "";

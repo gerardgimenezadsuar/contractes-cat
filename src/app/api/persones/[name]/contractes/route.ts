@@ -6,6 +6,8 @@ import {
   API_ROUTE_STALE_WHILE_REVALIDATE_SECONDS,
 } from "@/config/constants";
 
+export const preferredRegion = ["cdg1"];
+
 const SORT_MAP: Record<string, { orderBy: string; orderDir: "ASC" | "DESC" }> = {
   "date-desc": {
     orderBy: "coalesce(data_adjudicacio_contracte, data_formalitzacio_contracte, data_publicacio_anunci)",
