@@ -12,6 +12,10 @@ interface EntityMetadataConfig {
   imageAlt: string;
   keywords?: string[];
   openGraphType?: OgType;
+  /** Override og:title / twitter:title (defaults to title) */
+  ogTitle?: string;
+  /** Override og:description / twitter:description (defaults to description) */
+  ogDescription?: string;
 }
 
 interface JsonLdEntityConfig {
@@ -37,6 +41,8 @@ function toAbsoluteUrl(path: string): string {
 export function buildEntityMetadata(config: EntityMetadataConfig): Metadata {
   const canonicalUrl = toAbsoluteUrl(config.path);
   const imageUrl = toAbsoluteUrl(config.imagePath);
+  const socialTitle = config.ogTitle || config.title;
+  const socialDescription = config.ogDescription || config.description;
 
   return {
     title: config.title,
@@ -46,8 +52,8 @@ export function buildEntityMetadata(config: EntityMetadataConfig): Metadata {
       canonical: canonicalUrl,
     },
     openGraph: {
-      title: config.title,
-      description: config.description,
+      title: socialTitle,
+      description: socialDescription,
       url: canonicalUrl,
       siteName: SITE_NAME,
       type: config.openGraphType || "article",
@@ -62,8 +68,8 @@ export function buildEntityMetadata(config: EntityMetadataConfig): Metadata {
     },
     twitter: {
       card: "summary_large_image",
-      title: config.title,
-      description: config.description,
+      title: socialTitle,
+      description: socialDescription,
       images: [imageUrl],
     },
   };

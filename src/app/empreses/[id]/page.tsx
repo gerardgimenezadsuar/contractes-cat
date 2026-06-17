@@ -54,9 +54,16 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     : `Detall dels contractes públics adjudicats a ${companyName}.`;
 
   const entityPath = `/empreses/${encodeURIComponent(canonicalCompanyId)}`;
+  const ogTitle = `${companyName} — Contractes públics | contractes.cat`;
+  const ogDescription = company
+    ? `Consulta els ${formatNumber(totalContracts)} contractes públics adjudicats a ${companyName} per ${formatCompactNumber(totalAmount)}. Dades obertes de contractació pública a Catalunya.`
+    : `Consulta els contractes públics adjudicats a ${companyName}. Dades obertes de contractació pública a Catalunya.`;
+
   return buildEntityMetadata({
     title: companyName,
     description,
+    ogTitle,
+    ogDescription,
     path: entityPath,
     imagePath: `${entityPath}/opengraph-image`,
     imageAlt: `Resum de contractació pública de ${companyName}`,
