@@ -1,6 +1,3 @@
-packages:
-  - "packages/*"
-
 ignoredBuiltDependencies:
   - sharp
   - unrs-resolver
