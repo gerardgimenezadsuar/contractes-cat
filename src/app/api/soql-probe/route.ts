@@ -75,5 +75,10 @@ export async function GET(req: Request) {
     } catch (e) { turso = String(e); }
   }
 
-  return NextResponse.json({ baselineMs, baseline, results, turso });
+  const envPresence = Object.fromEntries(
+    Object.keys(process.env)
+      .filter((k) => /SOCRATA|APP_TOKEN|TURSO/i.test(k))
+      .map((k) => [k, Boolean(process.env[k])])
+  );
+  return NextResponse.json({ envPresence, baselineMs, baseline, results, turso });
 }
