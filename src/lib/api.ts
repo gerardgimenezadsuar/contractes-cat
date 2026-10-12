@@ -21,7 +21,6 @@ import type {
   MinorBandSummary,
   MinorShareYear,
 } from "./types";
-import { unstable_cache } from "next/cache";
 import { CPV_DIVISIONS } from "@/config/constants";
 import { buildCompanyIdentityKey, isMaskedCompanyId } from "@/lib/company-identity";
 
@@ -157,16 +156,7 @@ function buildLooseSearchCondition(search: string, fields: string[]): string {
   return `(${exactParts.join(" OR ")} OR ${normalizedParts.join(" OR ")})`;
 }
 
-interface SoqlFetchOptions {
-  // Skip the Next.js data cache (it rejects bodies over 2MB). Callers that
-  // opt out should cache their derived result themselves.
-  noStore?: boolean;
-}
-
-async function soqlFetch<T>(
-  params: Record<string, string>,
-  options: SoqlFetchOptions = {}
-): Promise<T[]> {
+async function soqlFetch<T>(params: Record<string, string>): Promise<T[]> {
   const url = new URL(SOCRATA_BASE_URL);
   for (const [key, value] of Object.entries(params)) {
     url.searchParams.set(key, value);
@@ -175,12 +165,9 @@ async function soqlFetch<T>(
   const maxAttempts = 2;
   for (let attempt = 1; ; attempt++) {
     try {
-      const res = await fetch(
-        url.toString(),
-        options.noStore
-          ? { cache: "no-store" }
-          : { next: { revalidate: REVALIDATE_SECONDS } }
-      );
+      const res = await fetch(url.toString(), {
+        next: { revalidate: REVALIDATE_SECONDS },
+      });
 
       if (!res.ok) {
         const text = await res.text();
@@ -403,23 +390,7 @@ export async function fetchCompanies(
   }));
 }
 
-// The masked-NIF enumeration below downloads several MB, which exceeds the
-// Next.js 2MB fetch-cache limit, so we cache the final count instead.
-const cachedCompaniesCount = unstable_cache(
-  (search: string, cpvKey: string) =>
-    computeCompaniesCount(search || undefined, cpvKey ? cpvKey.split(",") : undefined),
-  ["companies-count"],
-  { revalidate: REVALIDATE_SECONDS }
-);
-
 export async function fetchCompaniesCount(
-  search?: string,
-  cpvFilters?: string[]
-): Promise<number> {
-  return cachedCompaniesCount(search || "", (cpvFilters || []).join(","));
-}
-
-async function computeCompaniesCount(
   search?: string,
   cpvFilters?: string[]
 ): Promise<number> {
@@ -438,34 +409,24 @@ async function computeCompaniesCount(
   const cpvWhere = buildCpvDivisionWhere(cpvFilters);
   if (cpvWhere) conditions.push(cpvWhere);
 
-  const nonMaskedData = await soqlFetch<{ total: string }>({
-    $select: "count(distinct identificacio_adjudicatari) as total",
-    $where: `${conditions.join(" AND ")} AND upper(identificacio_adjudicatari) not like '%**%'`,
-  });
+  // Real NIFs identify a company on their own; masked ids ("**** 1234 *") are
+  // shared by many people, so those count as distinct (id, name) pairs.
+  const [nonMaskedData, maskedData] = await Promise.all([
+    soqlFetch<{ total: string }>({
+      $select: "count(distinct identificacio_adjudicatari) as total",
+      $where: `${conditions.join(" AND ")} AND upper(identificacio_adjudicatari) not like '%**%'`,
+    }),
+    soqlFetch<{ total: string }>({
+      $select:
+        "count(distinct identificacio_adjudicatari || '|' || denominacio_adjudicatari) as total",
+      $where: `${conditions.join(" AND ")} AND upper(identificacio_adjudicatari) like '%**%'`,
+    }),
+  ]);
 
-  const maskedConditions = [...conditions, "upper(identificacio_adjudicatari) like '%**%'"];
-  let maskedCount = 0;
-  let offset = 0;
-  const batchSize = 50000;
-
-  while (true) {
-    const rows = await soqlFetch<{
-      identificacio_adjudicatari: string;
-      denominacio_adjudicatari: string;
-    }>({
-      $select: "identificacio_adjudicatari, denominacio_adjudicatari",
-      $where: maskedConditions.join(" AND "),
-      $group: "identificacio_adjudicatari, denominacio_adjudicatari",
-      $limit: String(batchSize),
-      $offset: String(offset),
-    }, { noStore: true });
-
-    maskedCount += rows.length;
-    if (rows.length < batchSize) break;
-    offset += batchSize;
-  }
-
-  return parseInt(nonMaskedData[0]?.total || "0", 10) + maskedCount;
+  return (
+    parseInt(nonMaskedData[0]?.total || "0", 10) +
+    parseInt(maskedData[0]?.total || "0", 10)
+  );
 }
 
 /** Lightweight paginated list of company ids for sitemap generation. */
