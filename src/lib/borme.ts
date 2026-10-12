@@ -264,6 +264,15 @@ function buildPersonSearchWhere(query: string): { sql: string; args: string[]; o
   };
 }
 
+// PDF parsing artefacts: ~3,000 names absorbed the BORME page header
+// ("... BOLETÍN OFICIAL DEL REGISTRO MERCANTIL Núm"), and some swallowed the
+// next role label ("...Presidente: ..."). Hide them from listings.
+const VALID_PERSON_SQL = "person_name NOT LIKE '%REGISTRO MERCANTIL%' AND person_name NOT LIKE '%:%'";
+
+export function isJunkPersonName(name: string): boolean {
+  return /REGISTRO MERCANTIL|:/i.test(name);
+}
+
 function buildPersonSearchFts(query: string): { match: string; orderedPattern: string } | null {
   const raw = query.trim();
   if (raw.length < 2) return null;
@@ -304,7 +313,7 @@ export async function searchPersonsWithTotal(
                        CASE WHEN upper(p.person_name) LIKE upper(?) THEN 1 ELSE 0 END AS ordered_match
                 FROM person_summary p
                 JOIN person_summary_fts f ON f.rowid = p.rowid
-                WHERE person_summary_fts MATCH ?
+                WHERE person_summary_fts MATCH ? AND ${VALID_PERSON_SQL.replaceAll("person_name", "p.person_name")}
               )
               SELECT person_name,
                      num_companies,
@@ -330,7 +339,7 @@ export async function searchPersonsWithTotal(
                      count(*) OVER() AS total_matches,
                      CASE WHEN upper(person_name) LIKE upper(?) THEN 1 ELSE 0 END AS ordered_match
               FROM person_summary
-              WHERE ${searchWhere.sql}
+              WHERE ${searchWhere.sql} AND ${VALID_PERSON_SQL}
               ORDER BY ordered_match DESC, num_companies_with_nif DESC, num_companies DESC, active_spans DESC, total_spans DESC
               LIMIT ? OFFSET ?`,
         args: [searchWhere.orderedPattern, ...searchWhere.args, limit, offset],
@@ -510,7 +519,7 @@ export async function countAllPersonNames(): Promise<number> {
     if (!canReadTurso()) return 0;
 
     const result = await client.execute({
-      sql: "SELECT COUNT(*) AS total FROM person_summary",
+      sql: `SELECT COUNT(*) AS total FROM person_summary WHERE ${VALID_PERSON_SQL}`,
       args: [],
     });
 
@@ -535,6 +544,7 @@ export async function listPersonNamesPage(offset = 0, limit = 1000): Promise<str
     const result = await client.execute({
       sql: `SELECT person_name
             FROM person_summary
+            WHERE ${VALID_PERSON_SQL}
             ORDER BY num_companies_with_nif DESC, total_spans DESC
             LIMIT ? OFFSET ?`,
       args: [safeLimit, safeOffset],

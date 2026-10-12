@@ -22,7 +22,11 @@ import type {
 } from "./types";
 import { CPV_DIVISIONS } from "@/config/constants";
 import { socrataFetch } from "@/lib/socrata";
-import { buildCompanyIdentityKey, isMaskedCompanyId } from "@/lib/company-identity";
+import {
+  buildCompanyIdentityKey,
+  isAmbiguousCompanyId,
+  MIN_COMPANY_ID_LENGTH,
+} from "@/lib/company-identity";
 
 const BEST_AVAILABLE_CONTRACT_DATE_EXPR =
   "coalesce(data_adjudicacio_contracte, data_formalitzacio_contracte, data_publicacio_anunci)";
@@ -46,6 +50,9 @@ function parseYearFilter(value: string): number | null {
   return parsed >= 2000 && parsed <= currentYear + 1 ? parsed : null;
 }
 
+// SoQL equivalent of isAmbiguousCompanyId (masked or placeholder ids).
+const AMBIGUOUS_ID_SOQL = `(identificacio_adjudicatari like '%**%' OR length(trim(identificacio_adjudicatari)) < ${MIN_COMPANY_ID_LENGTH})`;
+
 function getContractsFutureCutoffIso(): string {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() + 7);
@@ -55,7 +62,7 @@ function getContractsFutureCutoffIso(): string {
 
 function buildAwardeeIdentityCondition(id: string, name?: string): string {
   const safeId = id.replace(/'/g, "''");
-  if (!isMaskedCompanyId(id)) {
+  if (!isAmbiguousCompanyId(id)) {
     return `identificacio_adjudicatari='${safeId}'`;
   }
 
@@ -77,7 +84,26 @@ function normalizeSearchTerm(search: string): string {
 }
 
 function normalizeSoqlTextExpr(field: string): string {
-  return `upper(replace(replace(replace(replace(replace(${field},'.',''),',',''),'-',''),' ',''),'/',''))`;
+  // Strips the same punctuation as normalizeSearchTerm (apostrophes included,
+  // straight and curly, and the Catalan middle dot) and folds Ç/Ñ. Accented
+  // vowels are handled on the search-term side by toAccentInsensitivePattern,
+  // which is far cheaper than replacing every accented letter here.
+  let expr = `upper(${field})`;
+  for (const char of [".", ",", "-", " ", "/", "''", "’", "·"]) {
+    expr = `replace(${expr},'${char}','')`;
+  }
+  return `replace(replace(${expr},'Ç','C'),'Ñ','N')`;
+}
+
+/**
+ * Turns a normalized (accent-free, uppercase) term into a LIKE pattern where
+ * each vowel matches any single character, so "PUBLIC" also finds "PÚBLIC"
+ * and "OCUPACIO" finds "OCUPACIÓ". Short terms stay exact to limit false
+ * positives.
+ */
+function toAccentInsensitivePattern(normalized: string): string {
+  if (normalized.length < 5) return normalized;
+  return normalized.replace(/[AEIOU]/g, "_");
 }
 
 function resolveCpvDivisionCodes(cpvSearch: string): string[] {
@@ -148,9 +174,9 @@ function buildLooseSearchCondition(search: string, fields: string[]): string {
   const normalized = normalizeSearchTerm(search);
   if (!normalized) return `(${exactParts.join(" OR ")})`;
 
+  const pattern = toAccentInsensitivePattern(normalized);
   const normalizedParts = fields.map(
-    (field) =>
-      `${normalizeSoqlTextExpr(field)} like upper('%${normalized}%')`
+    (field) => `${normalizeSoqlTextExpr(field)} like '%${pattern}%'`
   );
 
   return `(${exactParts.join(" OR ")} OR ${normalizedParts.join(" OR ")})`;
@@ -373,17 +399,17 @@ export async function fetchCompaniesCount(
   const cpvWhere = buildCpvDivisionWhere(cpvFilters);
   if (cpvWhere) conditions.push(cpvWhere);
 
-  // Real NIFs identify a company on their own; masked ids ("**** 1234 *") are
-  // shared by many people, so those count as distinct (id, name) pairs.
+  // Real NIFs identify a company on their own; masked/placeholder ids are
+  // shared by many awardees, so those count as distinct (id, name) pairs.
   const [nonMaskedData, maskedData] = await Promise.all([
     soqlFetch<{ total: string }>({
       $select: "count(distinct identificacio_adjudicatari) as total",
-      $where: `${conditions.join(" AND ")} AND upper(identificacio_adjudicatari) not like '%**%'`,
+      $where: `${conditions.join(" AND ")} AND NOT ${AMBIGUOUS_ID_SOQL}`,
     }),
     soqlFetch<{ total: string }>({
       $select:
         "count(distinct identificacio_adjudicatari || '|' || denominacio_adjudicatari) as total",
-      $where: `${conditions.join(" AND ")} AND upper(identificacio_adjudicatari) like '%**%'`,
+      $where: `${conditions.join(" AND ")} AND ${AMBIGUOUS_ID_SOQL}`,
     }),
   ]);
 
@@ -393,7 +419,7 @@ export async function fetchCompaniesCount(
   );
 }
 
-/** Number of distinct company ids, matching fetchCompanyIdsPage. */
+/** Number of distinct unambiguous company ids, matching fetchCompanyIdsPage. */
 export async function fetchCompanyIdsCount(): Promise<number> {
   const data = await soqlFetch<{ total: string }>({
     $select: "count(distinct identificacio_adjudicatari) as total",
@@ -401,6 +427,7 @@ export async function fetchCompanyIdsCount(): Promise<number> {
       CLEAN_AMOUNT_FILTER,
       "import_adjudicacio_amb_iva IS NOT NULL",
       "identificacio_adjudicatari IS NOT NULL",
+      `NOT ${AMBIGUOUS_ID_SOQL}`,
     ].join(" AND "),
   });
   return parseInt(data[0]?.total || "0", 10);
@@ -412,6 +439,8 @@ export async function fetchCompanyIdsPage(offset = 0, limit = DEFAULT_PAGE_SIZE)
     CLEAN_AMOUNT_FILTER,
     "import_adjudicacio_amb_iva IS NOT NULL",
     "identificacio_adjudicatari IS NOT NULL",
+    // Masked/placeholder ids have no single company page.
+    `NOT ${AMBIGUOUS_ID_SOQL}`,
   ];
   const rows = await soqlFetch<{ identificacio_adjudicatari: string }>({
     $select: "identificacio_adjudicatari",
@@ -1059,34 +1088,30 @@ export async function fetchContractsCount(
 
 // Analysis: threshold distribution
 export async function fetchThresholdDistribution(): Promise<ThresholdBucket[]> {
-  // Fetch counts in 500 EUR buckets from 500 to 15000 for minor contracts
-  const buckets: ThresholdBucket[] = [];
+  // Counts in 500 EUR buckets from 500 to 15000 for minor contracts, in a
+  // single grouped query. signed_magnitude_linear(x, 500) returns
+  // floor(x / 500) + 1 for positive x, so bucket n starts at (n - 1) * 500.
   const bucketSize = 500;
-  const promises: Promise<{ total: string }[]>[] = [];
+  const rows = await soqlFetch<{ bucket: string; total: string }>({
+    $select: `signed_magnitude_linear(import_adjudicacio_sense::number, ${bucketSize}) as bucket, count(*) as total`,
+    $where: MINOR_15K_BASE_WHERE,
+    $group: "bucket",
+    $limit: "100",
+  });
+  const countsByStart = new Map(
+    rows.map((row) => [(parseInt(row.bucket, 10) - 1) * bucketSize, parseInt(row.total, 10) || 0])
+  );
 
+  const buckets: ThresholdBucket[] = [];
   for (let start = ANALYSIS_MIN_AMOUNT; start < 15000; start += bucketSize) {
-    const end = start + bucketSize;
-    promises.push(
-      soqlFetch<{ total: string }>({
-        $select: "count(*) as total",
-        $where: `${MINOR_15K_BASE_WHERE} AND import_adjudicacio_sense::number >= ${start} AND import_adjudicacio_sense::number < ${end}`,
-      })
-    );
-  }
-
-  const results = await Promise.all(promises);
-
-  for (let i = 0; i < results.length; i++) {
-    const start = ANALYSIS_MIN_AMOUNT + i * bucketSize;
     const end = start + bucketSize;
     buckets.push({
       range_start: start,
       range_end: end,
       label: `${(start / 1000).toFixed(1)}k-${(end / 1000).toFixed(1)}k`,
-      count: parseInt(results[i][0]?.total || "0", 10),
+      count: countsByStart.get(start) || 0,
     });
   }
-
   return buckets;
 }
 

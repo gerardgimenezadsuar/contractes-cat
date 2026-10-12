@@ -1,6 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { parseCsv } from "@/lib/csv";
+import { isJunkPersonName } from "@/lib/borme";
 
 export interface TopVinculacioRow {
   rank: number;
@@ -30,6 +31,18 @@ function mapMainPosition(raw: string): string {
   if (raw === "ADMINISTRADOR") return "Administrador";
   if (raw === "ORGANO_GOBIERNO") return "Òrgan de govern";
   return raw || "—";
+}
+
+// BORME lists companies acting as administrators alongside people; this
+// table ranks people, so leave those out.
+const LEGAL_ENTITY_SUFFIX =
+  /\b(S\.?\s?L\.?(\s?U\.?|\s?P\.?)?|S\.?\s?A\.?(\s?U\.?)?|S\.?\s?C\.?\s?C\.?\s?L\.?|S\s?COOP|SARL|SAS|SRL|SPA|LLC|INC|PLC|GMBH|AG|N\.?V\.?|B\.?V\.?|LTD|AIE|UTE)\.?$/i;
+
+const LEGAL_ENTITY_PREFIX = /^(GRUPO|GRUP|GROUP)\s/i;
+
+function isLegalEntityName(name: string): boolean {
+  const trimmed = name.trim();
+  return LEGAL_ENTITY_SUFFIX.test(trimmed) || LEGAL_ENTITY_PREFIX.test(trimmed);
 }
 
 export async function loadTopVinculacions(): Promise<TopVinculacioRow[]> {
@@ -73,6 +86,12 @@ export async function loadTopVinculacions(): Promise<TopVinculacioRow[]> {
         companiesSample,
       };
     })
-    .filter((row) => row.rank > 0 && row.personName.trim().length > 0)
+    .filter(
+      (row) =>
+        row.rank > 0 &&
+        row.personName.trim().length > 0 &&
+        !isJunkPersonName(row.personName) &&
+        !isLegalEntityName(row.personName)
+    )
     .sort((a, b) => a.rank - b.rank);
 }
