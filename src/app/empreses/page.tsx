@@ -21,7 +21,8 @@ export default async function EmpresePage({ searchParams }: Props) {
     .split(",")
     .map((token) => token.trim())
     .filter((token) => token.length > 0);
-  const page = parseInt(params.page || "1", 10);
+  const parsedPage = parseInt(params.page || "1", 10);
+  const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
   const offset = (page - 1) * DEFAULT_PAGE_SIZE;
 
   const [companies, exactTotal] = await Promise.all([

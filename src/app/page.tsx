@@ -10,6 +10,7 @@ import {
   fetchContracts,
   fetchTopOrgans,
 } from "@/lib/api";
+import { withFallback } from "@/lib/socrata";
 import {
   formatCompactNumber,
   formatCurrencyFull,
@@ -91,11 +92,15 @@ export default async function HomePage() {
     fetchTotalContracts(),
     fetchTotalAmount(),
     fetchUniqueCompanies(),
-    fetchTopCompanies(10, { minYear: topCompaniesMinYear, maxYear: currentYear }),
+    withFallback(
+      fetchTopCompanies(10, { minYear: topCompaniesMinYear, maxYear: currentYear }),
+      [],
+      "fetchTopCompanies"
+    ),
     fetchYearlyTrend(),
-    fetchCpvDistribution(10),
-    fetchContracts({ page: 1, pageSize: 8 }),
-    fetchTopOrgans(120, { minYear: 2024, maxYear: 2026 }),
+    withFallback(fetchCpvDistribution(10), [], "fetchCpvDistribution"),
+    withFallback(fetchContracts({ page: 1, pageSize: 8 }), [], "fetchContracts"),
+    withFallback(fetchTopOrgans(120, { minYear: 2024, maxYear: 2026 }), [], "fetchTopOrgans"),
   ]);
 
   const currentYearRow = yearlyTrend.find((row) => parseInt(row.year, 10) === currentYear);

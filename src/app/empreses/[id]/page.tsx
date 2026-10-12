@@ -8,6 +8,7 @@ import {
   fetchCompanyLastAwardDate,
   fetchCompanyTopOrgans,
 } from "@/lib/api";
+import { withFallback } from "@/lib/socrata";
 import {
   formatNumber,
   formatCompactNumber,
@@ -77,10 +78,10 @@ export default async function CompanyDetailPage({ params, searchParams }: Props)
 
   const [{ company, yearly }, contracts, contractsCount, topOrgans, lastAwardDate] = await Promise.all([
     getCompanyDetail(decodedId, name),
-    fetchCompanyContracts(decodedId, name, 0, 50),
-    fetchCompanyContractsCount(decodedId, name),
-    fetchCompanyTopOrgans(decodedId, name, 10),
-    fetchCompanyLastAwardDate(decodedId, name),
+    withFallback(fetchCompanyContracts(decodedId, name, 0, 50), [], "fetchCompanyContracts"),
+    withFallback(fetchCompanyContractsCount(decodedId, name), 0, "fetchCompanyContractsCount"),
+    withFallback(fetchCompanyTopOrgans(decodedId, name, 10), [], "fetchCompanyTopOrgans"),
+    withFallback(fetchCompanyLastAwardDate(decodedId, name), undefined, "fetchCompanyLastAwardDate"),
   ]);
 
   const adminHistory = await loadAdminHistory(decodedId);

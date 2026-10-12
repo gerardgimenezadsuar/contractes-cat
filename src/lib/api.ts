@@ -2,7 +2,6 @@ import {
   SOCRATA_BASE_URL,
   CLEAN_AMOUNT_FILTER,
   CLEAN_AMOUNT_SENSE_FILTER,
-  REVALIDATE_SECONDS,
   DEFAULT_PAGE_SIZE,
 } from "@/config/constants";
 import type {
@@ -22,6 +21,7 @@ import type {
   MinorShareYear,
 } from "./types";
 import { CPV_DIVISIONS } from "@/config/constants";
+import { socrataFetch } from "@/lib/socrata";
 import { buildCompanyIdentityKey, isMaskedCompanyId } from "@/lib/company-identity";
 
 const BEST_AVAILABLE_CONTRACT_DATE_EXPR =
@@ -156,44 +156,8 @@ function buildLooseSearchCondition(search: string, fields: string[]): string {
   return `(${exactParts.join(" OR ")} OR ${normalizedParts.join(" OR ")})`;
 }
 
-async function soqlFetch<T>(params: Record<string, string>): Promise<T[]> {
-  const url = new URL(SOCRATA_BASE_URL);
-  for (const [key, value] of Object.entries(params)) {
-    url.searchParams.set(key, value);
-  }
-
-  const maxAttempts = 2;
-  for (let attempt = 1; ; attempt++) {
-    try {
-      const res = await fetch(url.toString(), {
-        next: { revalidate: REVALIDATE_SECONDS },
-      });
-
-      if (!res.ok) {
-        const text = await res.text();
-        console.error("Socrata API error:", text);
-        const error = new Error(`Socrata API error: ${res.status}`);
-        // 4xx means a bad query: retrying won't help.
-        if (res.status < 500) throw Object.assign(error, { retryable: false });
-        throw error;
-      }
-
-      // Read as text first so a truncated/empty body yields a clear error
-      // instead of an opaque "Unexpected end of JSON input".
-      const text = await res.text();
-      try {
-        return JSON.parse(text) as T[];
-      } catch {
-        throw new Error(
-          `Socrata API returned invalid JSON (${text.length} bytes)`
-        );
-      }
-    } catch (error) {
-      const retryable = (error as { retryable?: boolean }).retryable !== false;
-      if (!retryable || attempt >= maxAttempts) throw error;
-      console.warn(`Socrata fetch failed (attempt ${attempt}), retrying:`, error);
-    }
-  }
+function soqlFetch<T>(params: Record<string, string>): Promise<T[]> {
+  return socrataFetch<T>(SOCRATA_BASE_URL, params);
 }
 
 // Dashboard stats
@@ -427,6 +391,19 @@ export async function fetchCompaniesCount(
     parseInt(nonMaskedData[0]?.total || "0", 10) +
     parseInt(maskedData[0]?.total || "0", 10)
   );
+}
+
+/** Number of distinct company ids, matching fetchCompanyIdsPage. */
+export async function fetchCompanyIdsCount(): Promise<number> {
+  const data = await soqlFetch<{ total: string }>({
+    $select: "count(distinct identificacio_adjudicatari) as total",
+    $where: [
+      CLEAN_AMOUNT_FILTER,
+      "import_adjudicacio_amb_iva IS NOT NULL",
+      "identificacio_adjudicatari IS NOT NULL",
+    ].join(" AND "),
+  });
+  return parseInt(data[0]?.total || "0", 10);
 }
 
 /** Lightweight paginated list of company ids for sitemap generation. */

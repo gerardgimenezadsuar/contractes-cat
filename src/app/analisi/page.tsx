@@ -7,6 +7,7 @@ import {
   fetchTopCompaniesInMinorRiskBand,
   fetchMinorShareYearly,
 } from "@/lib/api";
+import { withFallback } from "@/lib/socrata";
 import { formatNumber, formatCompactNumber, formatCurrency } from "@/lib/utils";
 import {
   MinorShareTrendChartLazy,
@@ -58,9 +59,9 @@ export default async function AnalisiPage() {
   ] = await Promise.all([
     fetchThresholdDistribution(),
     fetchMinorBandSummary(),
-    fetchTopOrgansInMinorRiskBand(15),
-    fetchTopCompaniesInMinorRiskBand(15),
-    fetchMinorShareYearly(),
+    withFallback(fetchTopOrgansInMinorRiskBand(15), [], "fetchTopOrgansInMinorRiskBand"),
+    withFallback(fetchTopCompaniesInMinorRiskBand(15), [], "fetchTopCompaniesInMinorRiskBand"),
+    withFallback(fetchMinorShareYearly(), [], "fetchMinorShareYearly"),
   ]);
 
   const totalMinorUnder15k = bandSummary.total_minor_under_15k;

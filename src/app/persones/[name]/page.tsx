@@ -3,6 +3,7 @@ import Link from "next/link";
 import { cache } from "react";
 import { getPersonAwardeeTargets, loadPersonProfile } from "@/lib/borme";
 import { fetchContractsByAwardeesSummary } from "@/lib/api";
+import { withFallback } from "@/lib/socrata";
 import { fetchPublicOfficeProfile } from "@/lib/electes";
 import { formatCompactNumber, formatDate, formatNumber } from "@/lib/utils";
 import { formatPersonDisplayName } from "@/lib/person-utils";
@@ -47,7 +48,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const targets = profile ? getPersonAwardeeTargets(profile) : { nifs: [], companyNames: [] };
   const contractsSummary =
     targets.nifs.length > 0
-      ? await getContractsSummary(targets.nifs)
+      ? await withFallback(
+          getContractsSummary(targets.nifs),
+          { total: 0, totalAmount: 0 },
+          "fetchContractsByAwardeesSummary"
+        )
       : { total: 0, totalAmount: 0 };
 
   const description = profile
@@ -95,10 +100,18 @@ export default async function PersonDetailPage({ params, searchParams }: Props) 
   const targets = getPersonAwardeeTargets(profile);
   const contractsSummary =
     targets.nifs.length > 0
-      ? await getContractsSummary(targets.nifs)
+      ? await withFallback(
+          getContractsSummary(targets.nifs),
+          { total: 0, totalAmount: 0 },
+          "fetchContractsByAwardeesSummary"
+        )
       : { total: 0, totalAmount: 0 };
   const activeCompanies = profile.companies.filter((c) => c.active_spans > 0).length;
-  const publicOffice = await fetchPublicOfficeProfile(profile.person_name);
+  const publicOffice = await withFallback(
+    fetchPublicOfficeProfile(profile.person_name),
+    { periods: [], matchedNames: [] },
+    "fetchPublicOfficeProfile"
+  );
 
   const safeDateFrom = /^\d{4}-\d{2}-\d{2}$/.test(query?.date_from || "")
     ? query.date_from || ""
@@ -227,16 +240,25 @@ export default async function PersonDetailPage({ params, searchParams }: Props) 
             eligibleNifWindows,
           ] as const;
         }
+        const emptySummary = { total: 0, totalAmount: 0 };
         const [summary, summaryByOrgan] = await Promise.all([
-          fetchContractsByAwardeesSummary({
-            nifs: targets.nifs,
-            nifDateWindows: eligibleNifWindows,
-          }),
-          fetchContractsByAwardeesSummary({
-            nifs: targets.nifs,
-            nifDateWindows: eligibleNifWindows,
-            nom_organ: period.ensName || undefined,
-          }),
+          withFallback(
+            fetchContractsByAwardeesSummary({
+              nifs: targets.nifs,
+              nifDateWindows: eligibleNifWindows,
+            }),
+            emptySummary,
+            "overlap summary"
+          ),
+          withFallback(
+            fetchContractsByAwardeesSummary({
+              nifs: targets.nifs,
+              nifDateWindows: eligibleNifWindows,
+              nom_organ: period.ensName || undefined,
+            }),
+            emptySummary,
+            "overlap summary by organ"
+          ),
         ]);
         return [period.key, summary, summaryByOrgan, eligibleNifWindows] as const;
       })

@@ -6,6 +6,7 @@ import {
   fetchOrganRecentContracts,
   fetchOrganTopCompanies,
 } from "@/lib/api";
+import { withFallback } from "@/lib/socrata";
 import { fetchCurrentEnsOfficeHolders } from "@/lib/electes";
 import {
   formatCurrency,
@@ -83,8 +84,8 @@ export default async function OrganDetailPage({ params, searchParams }: Props) {
 
   const [{ organ, yearly }, recentContracts, topCompanies] = await Promise.all([
     getOrganDetail(decodedId),
-    fetchOrganRecentContracts(decodedId, 10),
-    fetchOrganTopCompanies(decodedId, 10),
+    withFallback(fetchOrganRecentContracts(decodedId, 10), [], "fetchOrganRecentContracts"),
+    withFallback(fetchOrganTopCompanies(decodedId, 10), [], "fetchOrganTopCompanies"),
   ]);
 
   if (!organ) {
@@ -98,10 +99,22 @@ export default async function OrganDetailPage({ params, searchParams }: Props) {
     );
   }
 
-  const electes = await fetchCurrentEnsOfficeHolders(organ.nom_organ, {
-    page: electesPage,
-    pageSize: ELECTES_PAGE_SIZE,
-  });
+  const electes = await withFallback(
+    fetchCurrentEnsOfficeHolders(organ.nom_organ, {
+      page: electesPage,
+      pageSize: ELECTES_PAGE_SIZE,
+    }),
+    {
+      codiEns: null,
+      ensName: null,
+      matchedEnsNames: [],
+      totalCurrentRoles: 0,
+      page: electesPage,
+      pageSize: ELECTES_PAGE_SIZE,
+      rows: [],
+    },
+    "fetchCurrentEnsOfficeHolders"
+  );
 
   const totalAmount = parseFloat(organ.total);
   const numContracts = parseInt(organ.num_contracts, 10);

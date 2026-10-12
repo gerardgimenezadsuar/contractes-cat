@@ -17,7 +17,8 @@ interface Props {
 export default async function OrganismesPage({ searchParams }: Props) {
   const params = await searchParams;
   const search = params.search || "";
-  const page = parseInt(params.page || "1", 10);
+  const parsedPage = parseInt(params.page || "1", 10);
+  const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
   const offset = (page - 1) * DEFAULT_PAGE_SIZE;
 
   const [organs, total] = await Promise.all([

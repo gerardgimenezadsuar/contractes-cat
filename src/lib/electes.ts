@@ -1,8 +1,7 @@
-import { REVALIDATE_SECONDS } from "@/config/constants";
+import { socrataFetch } from "@/lib/socrata";
 
 const ELECTES_BASE_URL =
   "https://analisi.transparenciacatalunya.cat/resource/m5nd-xjza.json";
-const SOCRATA_APP_TOKEN = process.env.SOCRATA_APP_TOKEN;
 const MAX_MATCHED_ROWS = 200;
 const MAX_POSITION_KEYS = 40;
 const MAX_ENS_MATCHED_ROWS = 5000;
@@ -179,24 +178,8 @@ function buildPersonNameTokenClause(token: string): string {
   return `(${clauses.join(" OR ")})`;
 }
 
-async function soqlFetch<T>(params: Record<string, string>): Promise<T[]> {
-  const url = new URL(ELECTES_BASE_URL);
-  for (const [key, value] of Object.entries(params)) {
-    url.searchParams.set(key, value);
-  }
-  const headers: Record<string, string> = {};
-  if (SOCRATA_APP_TOKEN) headers["X-App-Token"] = SOCRATA_APP_TOKEN;
-
-  const res = await fetch(url.toString(), {
-    headers,
-    next: { revalidate: REVALIDATE_SECONDS },
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    console.error("Electes Socrata API error:", res.status, text);
-    throw new Error(`Electes Socrata API error: ${res.status}`);
-  }
-  return res.json();
+function soqlFetch<T>(params: Record<string, string>): Promise<T[]> {
+  return socrataFetch<T>(ELECTES_BASE_URL, params, "Electes Socrata");
 }
 
 function buildNameSearchWhere(personName: string): string {
