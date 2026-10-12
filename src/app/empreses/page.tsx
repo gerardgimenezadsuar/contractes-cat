@@ -24,10 +24,18 @@ export default async function EmpresePage({ searchParams }: Props) {
   const page = parseInt(params.page || "1", 10);
   const offset = (page - 1) * DEFAULT_PAGE_SIZE;
 
-  const [companies, total] = await Promise.all([
+  const [companies, exactTotal] = await Promise.all([
     fetchCompanies(offset, DEFAULT_PAGE_SIZE, search || undefined, cpv.length ? cpv : undefined),
-    fetchCompaniesCount(search || undefined, cpv.length ? cpv : undefined),
+    // The count is the heaviest query; don't let it take down the whole page.
+    fetchCompaniesCount(search || undefined, cpv.length ? cpv : undefined).catch((error) => {
+      console.error("fetchCompaniesCount failed:", error);
+      return null;
+    }),
   ]);
+  // Fallback estimate keeps pagination usable: allow one more page if this one is full.
+  const total =
+    exactTotal ??
+    offset + companies.length + (companies.length === DEFAULT_PAGE_SIZE ? DEFAULT_PAGE_SIZE : 0);
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">

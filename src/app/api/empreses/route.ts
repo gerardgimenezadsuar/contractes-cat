@@ -85,10 +85,17 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const total = await fetchCompaniesCount(
-    search || undefined,
-    cpvFilters.length > 0 ? cpvFilters : undefined
-  );
+  let total: number | undefined;
+  try {
+    total = await fetchCompaniesCount(
+      search || undefined,
+      cpvFilters.length > 0 ? cpvFilters : undefined
+    );
+  } catch (error) {
+    // Return the rows anyway; the client keeps its previous total.
+    console.error("fetchCompaniesCount failed:", error);
+    return NextResponse.json({ data }, { headers: { "Cache-Control": "no-store" } });
+  }
 
   return NextResponse.json(
     { data, total },

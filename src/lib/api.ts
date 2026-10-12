@@ -21,6 +21,7 @@ import type {
   MinorBandSummary,
   MinorShareYear,
 } from "./types";
+import { unstable_cache } from "next/cache";
 import { CPV_DIVISIONS } from "@/config/constants";
 import { buildCompanyIdentityKey, isMaskedCompanyId } from "@/lib/company-identity";
 
@@ -156,23 +157,56 @@ function buildLooseSearchCondition(search: string, fields: string[]): string {
   return `(${exactParts.join(" OR ")} OR ${normalizedParts.join(" OR ")})`;
 }
 
-async function soqlFetch<T>(params: Record<string, string>): Promise<T[]> {
+interface SoqlFetchOptions {
+  // Skip the Next.js data cache (it rejects bodies over 2MB). Callers that
+  // opt out should cache their derived result themselves.
+  noStore?: boolean;
+}
+
+async function soqlFetch<T>(
+  params: Record<string, string>,
+  options: SoqlFetchOptions = {}
+): Promise<T[]> {
   const url = new URL(SOCRATA_BASE_URL);
   for (const [key, value] of Object.entries(params)) {
     url.searchParams.set(key, value);
   }
 
-  const res = await fetch(url.toString(), {
-    next: { revalidate: REVALIDATE_SECONDS },
-  });
+  const maxAttempts = 2;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const res = await fetch(
+        url.toString(),
+        options.noStore
+          ? { cache: "no-store" }
+          : { next: { revalidate: REVALIDATE_SECONDS } }
+      );
 
-  if (!res.ok) {
-    const text = await res.text();
-    console.error("Socrata API error:", text);
-    throw new Error(`Socrata API error: ${res.status}`);
+      if (!res.ok) {
+        const text = await res.text();
+        console.error("Socrata API error:", text);
+        const error = new Error(`Socrata API error: ${res.status}`);
+        // 4xx means a bad query: retrying won't help.
+        if (res.status < 500) throw Object.assign(error, { retryable: false });
+        throw error;
+      }
+
+      // Read as text first so a truncated/empty body yields a clear error
+      // instead of an opaque "Unexpected end of JSON input".
+      const text = await res.text();
+      try {
+        return JSON.parse(text) as T[];
+      } catch {
+        throw new Error(
+          `Socrata API returned invalid JSON (${text.length} bytes)`
+        );
+      }
+    } catch (error) {
+      const retryable = (error as { retryable?: boolean }).retryable !== false;
+      if (!retryable || attempt >= maxAttempts) throw error;
+      console.warn(`Socrata fetch failed (attempt ${attempt}), retrying:`, error);
+    }
   }
-
-  return res.json();
 }
 
 // Dashboard stats
@@ -369,7 +403,23 @@ export async function fetchCompanies(
   }));
 }
 
+// The masked-NIF enumeration below downloads several MB, which exceeds the
+// Next.js 2MB fetch-cache limit, so we cache the final count instead.
+const cachedCompaniesCount = unstable_cache(
+  (search: string, cpvKey: string) =>
+    computeCompaniesCount(search || undefined, cpvKey ? cpvKey.split(",") : undefined),
+  ["companies-count"],
+  { revalidate: REVALIDATE_SECONDS }
+);
+
 export async function fetchCompaniesCount(
+  search?: string,
+  cpvFilters?: string[]
+): Promise<number> {
+  return cachedCompaniesCount(search || "", (cpvFilters || []).join(","));
+}
+
+async function computeCompaniesCount(
   search?: string,
   cpvFilters?: string[]
 ): Promise<number> {
@@ -408,7 +458,7 @@ export async function fetchCompaniesCount(
       $group: "identificacio_adjudicatari, denominacio_adjudicatari",
       $limit: String(batchSize),
       $offset: String(offset),
-    });
+    }, { noStore: true });
 
     maskedCount += rows.length;
     if (rows.length < batchSize) break;

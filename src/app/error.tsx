@@ -16,9 +16,13 @@ export default function Error({
         No s&apos;han pogut carregar les dades. Pot ser un problema temporal amb
         l&apos;API de dades obertes.
       </p>
-      <p className="text-sm text-gray-400 mb-6 font-mono">
-        {error.message}
-      </p>
+      {/* In production Next.js replaces server error messages with a generic
+          English notice, so only show the digest as a reference code. */}
+      {error.digest && (
+        <p className="text-xs text-gray-400 mb-6 font-mono">
+          Codi de referència: {error.digest}
+        </p>
+      )}
       <button
         onClick={reset}
         className="bg-gray-900 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-gray-700 transition-colors"
