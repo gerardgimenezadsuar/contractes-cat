@@ -15,6 +15,11 @@ const REPL: [string, string][] = [
   ["À", "A"], ["Á", "A"], ["È", "E"], ["É", "E"], ["Í", "I"], ["Ï", "I"], ["Ò", "O"], ["Ó", "O"],
   ["Ú", "U"], ["Ü", "U"], ["Ç", "C"], ["Ñ", "N"],
 ];
+function mine(field: string) {
+  let e = `upper(${field})`;
+  for (const c of [".", ",", "-", " ", "/", "''", "’", "·"]) e = `replace(${e},'${c}','')`;
+  return `replace(replace(${e},'Ç','C'),'Ñ','N')`;
+}
 function norm(field: string) {
   let e = `upper(${field})`;
   for (const [a, b] of REPL) e = `replace(${e},'${a}','${b}')`;
@@ -45,7 +50,11 @@ export async function GET(req: Request) {
   const baseline = await fetchThresholdDistribution().catch((e) => String(e));
   const baselineMs = Date.now() - t0;
 
+  const F3 = ["denominacio", "denominacio_adjudicatari", "identificacio_adjudicatari"];
   const results = await Promise.all([
+    run("MINE 3 fields no year", { $select: "count(*) as total", $where: F3.map((f) => `${mine(f)} like '%ENLL_M_N_TP_BL_C%'`).join(" OR ") }),
+    run("MINE 2024 públic", { $select: "count(*) as total", $where: `${y} AND ${mine("denominacio")} like '%ENLL_M_N_TP_BL_C%'` }),
+    run("MINE fira ocupacio 2026", { $select: "count(*) as total", $where: `date_extract_y(data_adjudicacio_contracte)=2026 AND ${mine("denominacio")} like '%F_R_D_L_C_P_C__%'` }),
     run("bucket case()", { $select: `case(${caseArgs.join(", ")}) as bucket, count(*) as total`, $where: MINOR, $group: "bucket", $order: "bucket", $limit: "100" }),
     run("bucket signed_magnitude_linear", { $select: `signed_magnitude_linear(${X}, 500) as b, count(*) as total`, $where: MINOR, $group: "b", $order: "b", $limit: "100" }),
     run("upper accents", { $select: "upper('éàçñïü l·l ’') as u", $limit: "1" }),
