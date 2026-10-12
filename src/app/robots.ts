@@ -7,8 +7,8 @@ export default function robots(): MetadataRoute.Robots {
       userAgent: "*",
       allow: "/",
     },
-    // The index lists every sitemap chunk (see app/sitemap.xml/route.ts).
-    sitemap: `${SITE_URL}/sitemap.xml`,
+    // The index lists every sitemap chunk (see app/sitemap-index.xml/route.ts).
+    sitemap: `${SITE_URL}/sitemap-index.xml`,
     host: SITE_URL,
   };
 }
