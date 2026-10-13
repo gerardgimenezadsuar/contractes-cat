@@ -89,32 +89,30 @@ function normalizeSearchTerm(search: string): string {
     .toUpperCase();
 }
 
-// Accented letters as they appear in the dataset (Catalan and Spanish), both
-// cases because Socrata's upper() is not guaranteed to fold them.
-const SOQL_ACCENT_FOLDS: Array<[string, string]> = [
-  ["\u00c0", "A"], ["\u00c1", "A"], ["\u00e0", "A"], ["\u00e1", "A"],
-  ["\u00c8", "E"], ["\u00c9", "E"], ["\u00e8", "E"], ["\u00e9", "E"],
-  ["\u00cd", "I"], ["\u00cf", "I"], ["\u00ed", "I"], ["\u00ef", "I"],
-  ["\u00d2", "O"], ["\u00d3", "O"], ["\u00f2", "O"], ["\u00f3", "O"],
-  ["\u00da", "U"], ["\u00dc", "U"], ["\u00fa", "U"], ["\u00fc", "U"],
-  ["\u00c7", "C"], ["\u00e7", "C"], ["\u00d1", "N"], ["\u00f1", "N"],
-];
-
 /**
- * SoQL expression for the folded form of a text field: uppercase, no accents,
- * no punctuation or spaces, matching normalizeForMatch() on the query side.
- * Folding accents here (rather than wildcarding vowels in the pattern) keeps
- * counts exact: "sorigue" no longer matches "SERGIO".
+ * SoQL expression for a cheaply folded form of a text field: uppercase, no
+ * punctuation or spaces, Ç/Ñ folded. Accented vowels are NOT folded here:
+ * each replace() runs on every row of the 2M-row dataset and the full set
+ * of accent replacements made searches time out. Instead the query side
+ * wildcards vowels (toAccentInsensitivePattern) and the app drops the
+ * false positives when ranking.
  */
 function normalizeSoqlTextExpr(field: string): string {
   let expr = `upper(${field})`;
   for (const char of [".", ",", "-", " ", "/", "''", "\u2019", "\u00b7"]) {
     expr = `replace(${expr},'${char}','')`;
   }
-  for (const [from, to] of SOQL_ACCENT_FOLDS) {
-    expr = `replace(${expr},'${from}','${to}')`;
-  }
-  return expr;
+  return `replace(replace(${expr},'\u00c7','C'),'\u00d1','N')`;
+}
+
+/**
+ * Turns a folded token into a LIKE pattern where each vowel matches any
+ * single character, so "PUBLIC" also finds "PÚBLIC". Short tokens stay exact
+ * to limit false positives.
+ */
+function toAccentInsensitivePattern(token: string): string {
+  if (token.length < 5) return token;
+  return token.replace(/[AEIOU]/g, "_");
 }
 
 function resolveCpvDivisionCodes(cpvSearch: string): string[] {
@@ -190,7 +188,7 @@ function buildTokenSearchCondition(parsed: ParsedSearchQuery, fields: string[]):
   if (parsed.tokens.length === 0) return null;
   const normalizedFields = fields.map((field) => normalizeSoqlTextExpr(field));
   const perToken = parsed.tokens.map((token) => {
-    const pattern = escapeSoql(token);
+    const pattern = escapeSoql(toAccentInsensitivePattern(token));
     const parts = normalizedFields.map((expr) => `${expr} like '%${pattern}%'`);
     return parts.length === 1 ? parts[0] : `(${parts.join(" OR ")})`;
   });
@@ -467,6 +465,10 @@ export async function fetchCompanies(
   });
 }
 
+// Searches are counted exactly in the app when the match set is small enough
+// to fetch in one query; beyond that the backend's own count is used.
+const EXACT_COUNT_SCAN_LIMIT = 3000;
+
 export async function fetchCompaniesCount(
   search?: string,
   cpvFilters?: string[]
@@ -477,12 +479,31 @@ export async function fetchCompaniesCount(
     "denominacio_adjudicatari IS NOT NULL",
     "identificacio_adjudicatari IS NOT NULL",
   ];
+  const parsed = search ? parseSearchQuery(search) : null;
   if (search) {
     const searchCondition = buildAwardeeSearchCondition(search);
     if (searchCondition) conditions.push(searchCondition);
   }
   const cpvWhere = buildCpvDivisionWhere(cpvFilters);
   if (cpvWhere) conditions.push(cpvWhere);
+
+  if (parsed && !parsed.nif) {
+    // The LIKE patterns over-match (vowel wildcards); count what the search
+    // page would actually list by fetching the candidate groups and scoring
+    // them, as long as the set is small enough to fetch in one go.
+    const candidates = await soqlFetch<CompanyAggregation>({
+      $select:
+        "identificacio_adjudicatari, denominacio_adjudicatari, sum(import_adjudicacio_amb_iva::number) as total, count(*) as num_contracts",
+      $where: conditions.join(" AND "),
+      $group: "identificacio_adjudicatari, denominacio_adjudicatari",
+      $limit: String(EXACT_COUNT_SCAN_LIMIT),
+    });
+    if (candidates.length < EXACT_COUNT_SCAN_LIMIT) {
+      return mergeByNif(candidates).filter(
+        (row) => scoreNameMatch(row.denominacio_adjudicatari, parsed) > 0
+      ).length;
+    }
+  }
 
   // Real NIFs identify a company on their own; masked/placeholder ids are
   // shared by many awardees, so those count as distinct (id, name) pairs.
@@ -619,9 +640,22 @@ export async function fetchOrgansCount(search?: string): Promise<number> {
     "nom_organ IS NOT NULL",
   ];
 
-  if (search) {
-    const searchCondition = buildTokenSearchCondition(parseSearchQuery(search), ["nom_organ"]);
+  const parsed = search ? parseSearchQuery(search) : null;
+  if (parsed) {
+    const searchCondition = buildTokenSearchCondition(parsed, ["nom_organ"]);
     if (searchCondition) conditions.push(searchCondition);
+  }
+
+  if (parsed) {
+    const candidates = await soqlFetch<{ nom_organ: string }>({
+      $select: "nom_organ",
+      $where: conditions.join(" AND "),
+      $group: "nom_organ",
+      $limit: String(EXACT_COUNT_SCAN_LIMIT),
+    });
+    if (candidates.length < EXACT_COUNT_SCAN_LIMIT) {
+      return candidates.filter((row) => scoreNameMatch(row.nom_organ, parsed) > 0).length;
+    }
   }
 
   const data = await soqlFetch<{ total: string }>({
