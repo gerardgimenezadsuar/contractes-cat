@@ -27,7 +27,12 @@ import {
   isAmbiguousCompanyId,
   MIN_COMPANY_ID_LENGTH,
 } from "@/lib/company-identity";
-import { parseSearchQuery, rankByMatch, type ParsedSearchQuery } from "@/lib/search-query";
+import {
+  parseSearchQuery,
+  rankByMatch,
+  scoreNameMatch,
+  type ParsedSearchQuery,
+} from "@/lib/search-query";
 
 const BEST_AVAILABLE_CONTRACT_DATE_EXPR =
   "coalesce(data_adjudicacio_contracte, data_formalitzacio_contracte, data_publicacio_anunci)";
@@ -84,27 +89,32 @@ function normalizeSearchTerm(search: string): string {
     .toUpperCase();
 }
 
-function normalizeSoqlTextExpr(field: string): string {
-  // Strips the same punctuation as normalizeSearchTerm (apostrophes included,
-  // straight and curly, and the Catalan middle dot) and folds Ç/Ñ. Accented
-  // vowels are handled on the search-term side by toAccentInsensitivePattern,
-  // which is far cheaper than replacing every accented letter here.
-  let expr = `upper(${field})`;
-  for (const char of [".", ",", "-", " ", "/", "''", "’", "·"]) {
-    expr = `replace(${expr},'${char}','')`;
-  }
-  return `replace(replace(${expr},'Ç','C'),'Ñ','N')`;
-}
+// Accented letters as they appear in the dataset (Catalan and Spanish), both
+// cases because Socrata's upper() is not guaranteed to fold them.
+const SOQL_ACCENT_FOLDS: Array<[string, string]> = [
+  ["\u00c0", "A"], ["\u00c1", "A"], ["\u00e0", "A"], ["\u00e1", "A"],
+  ["\u00c8", "E"], ["\u00c9", "E"], ["\u00e8", "E"], ["\u00e9", "E"],
+  ["\u00cd", "I"], ["\u00cf", "I"], ["\u00ed", "I"], ["\u00ef", "I"],
+  ["\u00d2", "O"], ["\u00d3", "O"], ["\u00f2", "O"], ["\u00f3", "O"],
+  ["\u00da", "U"], ["\u00dc", "U"], ["\u00fa", "U"], ["\u00fc", "U"],
+  ["\u00c7", "C"], ["\u00e7", "C"], ["\u00d1", "N"], ["\u00f1", "N"],
+];
 
 /**
- * Turns a normalized (accent-free, uppercase) term into a LIKE pattern where
- * each vowel matches any single character, so "PUBLIC" also finds "PÚBLIC"
- * and "OCUPACIO" finds "OCUPACIÓ". Short terms stay exact to limit false
- * positives.
+ * SoQL expression for the folded form of a text field: uppercase, no accents,
+ * no punctuation or spaces, matching normalizeForMatch() on the query side.
+ * Folding accents here (rather than wildcarding vowels in the pattern) keeps
+ * counts exact: "sorigue" no longer matches "SERGIO".
  */
-function toAccentInsensitivePattern(normalized: string): string {
-  if (normalized.length < 5) return normalized;
-  return normalized.replace(/[AEIOU]/g, "_");
+function normalizeSoqlTextExpr(field: string): string {
+  let expr = `upper(${field})`;
+  for (const char of [".", ",", "-", " ", "/", "''", "\u2019", "\u00b7"]) {
+    expr = `replace(${expr},'${char}','')`;
+  }
+  for (const [from, to] of SOQL_ACCENT_FOLDS) {
+    expr = `replace(${expr},'${from}','${to}')`;
+  }
+  return expr;
 }
 
 function resolveCpvDivisionCodes(cpvSearch: string): string[] {
@@ -180,7 +190,7 @@ function buildTokenSearchCondition(parsed: ParsedSearchQuery, fields: string[]):
   if (parsed.tokens.length === 0) return null;
   const normalizedFields = fields.map((field) => normalizeSoqlTextExpr(field));
   const perToken = parsed.tokens.map((token) => {
-    const pattern = escapeSoql(toAccentInsensitivePattern(token));
+    const pattern = escapeSoql(token);
     const parts = normalizedFields.map((expr) => `${expr} like '%${pattern}%'`);
     return parts.length === 1 ? parts[0] : `(${parts.join(" OR ")})`;
   });
@@ -437,9 +447,17 @@ export async function fetchCompanies(
 
   return pageRows.map((row) => {
     const consistent = totalsByNif.get(row.identificacio_adjudicatari);
+    // Show the most-used spelling unless it no longer reflects why the row
+    // matched (e.g. a NIF whose usual name is "SERVEO" matched via its old
+    // "Ferrovial Servicios" spelling): then keep the matched spelling.
+    const canonicalName = consistent?.denominacio_adjudicatari;
+    const displayName =
+      canonicalName && (!parsed || scoreNameMatch(canonicalName, parsed) > 0)
+        ? canonicalName
+        : row.denominacio_adjudicatari;
     return {
       ...row,
-      denominacio_adjudicatari: consistent?.denominacio_adjudicatari ?? row.denominacio_adjudicatari,
+      denominacio_adjudicatari: displayName,
       total: consistent?.total ?? row.total,
       num_contracts: consistent?.num_contracts ?? row.num_contracts,
       total_current_year: includeCurrentYear
