@@ -1,10 +1,11 @@
 // Sync job for the contractes.cat search index.
 //
-// Each invocation performs ONE step of a sync run (one Socrata page or the
-// finalize step) and returns, so it stays well inside the Edge Function
-// limits (150 s wall clock, 2 s CPU on the free plan). pg_cron calls it every
-// two minutes; a full refresh therefore takes roughly 30-60 minutes and runs
-// at most once per SYNC_MIN_INTERVAL_HOURS. State lives in search_sync_runs.
+// Each invocation performs as many steps of a sync run (one Socrata page or
+// the finalize step each) as fit in STEP_BUDGET_MS, so it stays well inside
+// the Edge Function limits (150 s wall clock, 2 s CPU on the free plan).
+// pg_cron calls it every two minutes; a full refresh takes roughly 10-20
+// minutes and runs at most once per SYNC_MIN_INTERVAL_HOURS. State lives in
+// search_sync_runs, so an interrupted run resumes at the next call.
 //
 // Stages: companies -> companies_cy -> organs -> organs_cy -> finalize -> done
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -16,6 +17,9 @@ const SOCRATA_APP_TOKEN = Deno.env.get("SOCRATA_APP_TOKEN") ?? "";
 const PAGE_SIZE = 10000;
 const SYNC_MIN_INTERVAL_HOURS = 20;
 const MAX_CONSECUTIVE_ERRORS = 8;
+// No new step starts after this much of the invocation has elapsed, leaving
+// room for one slow Socrata page before the 150 s wall-clock limit.
+const STEP_BUDGET_MS = 60_000;
 
 // Same row filters as src/lib/api.ts (fetchCompanies / fetchOrgans).
 const COMPANY_WHERE =
@@ -220,9 +224,18 @@ Deno.serve(async (req: Request) => {
     run = await createRun();
   }
 
+  const startedAt = Date.now();
+  const steps: Record<string, unknown>[] = [];
   try {
-    const result = await step(run);
-    return Response.json(result);
+    while (true) {
+      const result = await step(run);
+      steps.push(result);
+      if (result.done || Date.now() - startedAt > STEP_BUDGET_MS) break;
+      const { running: next } = await loadRuns();
+      if (!next) break;
+      run = next;
+    }
+    return Response.json(steps.length === 1 ? steps[0] : { run: run.id, steps });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const errors = run.consecutive_errors + 1;
