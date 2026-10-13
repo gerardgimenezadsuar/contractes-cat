@@ -45,6 +45,7 @@ També es suporta `TURSO_AUTH_TOKEN` com a alternativa a `TURSO_TOKEN`.
 ```bash
 pnpm lint        # ESLint
 pnpm typecheck   # TypeScript
+pnpm test:unit   # Node test runner: lògica pura (p. ex. anàlisi de cerques)
 pnpm test:e2e    # Playwright: smoke tests (mòbil i escriptori) contra un mock de Socrata
 ```
 

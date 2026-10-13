@@ -195,6 +195,9 @@ const server = createServer((req, res) => {
     res.end("ok");
     return;
   }
+  if (process.env.MOCK_SOCRATA_LOG) {
+    console.log(`[mock] ${url.searchParams.get("$where") || "(no where)"}`);
+  }
   let body;
   try {
     body = JSON.stringify(answer(url.searchParams));

@@ -27,6 +27,12 @@ import {
   isAmbiguousCompanyId,
   MIN_COMPANY_ID_LENGTH,
 } from "@/lib/company-identity";
+import {
+  parseSearchQuery,
+  rankByMatch,
+  scoreNameMatch,
+  type ParsedSearchQuery,
+} from "@/lib/search-query";
 
 const BEST_AVAILABLE_CONTRACT_DATE_EXPR =
   "coalesce(data_adjudicacio_contracte, data_formalitzacio_contracte, data_publicacio_anunci)";
@@ -83,27 +89,30 @@ function normalizeSearchTerm(search: string): string {
     .toUpperCase();
 }
 
+/**
+ * SoQL expression for a cheaply folded form of a text field: uppercase, no
+ * punctuation or spaces, Ç/Ñ folded. Accented vowels are NOT folded here:
+ * each replace() runs on every row of the 2M-row dataset and the full set
+ * of accent replacements made searches time out. Instead the query side
+ * wildcards vowels (toAccentInsensitivePattern) and the app drops the
+ * false positives when ranking.
+ */
 function normalizeSoqlTextExpr(field: string): string {
-  // Strips the same punctuation as normalizeSearchTerm (apostrophes included,
-  // straight and curly, and the Catalan middle dot) and folds Ç/Ñ. Accented
-  // vowels are handled on the search-term side by toAccentInsensitivePattern,
-  // which is far cheaper than replacing every accented letter here.
   let expr = `upper(${field})`;
-  for (const char of [".", ",", "-", " ", "/", "''", "’", "·"]) {
+  for (const char of [".", ",", "-", " ", "/", "''", "\u2019", "\u00b7"]) {
     expr = `replace(${expr},'${char}','')`;
   }
-  return `replace(replace(${expr},'Ç','C'),'Ñ','N')`;
+  return `replace(replace(${expr},'\u00c7','C'),'\u00d1','N')`;
 }
 
 /**
- * Turns a normalized (accent-free, uppercase) term into a LIKE pattern where
- * each vowel matches any single character, so "PUBLIC" also finds "PÚBLIC"
- * and "OCUPACIO" finds "OCUPACIÓ". Short terms stay exact to limit false
- * positives.
+ * Turns a folded token into a LIKE pattern where each vowel matches any
+ * single character, so "PUBLIC" also finds "PÚBLIC". Short tokens stay exact
+ * to limit false positives.
  */
-function toAccentInsensitivePattern(normalized: string): string {
-  if (normalized.length < 5) return normalized;
-  return normalized.replace(/[AEIOU]/g, "_");
+function toAccentInsensitivePattern(token: string): string {
+  if (token.length < 5) return token;
+  return token.replace(/[AEIOU]/g, "_");
 }
 
 function resolveCpvDivisionCodes(cpvSearch: string): string[] {
@@ -165,21 +174,56 @@ function buildCpvDivisionWhere(cpvFilters?: string[]): string | null {
   return `codi_cpv IS NOT NULL AND (${cpvCodeConditions.join(" OR ")})`;
 }
 
-function buildLooseSearchCondition(search: string, fields: string[]): string {
-  const safeSearch = search.replace(/'/g, "''");
-  const exactParts = fields.map(
-    (field) => `upper(${field}) like upper('%${safeSearch}%')`
-  );
+function escapeSoql(value: string): string {
+  return value.replace(/'/g, "''");
+}
 
-  const normalized = normalizeSearchTerm(search);
-  if (!normalized) return `(${exactParts.join(" OR ")})`;
+/**
+ * One SoQL condition per query token, AND-joined, each token matched against
+ * the accent/punctuation-folded form of any of `fields` (so word order does
+ * not matter and "acsa obras" finds "Acsa, Obras e Infraestructuras").
+ * Returns null when the query has no usable tokens.
+ */
+function buildTokenSearchCondition(parsed: ParsedSearchQuery, fields: string[]): string | null {
+  if (parsed.tokens.length === 0) return null;
+  const normalizedFields = fields.map((field) => normalizeSoqlTextExpr(field));
+  const perToken = parsed.tokens.map((token) => {
+    const pattern = escapeSoql(toAccentInsensitivePattern(token));
+    const parts = normalizedFields.map((expr) => `${expr} like '%${pattern}%'`);
+    return parts.length === 1 ? parts[0] : `(${parts.join(" OR ")})`;
+  });
+  return perToken.length === 1 ? perToken[0] : `(${perToken.join(" AND ")})`;
+}
 
-  const pattern = toAccentInsensitivePattern(normalized);
-  const normalizedParts = fields.map(
-    (field) => `${normalizeSoqlTextExpr(field)} like '%${pattern}%'`
-  );
+/**
+ * Search condition for awardee lookups. A query that is a NIF matches the id
+ * exactly (cheap, and immune to dashes/dots in the input); anything else is a
+ * token search over the name (and the id, so partial ids still work).
+ */
+function buildAwardeeSearchCondition(search: string): string | null {
+  const parsed = parseSearchQuery(search);
+  if (parsed.nif) {
+    return `identificacio_adjudicatari='${escapeSoql(parsed.nif)}'`;
+  }
+  return buildTokenSearchCondition(parsed, ["denominacio_adjudicatari", "identificacio_adjudicatari"]);
+}
 
-  return `(${exactParts.join(" OR ")} OR ${normalizedParts.join(" OR ")})`;
+/**
+ * Explorer search: a NIF matches the awardee id (including UTE member lists
+ * such as "A1||B2"); otherwise every token must appear in the contract title,
+ * the awardee name or the awardee id.
+ */
+function buildContractSearchCondition(search: string): string | null {
+  const parsed = parseSearchQuery(search);
+  if (parsed.nif) {
+    const nif = escapeSoql(parsed.nif);
+    return `(identificacio_adjudicatari='${nif}' OR identificacio_adjudicatari like '%${nif}%')`;
+  }
+  return buildTokenSearchCondition(parsed, [
+    "denominacio",
+    "denominacio_adjudicatari",
+    "identificacio_adjudicatari",
+  ]);
 }
 
 function soqlFetch<T>(params: Record<string, string>): Promise<T[]> {
@@ -317,67 +361,139 @@ export async function fetchCompanies(
   offset = 0,
   limit = DEFAULT_PAGE_SIZE,
   search?: string,
-  cpvFilters?: string[]
+  cpvFilters?: string[],
+  options?: { includeCurrentYear?: boolean }
 ): Promise<CompanyAggregation[]> {
   const currentYear = new Date().getFullYear();
-  const conditions = [
+  const includeCurrentYear = options?.includeCurrentYear !== false;
+  const baseConditions = [
     CLEAN_AMOUNT_FILTER,
     "import_adjudicacio_amb_iva IS NOT NULL",
     "denominacio_adjudicatari IS NOT NULL",
     "identificacio_adjudicatari IS NOT NULL",
   ];
-  if (search) {
-    const safe = search.replace(/'/g, "''");
-    conditions.push(
-      `(upper(denominacio_adjudicatari) like upper('%${safe}%') OR upper(identificacio_adjudicatari) like upper('%${safe}%'))`
-    );
-  }
   const cpvWhere = buildCpvDivisionWhere(cpvFilters);
-  if (cpvWhere) conditions.push(cpvWhere);
+  if (cpvWhere) baseConditions.push(cpvWhere);
 
-  // Over-fetch then merge by NIF to handle name variations
-  const fetchLimit = (offset + limit) * 6;
-  const raw = await soqlFetch<CompanyAggregation>({
+  const parsed = search ? parseSearchQuery(search) : null;
+  const searchCondition = search ? buildAwardeeSearchCondition(search) : null;
+  const conditions = searchCondition ? [...baseConditions, searchCondition] : baseConditions;
+
+  // Over-fetch then merge by NIF to handle name variations. A search fetches
+  // the same candidate set as fetchCompaniesCount (identical query, so the two
+  // share one Socrata request) and ranks it in the app.
+  const fetchLimit = searchCondition ? EXACT_COUNT_SCAN_LIMIT : (offset + limit) * 6;
+  const raw = await soqlFetch<CompanyAggregation>(
+    searchCondition
+      ? buildCompanyCandidatesQuery(conditions)
+      : {
+          $select:
+            "identificacio_adjudicatari, denominacio_adjudicatari, sum(import_adjudicacio_amb_iva::number) as total, count(*) as num_contracts",
+          $where: conditions.join(" AND "),
+          $group: "identificacio_adjudicatari, denominacio_adjudicatari",
+          $order: "total DESC",
+          $limit: String(fetchLimit),
+        }
+  );
+
+  const merged = mergeByNif(raw);
+  const ordered = parsed
+    ? rankByMatch(
+        merged,
+        parsed,
+        (row) => row.denominacio_adjudicatari,
+        (row) => parseFloat(row.total) || 0
+      )
+    : merged;
+  const pageRows = ordered.slice(offset, offset + limit);
+  if (pageRows.length === 0) return pageRows;
+
+  // A search only matched some spellings of each company's name. Re-aggregate
+  // the page's real NIFs across every spelling so totals do not depend on the
+  // query. Masked/placeholder ids are identified by (id, name) and keep the
+  // matched aggregate.
+  const realNifs = pageRows
+    .map((row) => row.identificacio_adjudicatari)
+    .filter((id) => !isAmbiguousCompanyId(id));
+  const escapedNifs = realNifs.map((id) => `'${escapeSoql(id)}'`).join(", ");
+  const nifScope = escapedNifs ? `identificacio_adjudicatari IN (${escapedNifs})` : null;
+
+  const [spellingRows, currentYearRows] = await Promise.all([
+    searchCondition && nifScope
+      ? soqlFetch<CompanyAggregation>({
+          $select:
+            "identificacio_adjudicatari, denominacio_adjudicatari, sum(import_adjudicacio_amb_iva::number) as total, count(*) as num_contracts",
+          $where: `${baseConditions.join(" AND ")} AND ${nifScope}`,
+          $group: "identificacio_adjudicatari, denominacio_adjudicatari",
+          $order: "total DESC",
+          $limit: String(limit * 20),
+        })
+      : Promise.resolve([]),
+    includeCurrentYear && nifScope
+      ? soqlFetch<{ identificacio_adjudicatari: string; total_current_year: string }>({
+          $select:
+            "identificacio_adjudicatari, sum(import_adjudicacio_amb_iva::number) as total_current_year",
+          $where: `${baseConditions.join(" AND ")} AND data_adjudicacio_contracte IS NOT NULL AND date_extract_y(data_adjudicacio_contracte)=${currentYear} AND ${nifScope}`,
+          $group: "identificacio_adjudicatari",
+          $limit: String(limit * 2),
+        })
+      : Promise.resolve([]),
+  ]);
+
+  // Sum every spelling of the NIF and show the most-used spelling as the name.
+  const totalsByNif = new Map(
+    mergeByNif(spellingRows).map((row) => [row.identificacio_adjudicatari, row] as const)
+  );
+  const currentYearByNif = new Map(
+    currentYearRows.map((row) => [row.identificacio_adjudicatari, row.total_current_year || "0"] as const)
+  );
+
+  return pageRows.map((row) => {
+    const consistent = totalsByNif.get(row.identificacio_adjudicatari);
+    // Show the most-used spelling unless it no longer reflects why the row
+    // matched (e.g. a NIF whose usual name is "SERVEO" matched via its old
+    // "Ferrovial Servicios" spelling): then keep the matched spelling.
+    const canonicalName = consistent?.denominacio_adjudicatari;
+    const displayName =
+      canonicalName && (!parsed || scoreNameMatch(canonicalName, parsed) > 0)
+        ? canonicalName
+        : row.denominacio_adjudicatari;
+    return {
+      ...row,
+      denominacio_adjudicatari: displayName,
+      total: consistent?.total ?? row.total,
+      num_contracts: consistent?.num_contracts ?? row.num_contracts,
+      total_current_year: includeCurrentYear
+        ? currentYearByNif.get(row.identificacio_adjudicatari) || "0"
+        : row.total_current_year || "0",
+    };
+  });
+}
+
+// Searches are counted exactly in the app when the match set is small enough
+// to fetch in one query; beyond that the backend's own count is used.
+const EXACT_COUNT_SCAN_LIMIT = 3000;
+
+function buildCompanyCandidatesQuery(conditions: string[]): Record<string, string> {
+  return {
     $select:
       "identificacio_adjudicatari, denominacio_adjudicatari, sum(import_adjudicacio_amb_iva::number) as total, count(*) as num_contracts",
     $where: conditions.join(" AND "),
     $group: "identificacio_adjudicatari, denominacio_adjudicatari",
     $order: "total DESC",
-    $limit: String(fetchLimit),
-  });
+    $limit: String(EXACT_COUNT_SCAN_LIMIT),
+  };
+}
 
-  const merged = mergeByNif(raw);
-  const pageRows = merged.slice(offset, offset + limit);
-  if (pageRows.length === 0) return pageRows;
-
-  const escapedNifs = pageRows
-    .map((row) => `'${row.identificacio_adjudicatari.replace(/'/g, "''")}'`)
-    .join(", ");
-  const currentYearRows = await soqlFetch<{
-    identificacio_adjudicatari: string;
-    denominacio_adjudicatari: string;
-    total_current_year: string;
-  }>({
+function buildOrganCandidatesQuery(conditions: string[]): Record<string, string> {
+  return {
     $select:
-      "identificacio_adjudicatari, denominacio_adjudicatari, sum(import_adjudicacio_amb_iva::number) as total_current_year",
-    $where: `${conditions.join(" AND ")} AND data_adjudicacio_contracte IS NOT NULL AND date_extract_y(data_adjudicacio_contracte)=${currentYear} AND identificacio_adjudicatari IN (${escapedNifs})`,
-    $group: "identificacio_adjudicatari, denominacio_adjudicatari",
-    $limit: String(limit * 4),
-  });
-
-  const currentYearMap = new Map(
-    currentYearRows.map((row) => [
-      buildCompanyIdentityKey(row.identificacio_adjudicatari, row.denominacio_adjudicatari),
-      row.total_current_year || "0",
-    ])
-  );
-
-  return pageRows.map((row) => ({
-    ...row,
-    total_current_year:
-      currentYearMap.get(buildCompanyIdentityKey(row.identificacio_adjudicatari, row.denominacio_adjudicatari)) ||
-      "0",
-  }));
+      "nom_organ, sum(import_adjudicacio_amb_iva::number) as total, count(*) as num_contracts",
+    $where: conditions.join(" AND "),
+    $group: "nom_organ",
+    $order: "total DESC",
+    $limit: String(EXACT_COUNT_SCAN_LIMIT),
+  };
 }
 
 export async function fetchCompaniesCount(
@@ -390,14 +506,25 @@ export async function fetchCompaniesCount(
     "denominacio_adjudicatari IS NOT NULL",
     "identificacio_adjudicatari IS NOT NULL",
   ];
+  const parsed = search ? parseSearchQuery(search) : null;
   if (search) {
-    const safe = search.replace(/'/g, "''");
-    conditions.push(
-      `(upper(denominacio_adjudicatari) like upper('%${safe}%') OR upper(identificacio_adjudicatari) like upper('%${safe}%'))`
-    );
+    const searchCondition = buildAwardeeSearchCondition(search);
+    if (searchCondition) conditions.push(searchCondition);
   }
   const cpvWhere = buildCpvDivisionWhere(cpvFilters);
   if (cpvWhere) conditions.push(cpvWhere);
+
+  if (parsed && !parsed.nif) {
+    // The LIKE patterns over-match (vowel wildcards); count what the search
+    // page would actually list by fetching the candidate groups and scoring
+    // them, as long as the set is small enough to fetch in one go.
+    const candidates = await soqlFetch<CompanyAggregation>(buildCompanyCandidatesQuery(conditions));
+    if (candidates.length < EXACT_COUNT_SCAN_LIMIT) {
+      return mergeByNif(candidates).filter(
+        (row) => scoreNameMatch(row.denominacio_adjudicatari, parsed) > 0
+      ).length;
+    }
+  }
 
   // Real NIFs identify a company on their own; masked/placeholder ids are
   // shared by many awardees, so those count as distinct (id, name) pairs.
@@ -470,20 +597,32 @@ export async function fetchOrgans(
     "nom_organ IS NOT NULL",
   ];
 
-  if (search) {
-    const safe = search.replace(/'/g, "''");
-    conditions.push(`upper(nom_organ) like upper('%${safe}%')`);
-  }
+  const parsed = search ? parseSearchQuery(search) : null;
+  const searchCondition = parsed ? buildTokenSearchCondition(parsed, ["nom_organ"]) : null;
+  if (searchCondition) conditions.push(searchCondition);
 
-  const rows = await soqlFetch<OrganAggregation>({
-    $select:
-      "nom_organ, sum(import_adjudicacio_amb_iva::number) as total, count(*) as num_contracts",
-    $where: conditions.join(" AND "),
-    $group: "nom_organ",
-    $order: "total DESC",
-    $limit: String(limit),
-    $offset: String(offset),
-  });
+  let rows: OrganAggregation[];
+  if (parsed && searchCondition) {
+    // Rank matches by how well the name fits the query, not only by amount:
+    // "ics" should list the ICS before every organ merely containing "ics".
+    const candidates = await soqlFetch<OrganAggregation>(buildOrganCandidatesQuery(conditions));
+    rows = rankByMatch(
+      candidates,
+      parsed,
+      (row) => row.nom_organ,
+      (row) => parseFloat(row.total) || 0
+    ).slice(offset, offset + limit);
+  } else {
+    rows = await soqlFetch<OrganAggregation>({
+      $select:
+        "nom_organ, sum(import_adjudicacio_amb_iva::number) as total, count(*) as num_contracts",
+      $where: conditions.join(" AND "),
+      $group: "nom_organ",
+      $order: "total DESC",
+      $limit: String(limit),
+      $offset: String(offset),
+    });
+  }
 
   if (rows.length === 0 || !includeCurrentYear) return rows;
 
@@ -514,9 +653,17 @@ export async function fetchOrgansCount(search?: string): Promise<number> {
     "nom_organ IS NOT NULL",
   ];
 
-  if (search) {
-    const safe = search.replace(/'/g, "''");
-    conditions.push(`upper(nom_organ) like upper('%${safe}%')`);
+  const parsed = search ? parseSearchQuery(search) : null;
+  if (parsed) {
+    const searchCondition = buildTokenSearchCondition(parsed, ["nom_organ"]);
+    if (searchCondition) conditions.push(searchCondition);
+  }
+
+  if (parsed) {
+    const candidates = await soqlFetch<OrganAggregation>(buildOrganCandidatesQuery(conditions));
+    if (candidates.length < EXACT_COUNT_SCAN_LIMIT) {
+      return candidates.filter((row) => scoreNameMatch(row.nom_organ, parsed) > 0).length;
+    }
   }
 
   const data = await soqlFetch<{ total: string }>({
@@ -1008,13 +1155,8 @@ export async function fetchContracts(
     );
   }
   if (search) {
-    conditions.push(
-      buildLooseSearchCondition(search, [
-        "denominacio",
-        "denominacio_adjudicatari",
-        "identificacio_adjudicatari",
-      ])
-    );
+    const searchCondition = buildContractSearchCondition(search);
+    if (searchCondition) conditions.push(searchCondition);
   }
   const dateRangeCondition = buildDateRangeCondition(dateFrom, dateTo);
   if (dateRangeCondition) conditions.push(dateRangeCondition);
@@ -1089,13 +1231,8 @@ export async function fetchContractsCount(
     conditions.push(`upper(nom_organ) like upper('%${nom_organ.replace(/'/g, "''")}%')`);
   }
   if (search) {
-    conditions.push(
-      buildLooseSearchCondition(search, [
-        "denominacio",
-        "denominacio_adjudicatari",
-        "identificacio_adjudicatari",
-      ])
-    );
+    const searchCondition = buildContractSearchCondition(search);
+    if (searchCondition) conditions.push(searchCondition);
   }
   const dateRangeCondition = buildDateRangeCondition(dateFrom, dateTo);
   if (dateRangeCondition) conditions.push(dateRangeCondition);

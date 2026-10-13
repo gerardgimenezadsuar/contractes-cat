@@ -45,6 +45,7 @@ export async function GET(request: NextRequest) {
     .map((token) => token.trim())
     .filter((token) => token.length > 0);
   const includeTotal = searchParams.get("includeTotal") !== "0";
+  const includeCurrentYear = searchParams.get("includeCurrentYear") !== "0";
   const parsedPage = parseInt(searchParams.get("page") || "1", 10);
   const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
   const offset = (page - 1) * DEFAULT_PAGE_SIZE;
@@ -67,12 +68,24 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  const data = await fetchCompanies(
+  // List and count run concurrently; for a search they share the same
+  // candidate query, so this costs a single Socrata round trip.
+  const dataPromise = fetchCompanies(
     offset,
     DEFAULT_PAGE_SIZE,
     search || undefined,
-    cpvFilters.length > 0 ? cpvFilters : undefined
+    cpvFilters.length > 0 ? cpvFilters : undefined,
+    { includeCurrentYear }
   );
+  const totalPromise = includeTotal
+    ? fetchCompaniesCount(search || undefined, cpvFilters.length > 0 ? cpvFilters : undefined).catch(
+        (error: unknown) => {
+          console.error("fetchCompaniesCount failed:", error);
+          return undefined;
+        }
+      )
+    : Promise.resolve(undefined);
+  const [data, total] = await Promise.all([dataPromise, totalPromise]);
 
   if (!includeTotal) {
     return NextResponse.json(
@@ -85,15 +98,8 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  let total: number | undefined;
-  try {
-    total = await fetchCompaniesCount(
-      search || undefined,
-      cpvFilters.length > 0 ? cpvFilters : undefined
-    );
-  } catch (error) {
+  if (total === undefined) {
     // Return the rows anyway; the client keeps its previous total.
-    console.error("fetchCompaniesCount failed:", error);
     return NextResponse.json({ data }, { headers: { "Cache-Control": "no-store" } });
   }
 
