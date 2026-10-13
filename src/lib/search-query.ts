@@ -71,7 +71,9 @@ export function parseSearchQuery(input: string): ParsedSearchQuery {
 
 /**
  * Match quality of a candidate name against the parsed query, higher is better.
- * 4 exact, 3 prefix, 2 every token starts a word, 1 every token appears, 0 none.
+ * 4 exact; 3 prefix, or every token is a whole word of the name (so "ics"
+ * rates "Institut Català de la Salut (ICS)" like "ICS - Gerència"); 2 every
+ * token starts a word; 1 every token appears somewhere; 0 no match.
  */
 export function scoreNameMatch(name: string, query: ParsedSearchQuery): number {
   if (!name) return 0;
@@ -79,33 +81,52 @@ export function scoreNameMatch(name: string, query: ParsedSearchQuery): number {
   if (query.normalized && normalized === query.normalized) return 4;
   if (query.normalized && normalized.startsWith(query.normalized)) return 3;
   if (query.tokens.length === 0) return 0;
-  const words = foldText(name)
-    .split(/[^A-Z0-9]+/)
-    .filter(Boolean);
+  const words = nameWords(name);
+  if (query.tokens.every((token) => words.includes(token))) return 3;
   const allWordPrefixes = query.tokens.every((token) => words.some((w) => w.startsWith(token)));
   if (allWordPrefixes) return 2;
   const allContained = query.tokens.every((token) => normalized.includes(token));
   return allContained ? 1 : 0;
 }
 
+function nameWords(name: string): string[] {
+  return foldText(name)
+    .split(/[^A-Z0-9]+/)
+    .filter(Boolean);
+}
+
 /**
- * Stable sort by match quality, then by the numeric tiebreaker (e.g. total
- * amount) descending. Rows that match nothing keep their relative order at
- * the end, so the caller never loses results the backend returned.
+ * Sort key combining match quality (dominant), the log of a numeric weight
+ * such as total amount, and a penalty for words beyond the query, so the
+ * company itself outranks a long UTE name that merely contains it.
+ */
+export function rankingKey(name: string, query: ParsedSearchQuery, weight: number): number {
+  const score = scoreNameMatch(name, query);
+  if (score === 0) return 0;
+  const extraWords = Math.max(0, nameWords(name).length - query.tokens.length);
+  return score * 10 + Math.log10(Math.max(weight, 0) + 1) - 0.3 * extraWords;
+}
+
+/**
+ * Orders rows by rankingKey, highest first, keeping the input order for ties.
+ * Rows that match nothing (only reached the backend through LIKE wildcards)
+ * are dropped unless nothing else matched, so the backend's answer is never
+ * replaced by an empty list.
  */
 export function rankByMatch<T>(
   rows: T[],
   query: ParsedSearchQuery,
   getName: (row: T) => string,
-  getTiebreaker: (row: T) => number
+  getWeight: (row: T) => number
 ): T[] {
-  return rows
-    .map((row, index) => ({ row, index, score: scoreNameMatch(getName(row), query) }))
-    .sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score;
-      const diff = getTiebreaker(b.row) - getTiebreaker(a.row);
-      if (diff !== 0) return diff;
-      return a.index - b.index;
-    })
+  const scored = rows.map((row, index) => ({
+    row,
+    index,
+    key: rankingKey(getName(row), query, getWeight(row)),
+  }));
+  const matched = scored.filter((entry) => entry.key > 0);
+  const pool = matched.length > 0 ? matched : scored;
+  return pool
+    .sort((a, b) => (b.key !== a.key ? b.key - a.key : a.index - b.index))
     .map((entry) => entry.row);
 }

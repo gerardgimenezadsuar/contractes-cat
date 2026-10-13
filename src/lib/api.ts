@@ -405,14 +405,15 @@ export async function fetchCompanies(
   const escapedNifs = realNifs.map((id) => `'${escapeSoql(id)}'`).join(", ");
   const nifScope = escapedNifs ? `identificacio_adjudicatari IN (${escapedNifs})` : null;
 
-  const [consistentTotals, currentYearRows] = await Promise.all([
+  const [spellingRows, currentYearRows] = await Promise.all([
     searchCondition && nifScope
-      ? soqlFetch<{ identificacio_adjudicatari: string; total: string; num_contracts: string }>({
+      ? soqlFetch<CompanyAggregation>({
           $select:
-            "identificacio_adjudicatari, sum(import_adjudicacio_amb_iva::number) as total, count(*) as num_contracts",
+            "identificacio_adjudicatari, denominacio_adjudicatari, sum(import_adjudicacio_amb_iva::number) as total, count(*) as num_contracts",
           $where: `${baseConditions.join(" AND ")} AND ${nifScope}`,
-          $group: "identificacio_adjudicatari",
-          $limit: String(limit * 2),
+          $group: "identificacio_adjudicatari, denominacio_adjudicatari",
+          $order: "total DESC",
+          $limit: String(limit * 20),
         })
       : Promise.resolve([]),
     includeCurrentYear && nifScope
@@ -426,8 +427,9 @@ export async function fetchCompanies(
       : Promise.resolve([]),
   ]);
 
+  // Sum every spelling of the NIF and show the most-used spelling as the name.
   const totalsByNif = new Map(
-    consistentTotals.map((row) => [row.identificacio_adjudicatari, row] as const)
+    mergeByNif(spellingRows).map((row) => [row.identificacio_adjudicatari, row] as const)
   );
   const currentYearByNif = new Map(
     currentYearRows.map((row) => [row.identificacio_adjudicatari, row.total_current_year || "0"] as const)
@@ -437,6 +439,7 @@ export async function fetchCompanies(
     const consistent = totalsByNif.get(row.identificacio_adjudicatari);
     return {
       ...row,
+      denominacio_adjudicatari: consistent?.denominacio_adjudicatari ?? row.denominacio_adjudicatari,
       total: consistent?.total ?? row.total,
       num_contracts: consistent?.num_contracts ?? row.num_contracts,
       total_current_year: includeCurrentYear
