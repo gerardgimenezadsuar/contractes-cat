@@ -213,7 +213,25 @@ export default async function AnalisiPage() {
             <div className="px-4 py-3 border-b border-gray-200">
               <h3 className="font-semibold text-gray-900">Top organismes</h3>
             </div>
-            <table className="w-full text-sm">
+            <ol className="md:hidden divide-y divide-gray-100">
+              {topRiskOrgans.map((row, idx) => (
+                <li key={`m-${row.name}-${idx}`} className="flex items-start gap-3 px-4 py-3">
+                  <span className="w-5 shrink-0 text-xs text-gray-400">{idx + 1}</span>
+                  <div className="min-w-0 flex-1">
+                    <Link
+                      href={`/contractes?nom_organ=${encodeURIComponent(row.name)}&amountMin=14900&amountMax=14999.99&procediment=${encodeURIComponent("Contracte menor")}`}
+                      className="block text-sm text-gray-900 hover:underline break-words"
+                    >
+                      {row.name}
+                    </Link>
+                    <p className="mt-0.5 text-xs text-gray-500">
+                      {formatNumber(row.num_contracts)} contractes · {formatCompactNumber(row.amount)}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+            <table className="hidden md:table w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50">
                   <th className="text-left py-3 px-4 font-medium text-gray-500">#</th>
@@ -250,7 +268,25 @@ export default async function AnalisiPage() {
             <div className="px-4 py-3 border-b border-gray-200">
               <h3 className="font-semibold text-gray-900">Top empreses</h3>
             </div>
-            <table className="w-full text-sm">
+            <ol className="md:hidden divide-y divide-gray-100">
+              {topRiskCompanies.map((row, idx) => (
+                <li key={`m-${row.identificacio_adjudicatari}-${idx}`} className="flex items-start gap-3 px-4 py-3">
+                  <span className="w-5 shrink-0 text-xs text-gray-400">{idx + 1}</span>
+                  <div className="min-w-0 flex-1">
+                    <Link
+                      href={`/contractes?search=${encodeURIComponent(row.denominacio_adjudicatari)}&amountMin=14900&amountMax=14999.99&procediment=${encodeURIComponent("Contracte menor")}`}
+                      className="block text-sm text-gray-900 hover:underline break-words"
+                    >
+                      {row.denominacio_adjudicatari}
+                    </Link>
+                    <p className="mt-0.5 text-xs text-gray-500">
+                      {formatNumber(row.num_contracts)} contractes · {formatCompactNumber(row.total)}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+            <table className="hidden md:table w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50">
                   <th className="text-left py-3 px-4 font-medium text-gray-500">#</th>

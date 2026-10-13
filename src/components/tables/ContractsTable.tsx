@@ -1,7 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import type { Contract } from "@/lib/types";
+import { buildCompanyHref } from "@/lib/company-identity";
 import {
   formatCurrencyFull,
   formatDate,
@@ -28,6 +30,72 @@ function getBestDateTimestamp(contract: Contract): number {
   if (!bestDate.date) return 0;
   const timestamp = new Date(bestDate.date).getTime();
   return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
+function splitMulti(raw?: string): string[] {
+  if (!raw) return [];
+  const cleaned = raw.trim();
+  if (!cleaned) return [];
+  const separator = cleaned.includes("||") ? "||" : cleaned.includes(";") ? ";" : null;
+  if (!separator) return [cleaned];
+  return cleaned
+    .split(separator)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Awardee name(s) linked to their company page. For UTEs the ids are only
+ * linked when they pair up one-to-one with the names.
+ */
+function AwardeeNames({
+  names,
+  ids,
+  className,
+}: {
+  names: string[];
+  ids: string[];
+  className?: string;
+}) {
+  if (names.length === 0) return <>—</>;
+  const linkable = ids.length === names.length;
+  return (
+    <>
+      {names.map((name, index) => {
+        const id = linkable ? ids[index] : names.length === 1 && ids.length === 1 ? ids[0] : "";
+        const node = id ? (
+          <Link
+            href={buildCompanyHref(id, name)}
+            className={`hover:underline hover:text-indigo-700 ${className || ""}`}
+            title={`Veure fitxa de ${name}`}
+          >
+            {name}
+          </Link>
+        ) : (
+          <span className={className}>{name}</span>
+        );
+        return (
+          <span key={`${id}-${name}-${index}`}>
+            {index > 0 && <span className="text-gray-400"> · </span>}
+            {node}
+          </span>
+        );
+      })}
+    </>
+  );
+}
+
+function OrganLink({ name, className }: { name?: string; className?: string }) {
+  if (!name) return <>—</>;
+  return (
+    <Link
+      href={`/organismes/${encodeURIComponent(name)}`}
+      className={`hover:underline hover:text-indigo-700 ${className || ""}`}
+      title={`Veure fitxa de ${name}`}
+    >
+      {name}
+    </Link>
+  );
 }
 
 export default function ContractsTable({
@@ -177,12 +245,15 @@ export default function ContractsTable({
           <tbody>
             {keyedVisibleContracts.map(({ contract: c, rowKey }) => {
               const awardees = splitAwardees(c.denominacio_adjudicatari);
+              const awardeeIds = splitMulti(c.identificacio_adjudicatari);
               const hasMultipleAwardees = awardees.length > 1;
               const isAwardeesExpanded = expandedAwardees.has(rowKey);
-              const displayAwardee =
-                hasMultipleAwardees && !isAwardeesExpanded
-                  ? awardees[0]
-                  : c.denominacio_adjudicatari || "—";
+              const visibleAwardees =
+                hasMultipleAwardees && !isAwardeesExpanded ? awardees.slice(0, 1) : awardees;
+              const visibleAwardeeIds =
+                hasMultipleAwardees && !isAwardeesExpanded && awardeeIds.length === awardees.length
+                  ? awardeeIds.slice(0, 1)
+                  : awardeeIds;
               const publicationUrl = getPublicationUrl(c.enllac_publicacio);
               const bestDate = getBestAvailableContractDate(
                 c.data_adjudicacio_contracte,
@@ -213,13 +284,15 @@ export default function ContractsTable({
                     {c.procediment || "—"}
                   </td>
                   <td className="py-3 px-4 truncate" title={c.denominacio_adjudicatari}>
-                    <span className="align-middle">{displayAwardee}</span>
+                    <span className="align-middle">
+                      <AwardeeNames names={visibleAwardees} ids={visibleAwardeeIds} className="text-gray-900" />
+                    </span>
                     {hasMultipleAwardees && !isAwardeesExpanded && (
                       <button
                         onClick={() =>
                           setExpandedAwardees((prev) => new Set(prev).add(rowKey))
                         }
-                        className="ml-2 inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 hover:bg-blue-100 transition-colors cursor-pointer align-middle"
+                        className="ml-2 inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-[11px] font-medium text-blue-700 hover:bg-blue-100 transition-colors cursor-pointer align-middle"
                         title={`UTE amb ${awardees.length} empreses — clic per expandir`}
                       >
                         UTE · +{awardees.length - 1}
@@ -234,7 +307,7 @@ export default function ContractsTable({
                             return next;
                           })
                         }
-                        className="ml-2 inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 hover:bg-blue-100 transition-colors cursor-pointer align-middle"
+                        className="ml-2 inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-[11px] font-medium text-blue-700 hover:bg-blue-100 transition-colors cursor-pointer align-middle"
                       >
                         Redueix
                       </button>
@@ -259,7 +332,7 @@ export default function ContractsTable({
                     )}
                   </td>
                   <td className="py-3 px-4 align-top whitespace-normal break-words" title={c.nom_organ}>
-                    {c.nom_organ || "—"}
+                    <OrganLink name={c.nom_organ} className="text-gray-800" />
                   </td>
                 </tr>
               );
@@ -279,12 +352,15 @@ export default function ContractsTable({
       <div className="lg:hidden space-y-2 p-2">
         {keyedVisibleContracts.map(({ contract: c, rowKey }) => {
           const awardees = splitAwardees(c.denominacio_adjudicatari);
+          const awardeeIds = splitMulti(c.identificacio_adjudicatari);
           const hasMultipleAwardees = awardees.length > 1;
           const isAwardeesExpanded = expandedAwardees.has(rowKey);
-          const displayAwardee =
-            hasMultipleAwardees && !isAwardeesExpanded
-              ? awardees[0]
-              : c.denominacio_adjudicatari || "—";
+          const visibleAwardees =
+            hasMultipleAwardees && !isAwardeesExpanded ? awardees.slice(0, 1) : awardees;
+          const visibleAwardeeIds =
+            hasMultipleAwardees && !isAwardeesExpanded && awardeeIds.length === awardees.length
+              ? awardeeIds.slice(0, 1)
+              : awardeeIds;
           const publicationUrl = getPublicationUrl(c.enllac_publicacio);
           const bestDate = getBestAvailableContractDate(
             c.data_adjudicacio_contracte,
@@ -321,13 +397,13 @@ export default function ContractsTable({
 
               <p className="mt-2 text-xs text-gray-700 line-clamp-2">
                 <span className="text-gray-500">Adjudicatari: </span>
-                {displayAwardee}
+                <AwardeeNames names={visibleAwardees} ids={visibleAwardeeIds} className="font-medium text-gray-900" />
                 {hasMultipleAwardees && !isAwardeesExpanded && (
                   <button
                     onClick={() =>
                       setExpandedAwardees((prev) => new Set(prev).add(rowKey))
                     }
-                    className="ml-2 inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 hover:bg-blue-100 transition-colors cursor-pointer align-middle"
+                    className="ml-2 inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-[11px] font-medium text-blue-700 hover:bg-blue-100 transition-colors cursor-pointer align-middle"
                   >
                     UTE · +{awardees.length - 1}
                   </button>
@@ -341,7 +417,7 @@ export default function ContractsTable({
                         return next;
                       })
                     }
-                    className="ml-2 inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 hover:bg-blue-100 transition-colors cursor-pointer align-middle"
+                    className="ml-2 inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-[11px] font-medium text-blue-700 hover:bg-blue-100 transition-colors cursor-pointer align-middle"
                   >
                     Redueix
                   </button>
@@ -349,7 +425,7 @@ export default function ContractsTable({
               </p>
               <p className="mt-1 text-xs text-gray-700">
                 <span className="text-gray-500">Òrgan: </span>
-                {c.nom_organ || "—"}
+                <OrganLink name={c.nom_organ} />
               </p>
 
               <div className="mt-3 flex items-center justify-between gap-2">

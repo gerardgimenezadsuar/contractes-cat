@@ -13,30 +13,32 @@ import {
 } from "recharts";
 import type { ThresholdBucket } from "@/lib/types";
 import { formatNumber } from "@/lib/utils";
+import { useIsMobile } from "@/lib/use-is-mobile";
 
 interface Props {
   data: ThresholdBucket[];
 }
 
 export default function ThresholdChart({ data }: Props) {
+  const isMobile = useIsMobile();
   return (
-    <ResponsiveContainer width="100%" height={400}>
+    <ResponsiveContainer width="100%" height={isMobile ? 300 : 400}>
       <BarChart
         data={data}
-        margin={{ top: 5, right: 30, left: 20, bottom: 32 }}
+        margin={{ top: 5, right: isMobile ? 8 : 30, left: isMobile ? -8 : 20, bottom: 32 }}
       >
         <CartesianGrid strokeDasharray="3 3" vertical={false} />
         <XAxis
           dataKey="label"
-          fontSize={12}
+          fontSize={isMobile ? 10 : 12}
           angle={-32}
           textAnchor="end"
           height={72}
-          interval={2}
+          interval={isMobile ? 5 : 2}
           tickMargin={8}
           tickFormatter={(label) => String(label).split("-")[0]}
         />
-        <YAxis tickFormatter={(v) => formatNumber(v)} fontSize={12} />
+        <YAxis tickFormatter={(v) => formatNumber(v)} fontSize={isMobile ? 10 : 12} width={isMobile ? 48 : 60} />
         <Tooltip
           formatter={(value) => [formatNumber(value as number), "Contractes"]}
           labelFormatter={(label) => `Rang: ${label} EUR (sense IVA)`}

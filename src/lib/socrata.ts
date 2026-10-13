@@ -1,6 +1,10 @@
 import { REVALIDATE_SECONDS } from "@/config/constants";
 
 const SOCRATA_APP_TOKEN = process.env.SOCRATA_APP_TOKEN;
+// Test hook: when set (e.g. http://127.0.0.1:4545), every Socrata request is
+// sent to this origin instead of the real open-data host, keeping the path and
+// query intact. Used by the mock server under tests/mock-socrata.
+const SOCRATA_ORIGIN_OVERRIDE = process.env.SOCRATA_ORIGIN_OVERRIDE;
 const MAX_ATTEMPTS = 3;
 const ATTEMPT_TIMEOUT_MS = 20_000;
 const RETRY_DELAYS_MS = [300, 1000];
@@ -18,6 +22,11 @@ export async function socrataFetch<T>(
   label = "Socrata"
 ): Promise<T[]> {
   const url = new URL(baseUrl);
+  if (SOCRATA_ORIGIN_OVERRIDE) {
+    const override = new URL(SOCRATA_ORIGIN_OVERRIDE);
+    url.protocol = override.protocol;
+    url.host = override.host;
+  }
   for (const [key, value] of Object.entries(params)) {
     url.searchParams.set(key, value);
   }

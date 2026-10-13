@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import {
   BarChart,
   Bar,
@@ -12,22 +11,15 @@ import {
 } from "recharts";
 import type { CompanyAggregation } from "@/lib/types";
 import { formatCompactNumber } from "@/lib/utils";
+import { useIsMobile } from "@/lib/use-is-mobile";
 
 interface Props {
   data: CompanyAggregation[];
 }
 
 export default function CompanyBarChart({ data }: Props) {
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 640);
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
-
-  const maxChars = isMobile ? 16 : 30;
+  const isMobile = useIsMobile();
+  const maxChars = isMobile ? 18 : 30;
 
   const chartData = data.map((d) => ({
     name:
@@ -39,7 +31,7 @@ export default function CompanyBarChart({ data }: Props) {
   }));
 
   return (
-    <ResponsiveContainer width="100%" height={400}>
+    <ResponsiveContainer width="100%" height={isMobile ? 320 : 400}>
       <BarChart
         data={chartData}
         layout="vertical"
@@ -54,7 +46,7 @@ export default function CompanyBarChart({ data }: Props) {
         <YAxis
           type="category"
           dataKey="name"
-          width={isMobile ? 120 : 220}
+          width={isMobile ? 130 : 220}
           fontSize={isMobile ? 10 : 11}
           tick={{ fill: "#374151" }}
         />

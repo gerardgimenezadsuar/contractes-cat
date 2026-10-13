@@ -98,6 +98,8 @@ export interface ContractFilters {
   amountMax?: string;
   nom_organ?: string;
   search?: string;
+  dateFrom?: string;
+  dateTo?: string;
   nif?: string;
   awardee_name?: string;
   page?: number;

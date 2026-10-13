@@ -71,8 +71,9 @@ export default function Header() {
           {/* Mobile menu button */}
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
-            className="md:hidden p-2 rounded-md text-gray-600 hover:bg-gray-50"
-            aria-label="Obre menú"
+            className="md:hidden -mr-2 inline-flex h-11 w-11 items-center justify-center rounded-md text-gray-600 hover:bg-gray-50"
+            aria-label={mobileOpen ? "Tanca menú" : "Obre menú"}
+            aria-expanded={mobileOpen}
           >
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               {mobileOpen ? (
@@ -97,7 +98,7 @@ export default function Header() {
                   href={item.href}
                   prefetch
                   onClick={() => setMobileOpen(false)}
-                  className={`block px-3 py-2 rounded-md text-sm ${
+                  className={`block min-h-11 px-3 py-2.5 rounded-md text-sm ${
                     isActive
                       ? "text-indigo-600 font-semibold bg-indigo-50 border-l-[3px] border-indigo-500"
                       : "text-gray-500 font-medium hover:text-gray-900 hover:bg-gray-50"
@@ -112,7 +113,7 @@ export default function Header() {
               target="_blank"
               rel="noopener noreferrer sponsored"
               onClick={() => setMobileOpen(false)}
-              className="mt-2 flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium text-amber-800 bg-amber-50 border border-amber-200 hover:bg-amber-100"
+              className="mt-2 flex min-h-11 items-center justify-between px-3 py-2.5 rounded-md text-sm font-medium text-amber-800 bg-amber-50 border border-amber-200 hover:bg-amber-100"
             >
               <span>Com licitar?</span>
               <svg

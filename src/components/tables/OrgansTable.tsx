@@ -6,6 +6,7 @@ import type { OrganAggregation } from "@/lib/types";
 import { formatCurrency, formatNumber } from "@/lib/utils";
 import SearchInput from "@/components/ui/SearchInput";
 import Pagination from "@/components/ui/Pagination";
+import { trackEvent } from "@/lib/analytics";
 import { DEFAULT_PAGE_SIZE } from "@/config/constants";
 
 interface Props {
@@ -118,7 +119,8 @@ export default function OrgansTable({
             page: String(page),
             format: "csv",
           }).toString()}`}
-          className="inline-flex items-center rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+          onClick={() => trackEvent("export_csv", { page: "organismes" })}
+          className="inline-flex min-h-9 items-center rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
         >
           Exporta CSV (vista actual)
         </a>

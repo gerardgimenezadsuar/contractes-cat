@@ -7,6 +7,7 @@ import { formatCompactNumber, formatNumber } from "@/lib/utils";
 import SearchLoadingIndicator from "@/components/ui/SearchLoadingIndicator";
 import { formatPersonDisplayName } from "@/lib/person-utils";
 import { buildCompanyHref } from "@/lib/company-identity";
+import { trackEvent } from "@/lib/analytics";
 
 type SearchMode = "empresa" | "organisme" | "persona";
 interface PersonSearchResult {
@@ -103,6 +104,7 @@ export default function CompanySearch() {
   );
 
   const switchMode = useCallback((nextMode: SearchMode) => {
+    trackEvent("search_mode", { mode: nextMode });
     setMode(nextMode);
     setResults([]);
     setOpen(false);
@@ -132,16 +134,22 @@ export default function CompanySearch() {
   return (
     <div ref={containerRef} className="relative w-full max-w-3xl lg:mx-auto lg:max-w-[40.5rem]">
       <p className="mb-2 text-sm font-medium text-gray-700">Què vols cercar?</p>
-      <div className="mb-2 grid grid-cols-1 gap-2 lg:flex lg:justify-center lg:gap-3">
+      <div
+        className="mb-2 grid grid-cols-3 gap-1 rounded-xl border border-gray-200 bg-gray-100 p-1"
+        role="tablist"
+        aria-label="Tipus de cerca"
+      >
         {(["empresa", "organisme", "persona"] as SearchMode[]).map((searchMode) => (
           <button
             key={searchMode}
             type="button"
+            role="tab"
+            aria-selected={mode === searchMode}
             onClick={() => switchMode(searchMode)}
-            className={`w-full rounded-xl border px-3 py-2 text-center text-sm font-semibold transition-colors lg:w-52 ${
+            className={`min-h-10 rounded-lg px-2 text-center text-sm font-semibold transition-colors ${
               mode === searchMode
-                ? "border-gray-900 bg-gray-900 text-white"
-                : "border-gray-300 bg-white text-gray-700 hover:border-gray-400"
+                ? "bg-gray-900 text-white shadow-sm"
+                : "text-gray-700 hover:bg-white"
             }`}
           >
             {modeMeta[searchMode].label}
@@ -202,7 +210,10 @@ export default function CompanySearch() {
                     result.identificacio_adjudicatari,
                     result.denominacio_adjudicatari
                   )}
-                  onClick={() => setOpen(false)}
+                  onClick={() => {
+                    setOpen(false);
+                    trackEvent("search_result_click", { mode: "empresa" });
+                  }}
                   className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
                 >
                   <div className="min-w-0 flex-1">
@@ -230,7 +241,10 @@ export default function CompanySearch() {
                 <Link
                   key={`organ-${result.nom_organ}`}
                   href={`/organismes/${encodeURIComponent(result.nom_organ)}`}
-                  onClick={() => setOpen(false)}
+                  onClick={() => {
+                    setOpen(false);
+                    trackEvent("search_result_click", { mode: "organisme" });
+                  }}
                   className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
                 >
                   <div className="min-w-0 flex-1">
@@ -254,7 +268,10 @@ export default function CompanySearch() {
               <Link
                 key={`persona-${result.person_name}`}
                 href={`/persones/${encodeURIComponent(result.person_name)}`}
-                onClick={() => setOpen(false)}
+                onClick={() => {
+                  setOpen(false);
+                  trackEvent("search_result_click", { mode: "persona" });
+                }}
                 className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
               >
                 <div className="min-w-0 flex-1">
@@ -281,8 +298,11 @@ export default function CompanySearch() {
                   ? `/organismes?search=${encodeURIComponent(query)}`
                   : `/persones?search=${encodeURIComponent(query)}`
             }
-            onClick={() => setOpen(false)}
-            className="block px-4 py-2 text-center text-sm text-gray-600 hover:bg-gray-50 bg-gray-50"
+            onClick={() => {
+              setOpen(false);
+              trackEvent("search_see_all", { mode });
+            }}
+            className="block min-h-11 px-4 py-3 text-center text-sm text-gray-600 hover:bg-gray-50 bg-gray-50"
           >
             Veure tots els resultats
           </Link>

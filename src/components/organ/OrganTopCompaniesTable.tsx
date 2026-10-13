@@ -34,7 +34,7 @@ export default function OrganTopCompaniesTable({ rows, organTotalAmount }: Props
 
   return (
     <>
-      <div className="bg-white rounded-lg border border-gray-100 shadow-sm overflow-x-auto">
+      <div className="hidden md:block bg-white rounded-lg border border-gray-100 shadow-sm overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-200 bg-gray-50">
@@ -124,6 +124,60 @@ export default function OrganTopCompaniesTable({ rows, organTotalAmount }: Props
           </tbody>
         </table>
       </div>
+      <ul className="md:hidden space-y-2">
+        {rows.map((company, idx) => {
+          const amount = parseFloat(company.total) || 0;
+          const contracts = parseInt(company.num_contracts, 10) || 0;
+          const share = organTotalAmount > 0 ? (amount / organTotalAmount) * 100 : 0;
+          const nifs = parseNifs(company.identificacio_adjudicatari);
+          const names = company.denominacio_adjudicatari
+            .split("||")
+            .map((n) => n.trim())
+            .filter(Boolean);
+          const isUte = nifs.length > 1 || names.length > 1;
+          const label = names[0] || company.denominacio_adjudicatari;
+          return (
+            <li
+              key={`m-${company.identificacio_adjudicatari}-${idx}`}
+              className="rounded-lg border border-gray-200 bg-white p-3"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <Link
+                  href={buildCompanyHref(company.identificacio_adjudicatari, label)}
+                  className="min-w-0 text-sm font-semibold text-gray-900 hover:underline break-words"
+                >
+                  {label}
+                </Link>
+                <span className="shrink-0 rounded bg-gray-50 px-2 py-0.5 text-xs text-gray-500">#{idx + 1}</span>
+              </div>
+              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                <span className="inline-flex rounded-md bg-gray-100 px-2 py-0.5 text-[11px] font-mono text-gray-700">
+                  {nifs[0]}
+                </span>
+                {isUte && (
+                  <span className="inline-flex rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">
+                    UTE · {Math.max(names.length, nifs.length)} empreses
+                  </span>
+                )}
+              </div>
+              <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                <div>
+                  <p className="text-gray-500">Import</p>
+                  <p className="font-medium text-gray-900">{formatCurrency(amount)}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500">Contractes</p>
+                  <p className="font-medium text-gray-900">{formatNumber(contracts)}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500">% organisme</p>
+                  <p className="font-medium text-gray-900">{share.toFixed(1)}%</p>
+                </div>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
       <p className="mt-2 text-xs text-gray-500">
         Import calculat sobre contractes amb import (amb IVA) informat.
       </p>

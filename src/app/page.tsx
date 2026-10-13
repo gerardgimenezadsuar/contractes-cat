@@ -153,7 +153,7 @@ export default async function HomePage() {
       <section className="mb-10 bg-gradient-to-b from-indigo-50/60 to-white">
         <div className="mx-auto max-w-7xl px-4 pb-4 pt-10">
           <div className="mb-2 flex justify-center">
-            <span className="hidden items-center gap-1.5 rounded-full border border-indigo-200 bg-white px-3 py-1 text-xs font-medium text-indigo-700 shadow-sm sm:inline-flex">
+            <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-indigo-200 bg-white px-3 py-1 text-[11px] font-medium text-indigo-700 shadow-sm sm:text-xs">
               <span className="h-1.5 w-1.5 rounded-full bg-green-500"></span>
               {formatNumber(totalContracts)} contractes · {formatCompactNumber(totalAmount)} adjudicats · Dades obertes
             </span>
@@ -169,11 +169,22 @@ export default async function HomePage() {
           <div className="mb-3 flex justify-center">
             <CompanySearch />
           </div>
-          <div className="mb-2 hidden flex-wrap items-center justify-center gap-4 text-xs text-gray-500 sm:flex">
-            <Link href="/empreses" className="underline hover:text-gray-800">Rànquing empreses</Link>
-            <Link href="/persones" className="underline hover:text-gray-800">Cerca persones</Link>
-            <Link href="/organismes" className="underline hover:text-gray-800">Rànquing organismes</Link>
-            <Link href="/contractes" className="underline hover:text-gray-800">Explorador contractes</Link>
+          <div className="-mx-4 mb-2 flex gap-2 overflow-x-auto px-4 pb-1 text-xs text-gray-600 sm:mx-0 sm:flex-wrap sm:justify-center sm:gap-4 sm:overflow-visible sm:px-0 sm:text-gray-500">
+            {[
+              { href: "/empreses", label: "Rànquing empreses" },
+              { href: "/organismes", label: "Rànquing organismes" },
+              { href: "/contractes", label: "Explorador contractes" },
+              { href: "/persones", label: "Cerca persones" },
+              { href: "/analisi", label: "Anàlisi" },
+            ].map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="inline-flex min-h-9 shrink-0 items-center rounded-full border border-gray-200 bg-white px-3 hover:border-gray-400 hover:text-gray-900 sm:min-h-0 sm:rounded-none sm:border-0 sm:bg-transparent sm:px-0 sm:underline"
+              >
+                {link.label}
+              </Link>
+            ))}
           </div>
         </div>
       </section>
@@ -304,7 +315,7 @@ export default async function HomePage() {
                     <tr className="border-b border-gray-200">
                       <th className="w-[10%] px-3 py-2 text-left font-medium text-gray-500">#</th>
                       <th className="w-[44%] px-3 py-2 text-left font-medium text-gray-500">Sector</th>
-                      <th className="w-[12%] px-3 py-2 text-left font-medium text-gray-500">Codi</th>
+                      <th className="hidden w-[12%] px-3 py-2 text-left font-medium text-gray-500 sm:table-cell">Codi</th>
                       <th className="w-[19%] px-3 py-2 text-right font-medium text-gray-500">Import</th>
                       <th className="w-[15%] px-3 py-2 text-right font-medium text-gray-500">Contractes</th>
                     </tr>
@@ -314,7 +325,7 @@ export default async function HomePage() {
                       <tr key={`${sector.code}-${index}`} className="border-b border-gray-100">
                         <td className="px-3 py-2 text-gray-500">{index + 1}</td>
                         <td className="px-3 py-2 text-gray-800">{sector.sector}</td>
-                        <td className="px-3 py-2 font-mono text-xs text-gray-600">{sector.code}</td>
+                        <td className="hidden px-3 py-2 font-mono text-xs text-gray-600 sm:table-cell">{sector.code}</td>
                         <td className="px-3 py-2 text-right text-gray-900">
                           {formatCompactNumber(sector.total)}
                         </td>

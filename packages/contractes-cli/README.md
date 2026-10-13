@@ -18,6 +18,7 @@ npx @gerardgimenezadsuar/contractes-cli help
 
 ```bash
 contractes search-contracts --search "neteja" --year 2025 --page 1
+contractes search-contracts --nom-organ "Ajuntament de Girona" --date-from 2025-01-01 --date-to 2025-06-30 --sort amount-desc
 contractes search-companies --search "ferrovial" --page 1
 contractes search-organs --search "ajuntament" --limit 25
 contractes organ-top-companies --organ "Ajuntament de Barcelona" --limit 10

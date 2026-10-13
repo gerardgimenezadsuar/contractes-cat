@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import ContractExplorer from "./ContractExplorer";
 import SharePageButton from "@/components/ui/SharePageButton";
 import { fetchContracts, fetchContractsCount } from "@/lib/api";
+import { CONTRACT_SORT_OPTIONS, isContractSortKey } from "@/lib/contract-sort";
 
 export const metadata: Metadata = {
   title: "Explorador de contractes",
   description:
-    "Explora tots els contractes públics a Catalunya amb filtres per any, tipus, procediment i import.",
+    "Explora tots els contractes públics a Catalunya amb filtres per data, tipus, procediment, import i organisme.",
 };
 
 interface Props {
@@ -18,6 +19,9 @@ interface Props {
     amountMax?: string;
     nom_organ?: string;
     search?: string;
+    date_from?: string;
+    date_to?: string;
+    sort?: string;
     page?: string;
   }>;
 }
@@ -32,7 +36,11 @@ export default async function ContractesPage({ searchParams }: Props) {
     amountMax: params.amountMax || "",
     nom_organ: params.nom_organ || "",
     search: params.search || "",
+    dateFrom: params.date_from || "",
+    dateTo: params.date_to || "",
   };
+  const initialSort = isContractSortKey(params.sort) ? params.sort : "date-desc";
+  const sortOpts = CONTRACT_SORT_OPTIONS[initialSort];
   const initialPage = Math.max(1, parseInt(params.page || "1", 10) || 1);
   const queryFilters = {
     year: initialFilters.year || undefined,
@@ -42,10 +50,17 @@ export default async function ContractesPage({ searchParams }: Props) {
     amountMax: initialFilters.amountMax || undefined,
     nom_organ: initialFilters.nom_organ || undefined,
     search: initialFilters.search || undefined,
+    dateFrom: initialFilters.dateFrom || undefined,
+    dateTo: initialFilters.dateTo || undefined,
   };
 
   const [initialContracts, initialTotal] = await Promise.all([
-    fetchContracts({ ...queryFilters, page: initialPage }),
+    fetchContracts({
+      ...queryFilters,
+      page: initialPage,
+      orderBy: sortOpts.orderBy,
+      orderDir: sortOpts.orderDir,
+    }),
     fetchContractsCount(queryFilters),
   ]);
 
@@ -63,6 +78,7 @@ export default async function ContractesPage({ searchParams }: Props) {
       </p>
       <ContractExplorer
         initialFilters={initialFilters}
+        initialSort={initialSort}
         initialPage={initialPage}
         initialContracts={initialContracts}
         initialTotal={initialTotal}

@@ -62,3 +62,8 @@ next-env.d.ts
 /public/borme/
 /tmp/borme/
 /data/borme/
+
+# playwright
+/test-results/
+/playwright-report/
+/.pw-browsers/

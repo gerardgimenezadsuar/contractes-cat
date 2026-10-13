@@ -14,22 +14,22 @@ function ChartSkeleton({ className }: { className: string }) {
 
 const CompanyBarChartLazyImpl = dynamic(() => import("@/components/charts/CompanyBarChart"), {
   ssr: false,
-  loading: () => <ChartSkeleton className="h-[400px]" />,
+  loading: () => <ChartSkeleton className="h-[320px] sm:h-[400px]" />,
 });
 
 const YearlyTrendChartLazyImpl = dynamic(() => import("@/components/charts/YearlyTrendChart"), {
   ssr: false,
-  loading: () => <ChartSkeleton className="h-[380px]" />,
+  loading: () => <ChartSkeleton className="h-[260px] sm:h-[380px]" />,
 });
 
 const ThresholdChartLazyImpl = dynamic(() => import("@/components/charts/ThresholdChart"), {
   ssr: false,
-  loading: () => <ChartSkeleton className="h-[400px]" />,
+  loading: () => <ChartSkeleton className="h-[300px] sm:h-[400px]" />,
 });
 
 const MinorShareTrendChartLazyImpl = dynamic(() => import("@/components/charts/MinorShareTrendChart"), {
   ssr: false,
-  loading: () => <ChartSkeleton className="h-[320px]" />,
+  loading: () => <ChartSkeleton className="h-[260px] sm:h-[320px]" />,
 });
 
 interface CompanyBarChartProps {
