@@ -25,7 +25,8 @@ export default defineConfig({
     {
       command: `node tests/mock-socrata/server.mjs ${MOCK_PORT}`,
       url: `http://127.0.0.1:${MOCK_PORT}/health`,
-      reuseExistingServer: !process.env.CI,
+      // CI starts the mock before `next build` (prerendering needs it); reuse it here.
+      reuseExistingServer: true,
       timeout: 30_000,
     },
     {
