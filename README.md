@@ -52,6 +52,12 @@ Els tests end-to-end no toquen l'API pública: `tests/mock-socrata/server.mjs` r
 dades sintètiques i l'app s'hi connecta amb `SOCRATA_ORIGIN_OVERRIDE=http://127.0.0.1:4545`.
 El workflow `.github/workflows/ci.yml` executa lint, typecheck, build i els tests a cada PR.
 
+Per comprovar un desplegament real (només el subconjunt de tests que no depèn del mock):
+
+```bash
+E2E_BASE_URL=https://www.contractes.cat pnpm test:e2e
+```
+
 ## Font de dades
 
 Totes les dades provenen del conjunt de dades [Contractació pública a Catalunya](https://analisi.transparenciacatalunya.cat/Sector-P-blic/Contractaci-del-sector-p-blic-de-la-Generalitat-d/ybgg-dgi6) publicat pel Departament d'Economia i Hisenda de la Generalitat de Catalunya.
