@@ -22,6 +22,7 @@ import type {
 } from "./types";
 import { CPV_DIVISIONS } from "@/config/constants";
 import { socrataFetch } from "@/lib/socrata";
+import { searchCompaniesIndexed, searchOrgansIndexed } from "@/lib/search-index";
 import {
   buildCompanyIdentityKey,
   isAmbiguousCompanyId,
@@ -366,6 +367,12 @@ export async function fetchCompanies(
 ): Promise<CompanyAggregation[]> {
   const currentYear = new Date().getFullYear();
   const includeCurrentYear = options?.includeCurrentYear !== false;
+  if (search && !(cpvFilters && cpvFilters.length > 0)) {
+    // Name searches go to the Supabase index when it is fresh; Socrata stays
+    // the fallback (and the only path for CPV-filtered searches).
+    const indexed = await searchCompaniesIndexed(search, offset, limit);
+    if (indexed) return indexed.rows;
+  }
   const baseConditions = [
     CLEAN_AMOUNT_FILTER,
     "import_adjudicacio_amb_iva IS NOT NULL",
@@ -500,6 +507,10 @@ export async function fetchCompaniesCount(
   search?: string,
   cpvFilters?: string[]
 ): Promise<number> {
+  if (search && !(cpvFilters && cpvFilters.length > 0)) {
+    const indexed = await searchCompaniesIndexed(search, 0, 0);
+    if (indexed) return indexed.total;
+  }
   const conditions = [
     CLEAN_AMOUNT_FILTER,
     "import_adjudicacio_amb_iva IS NOT NULL",
@@ -591,6 +602,10 @@ export async function fetchOrgans(
 ): Promise<OrganAggregation[]> {
   const currentYear = new Date().getFullYear();
   const includeCurrentYear = options?.includeCurrentYear !== false;
+  if (search) {
+    const indexed = await searchOrgansIndexed(search, offset, limit);
+    if (indexed) return indexed.rows;
+  }
   const conditions = [
     CLEAN_AMOUNT_FILTER,
     "import_adjudicacio_amb_iva IS NOT NULL",
@@ -647,6 +662,10 @@ export async function fetchOrgans(
 }
 
 export async function fetchOrgansCount(search?: string): Promise<number> {
+  if (search) {
+    const indexed = await searchOrgansIndexed(search, 0, 0);
+    if (indexed) return indexed.total;
+  }
   const conditions = [
     CLEAN_AMOUNT_FILTER,
     "import_adjudicacio_amb_iva IS NOT NULL",

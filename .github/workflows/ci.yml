@@ -17,6 +17,7 @@ jobs:
     env:
       # Build and tests run against the mock Socrata server, never the public API.
       SOCRATA_ORIGIN_OVERRIDE: http://127.0.0.1:4545
+      SEARCH_INDEX_DISABLED: "1"
       PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.pw-browsers
     steps:
       - uses: actions/checkout@v4

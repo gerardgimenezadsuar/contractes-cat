@@ -40,6 +40,20 @@ TURSO_TOKEN=<db-token>
 
 També es suporta `TURSO_AUTH_TOKEN` com a alternativa a `TURSO_TOKEN`.
 
+### Índex de cerca (Supabase)
+
+La cerca d'empreses i organismes per nom llegeix un índex propi a Supabase (Postgres amb
+`pg_trgm`), que es reconstrueix cada nit des de Socrata amb l'Edge Function
+`supabase/functions/sync-search-index` disparada per `pg_cron`. L'esquema i les funcions SQL
+són a `supabase/migrations/`. Si l'índex no està configurat, té més de 72 h o falla, l'app
+torna a consultar Socrata directament; la cerca de contractes sempre va a Socrata.
+
+```bash
+SUPABASE_URL=https://<project>.supabase.co   # opcional, hi ha un valor per defecte
+SUPABASE_PUBLISHABLE_KEY=sb_publishable_...  # clau pública (només lectura via RLS)
+SEARCH_INDEX_DISABLED=1                      # força el camí Socrata (tests, CI)
+```
+
 ### Tests i CI
 
 ```bash
