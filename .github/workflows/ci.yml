@@ -37,6 +37,9 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      - name: Unit tests
+        run: pnpm test:unit
+
       - name: Start mock Socrata (for build-time prerendering)
         run: |
           node tests/mock-socrata/server.mjs 4545 &

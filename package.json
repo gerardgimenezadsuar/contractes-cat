@@ -11,7 +11,9 @@
     "doctor:verbose": "react-doctor . --yes --verbose",
     "typecheck": "tsc --noEmit",
     "test:e2e": "playwright test",
-    "mock:socrata": "node tests/mock-socrata/server.mjs 4545"
+    "mock:socrata": "node tests/mock-socrata/server.mjs 4545",
+    "test:unit": "node --experimental-strip-types --test tests/unit/*.test.ts",
+    "test": "pnpm test:unit && pnpm test:e2e"
   },
   "dependencies": {
     "@libsql/client": "^0.17.0",

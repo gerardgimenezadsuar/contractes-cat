@@ -61,7 +61,7 @@ export default function CompanySearch() {
       abortRef.current = new AbortController();
       const endpoint =
         nextMode === "empresa"
-          ? `/api/empreses?search=${encodeURIComponent(q)}&page=1&includeTotal=0`
+          ? `/api/empreses?search=${encodeURIComponent(q)}&page=1&includeTotal=0&includeCurrentYear=0`
           : nextMode === "organisme"
             ? `/api/organismes?search=${encodeURIComponent(q)}&page=1&limit=8&includeTotal=0&includeCurrentYear=0`
             : `/api/persones?search=${encodeURIComponent(q)}&page=1&includeTotal=0`;

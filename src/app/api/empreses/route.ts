@@ -45,6 +45,7 @@ export async function GET(request: NextRequest) {
     .map((token) => token.trim())
     .filter((token) => token.length > 0);
   const includeTotal = searchParams.get("includeTotal") !== "0";
+  const includeCurrentYear = searchParams.get("includeCurrentYear") !== "0";
   const parsedPage = parseInt(searchParams.get("page") || "1", 10);
   const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
   const offset = (page - 1) * DEFAULT_PAGE_SIZE;
@@ -71,7 +72,8 @@ export async function GET(request: NextRequest) {
     offset,
     DEFAULT_PAGE_SIZE,
     search || undefined,
-    cpvFilters.length > 0 ? cpvFilters : undefined
+    cpvFilters.length > 0 ? cpvFilters : undefined,
+    { includeCurrentYear }
   );
 
   if (!includeTotal) {
