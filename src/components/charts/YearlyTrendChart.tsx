@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import type { YearlyAggregation } from "@/lib/types";
 import { formatCompactNumber } from "@/lib/utils";
+import { useIsMobile } from "@/lib/use-is-mobile";
 
 interface Props {
   data: YearlyAggregation[];
@@ -25,6 +26,7 @@ export default function YearlyTrendChart({
   label = "Import total",
   color = "#1e3a5f",
 }: Props) {
+  const isMobile = useIsMobile();
   const currentYear = new Date().getFullYear();
   const chartData = data
     .filter((d) => parseInt(d.year, 10) <= currentYear)
@@ -35,16 +37,17 @@ export default function YearlyTrendChart({
     }));
 
   return (
-    <ResponsiveContainer width="100%" height={380}>
+    <ResponsiveContainer width="100%" height={isMobile ? 260 : 380}>
       <BarChart
         data={chartData}
-        margin={{ top: 20, right: 12, left: 12, bottom: 5 }}
+        margin={{ top: 20, right: isMobile ? 4 : 12, left: isMobile ? -8 : 12, bottom: 5 }}
       >
         <CartesianGrid strokeDasharray="3 3" vertical={false} />
-        <XAxis dataKey="year" fontSize={12} />
+        <XAxis dataKey="year" fontSize={isMobile ? 10 : 12} interval={isMobile ? 1 : 0} />
         <YAxis
           tickFormatter={(v) => formatCompactNumber(v)}
-          fontSize={12}
+          fontSize={isMobile ? 10 : 12}
+          width={isMobile ? 48 : 60}
         />
         <Tooltip
           formatter={(value) => [formatCompactNumber(value as number), label]}

@@ -9,7 +9,7 @@ Anàlisi independent de la contractació pública a Catalunya.
 - **Dashboard** amb indicadors clau: total de contractes, import total adjudicat, nombre d'empreses
 - **Rànquing d'empreses** per import total de contractes adjudicats, amb cerca i paginació
 - **Detall d'empresa** amb evolució anual i llistat de contractes
-- **Explorador de contractes** amb filtres per any, tipus, procediment, import i òrgan de contractació
+- **Explorador de contractes** amb filtres per data, any, tipus, procediment, import i òrgan de contractació, ordenació i exportació CSV
 - **Anàlisi** del llindar de contractes menors (15.000 EUR), distribucions per tipus i procediment
 
 ## Stack tecnològic
@@ -39,6 +39,18 @@ TURSO_TOKEN=<db-token>
 ```
 
 També es suporta `TURSO_AUTH_TOKEN` com a alternativa a `TURSO_TOKEN`.
+
+### Tests i CI
+
+```bash
+pnpm lint        # ESLint
+pnpm typecheck   # TypeScript
+pnpm test:e2e    # Playwright: smoke tests (mòbil i escriptori) contra un mock de Socrata
+```
+
+Els tests end-to-end no toquen l'API pública: `tests/mock-socrata/server.mjs` respon amb
+dades sintètiques i l'app s'hi connecta amb `SOCRATA_ORIGIN_OVERRIDE=http://127.0.0.1:4545`.
+El workflow `.github/workflows/ci.yml` executa lint, typecheck, build i els tests a cada PR.
 
 ## Font de dades
 

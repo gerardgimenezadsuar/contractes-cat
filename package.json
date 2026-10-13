@@ -8,7 +8,10 @@
     "start": "next start",
     "lint": "eslint",
     "doctor": "react-doctor . --yes",
-    "doctor:verbose": "react-doctor . --yes --verbose"
+    "doctor:verbose": "react-doctor . --yes --verbose",
+    "typecheck": "tsc --noEmit",
+    "test:e2e": "playwright test",
+    "mock:socrata": "node tests/mock-socrata/server.mjs 4545"
   },
   "dependencies": {
     "@libsql/client": "^0.17.0",
@@ -19,6 +22,7 @@
     "recharts": "^3.7.0"
   },
   "devDependencies": {
+    "@playwright/test": "1.56.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -29,5 +33,6 @@
     "react-doctor": "^0.0.18",
     "tailwindcss": "^4",
     "typescript": "^5"
-  }
+  },
+  "packageManager": "pnpm@10.28.0"
 }

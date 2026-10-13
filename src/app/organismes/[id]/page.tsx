@@ -284,7 +284,44 @@ export default async function OrganDetailPage({ params, searchParams }: Props) {
               <div className="border-b border-gray-100 px-4 py-3 text-xs text-gray-500">
                 Darrera data ref.: <span className="font-medium text-gray-700">{formatDate(lastAwardDate)}</span>
               </div>
-              <div className="overflow-x-auto">
+              <ul className="md:hidden divide-y divide-gray-100">
+                {recentContracts.map((contract, idx) => {
+                  const bestDate = getBestAvailableContractDate(
+                    contract.data_adjudicacio_contracte,
+                    contract.data_formalitzacio_contracte,
+                    contract.data_publicacio_anunci
+                  );
+                  const publicationUrl = getPublicationUrl(contract.enllac_publicacio);
+                  return (
+                    <li key={`${contract.codi_expedient}-card-${idx}`} className="px-4 py-3">
+                      {publicationUrl ? (
+                        <a
+                          href={publicationUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block text-sm font-medium text-gray-900 line-clamp-2 hover:underline"
+                        >
+                          {contract.denominacio_adjudicatari || "—"}
+                        </a>
+                      ) : (
+                        <p className="text-sm font-medium text-gray-900 line-clamp-2">
+                          {contract.denominacio_adjudicatari || "—"}
+                        </p>
+                      )}
+                      <div className="mt-1 flex items-center justify-between text-xs text-gray-600">
+                        <span>{formatDate(bestDate.date)}</span>
+                        <span className="font-mono text-gray-900">
+                          {contract.import_adjudicacio_sense ? formatCurrency(contract.import_adjudicacio_sense) : "—"}
+                        </span>
+                      </div>
+                    </li>
+                  );
+                })}
+                {recentContracts.length === 0 && (
+                  <li className="px-4 py-6 text-center text-sm text-gray-500">No hi ha contractes recents.</li>
+                )}
+              </ul>
+              <div className="hidden md:block overflow-x-auto">
                 <table className="min-w-[520px] w-full table-auto text-sm">
                   <thead>
                     <tr className="border-b border-gray-100 bg-gray-50">

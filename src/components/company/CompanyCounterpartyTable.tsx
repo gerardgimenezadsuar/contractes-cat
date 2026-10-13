@@ -47,11 +47,11 @@ export default function CompanyCounterpartyTable({
           value={organSearch}
           onChange={(e) => setOrganSearch(e.target.value)}
           placeholder="Filtra per òrgan..."
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+          className="w-full min-h-11 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
         />
       </div>
 
-      <div className="bg-white rounded-lg border border-gray-100 shadow-sm overflow-x-auto">
+      <div className="hidden md:block bg-white rounded-lg border border-gray-100 shadow-sm overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-200 bg-gray-50">
@@ -101,6 +101,42 @@ export default function CompanyCounterpartyTable({
           </tbody>
         </table>
       </div>
+      <ul className="md:hidden space-y-2">
+        {visibleRows.map((organ) => {
+          const organTotal = parseFloat(organ.total) || 0;
+          const organContracts = parseInt(organ.num_contracts, 10) || 0;
+          const share = companyTotalAmount > 0 ? (organTotal / companyTotalAmount) * 100 : 0;
+          return (
+            <li key={`m-${organ.nom_organ}`} className="rounded-lg border border-gray-200 bg-white p-3">
+              <Link
+                href={`/organismes/${encodeURIComponent(organ.nom_organ)}`}
+                className="block text-sm font-semibold text-gray-900 hover:underline break-words"
+              >
+                {organ.nom_organ}
+              </Link>
+              <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                <div>
+                  <p className="text-gray-500">Import</p>
+                  <p className="font-medium text-gray-900">{formatCurrency(organTotal)}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500">Contractes</p>
+                  <p className="font-medium text-gray-900">{formatNumber(organContracts)}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500">% empresa</p>
+                  <p className="font-medium text-gray-900">{share.toFixed(1)}%</p>
+                </div>
+              </div>
+            </li>
+          );
+        })}
+        {visibleRows.length === 0 && (
+          <li className="py-6 text-center text-sm text-gray-500">
+            No hi ha òrgans que coincideixin amb el filtre.
+          </li>
+        )}
+      </ul>
       <p className="mt-2 text-xs text-gray-500">
         Import calculat sobre contractes amb import (amb IVA) informat.
       </p>

@@ -809,6 +809,16 @@ function parseIsoDateFilter(value?: string): string | null {
   return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
 }
 
+/** Inclusive date range on the best available contract date; null when neither bound is valid. */
+function buildDateRangeCondition(dateFrom?: string, dateTo?: string): string | null {
+  const from = parseIsoDateFilter(dateFrom);
+  const to = parseIsoDateFilter(dateTo);
+  const parts: string[] = [];
+  if (from) parts.push(`(${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) >= '${from}T00:00:00'`);
+  if (to) parts.push(`(${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) <= '${to}T23:59:59'`);
+  return parts.length > 0 ? parts.join(" AND ") : null;
+}
+
 function buildAwardeeNifDateScopeCondition(
   windows?: AwardeeNifDateWindow[]
 ): string | null {
@@ -952,6 +962,8 @@ export async function fetchContracts(
     amountMax,
     nom_organ,
     search,
+    dateFrom,
+    dateTo,
     nif,
     page = 1,
     pageSize = DEFAULT_PAGE_SIZE,
@@ -1004,6 +1016,8 @@ export async function fetchContracts(
       ])
     );
   }
+  const dateRangeCondition = buildDateRangeCondition(dateFrom, dateTo);
+  if (dateRangeCondition) conditions.push(dateRangeCondition);
   conditions.push(`(${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) IS NOT NULL`);
   conditions.push(`(${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) <= '${futureCutoffIso}'`);
   conditions.push(AWARDED_CONTRACT_WHERE);
@@ -1026,7 +1040,19 @@ export async function fetchContractsCount(
 ): Promise<number> {
   const conditions: string[] = [];
   const futureCutoffIso = getContractsFutureCutoffIso();
-  const { year, tipus_contracte, procediment, amountMin, amountMax, nom_organ, search, nif, awardee_name } = filters;
+  const {
+    year,
+    tipus_contracte,
+    procediment,
+    amountMin,
+    amountMax,
+    nom_organ,
+    search,
+    dateFrom,
+    dateTo,
+    nif,
+    awardee_name,
+  } = filters;
 
   if (nif) {
     conditions.push(buildAwardeeIdentityCondition(nif, awardee_name));
@@ -1071,6 +1097,8 @@ export async function fetchContractsCount(
       ])
     );
   }
+  const dateRangeCondition = buildDateRangeCondition(dateFrom, dateTo);
+  if (dateRangeCondition) conditions.push(dateRangeCondition);
   conditions.push(`(${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) IS NOT NULL`);
   conditions.push(`(${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) <= '${futureCutoffIso}'`);
   conditions.push(AWARDED_CONTRACT_WHERE);

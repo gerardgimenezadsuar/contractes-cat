@@ -6,6 +6,7 @@ import type { CompanyAggregation } from "@/lib/types";
 import { formatCurrency, formatNumber } from "@/lib/utils";
 import SearchInput from "@/components/ui/SearchInput";
 import Pagination from "@/components/ui/Pagination";
+import { trackEvent } from "@/lib/analytics";
 import { CPV_DIVISIONS, DEFAULT_PAGE_SIZE } from "@/config/constants";
 import { buildCompanyHref } from "@/lib/company-identity";
 
@@ -329,7 +330,8 @@ export default function CompaniesTable({
             page: String(page),
             format: "csv",
           }).toString()}`}
-          className="inline-flex items-center rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+          onClick={() => trackEvent("export_csv", { page: "empreses" })}
+          className="inline-flex min-h-9 items-center rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
         >
           Exporta CSV (vista actual)
         </a>

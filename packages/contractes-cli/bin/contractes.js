@@ -39,6 +39,7 @@ Global options:
 Examples:
   contractes search-contracts --search "neteja" --year 2025 --page 1
   contractes search-contracts --nif B12345678 --sort amount-desc
+  contractes search-contracts --nom-organ "Ajuntament de Girona" --date-from 2025-01-01 --date-to 2025-06-30
   contractes search-companies --search "ferrovial" --page 1
   contractes search-organs --search "ajuntament" --limit 25
   contractes organ-top-companies --organ "Ajuntament de Barcelona" --limit 10
@@ -158,6 +159,8 @@ async function run() {
       ["amount-min", "amountMin"],
       ["amount-max", "amountMax"],
       ["nom-organ", "nom_organ"],
+      ["date-from", "date_from"],
+      ["date-to", "date_to"],
       ["nif", "nif"],
       ["awardee-name", "awardee_name"],
       ["sort", "sort"],

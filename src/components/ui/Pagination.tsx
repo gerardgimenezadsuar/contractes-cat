@@ -39,48 +39,85 @@ export default function Pagination({
     return pages;
   };
 
+  const rangeLabel = `${((currentPage - 1) * pageSize + 1).toLocaleString("ca-ES")}–${Math.min(
+    currentPage * pageSize,
+    totalItems
+  ).toLocaleString("ca-ES")} de ${totalItems.toLocaleString("ca-ES")}`;
+
+  const prevDisabled = currentPage <= 1;
+  const nextDisabled = currentPage >= totalPages;
+
   return (
-    <div className="flex items-center justify-between mt-4">
-      <p className="text-sm text-gray-600">
-        {((currentPage - 1) * pageSize + 1).toLocaleString("ca-ES")}–
-        {Math.min(currentPage * pageSize, totalItems).toLocaleString("ca-ES")}{" "}
-        de {totalItems.toLocaleString("ca-ES")}
-      </p>
-      <div className="flex items-center gap-1">
-        <button
-          onClick={() => onPageChange(currentPage - 1)}
-          disabled={currentPage <= 1}
-          className="px-3 py-1.5 text-sm rounded border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-        >
-          Anterior
-        </button>
-        {getPageNumbers().map((page) =>
-          page === "dots-left" || page === "dots-right" ? (
-            <span key={page} className="px-2 text-gray-400">
-              ...
-            </span>
-          ) : (
-            <button
-              key={page}
-              onClick={() => onPageChange(page as number)}
-              className={`px-3 py-1.5 text-sm rounded border ${
-                page === currentPage
-                  ? "bg-gray-900 text-white border-gray-900"
-                  : "border-gray-300 hover:bg-gray-50"
-              }`}
-            >
-              {page}
-            </button>
-          )
-        )}
-        <button
-          onClick={() => onPageChange(currentPage + 1)}
-          disabled={currentPage >= totalPages}
-          className="px-3 py-1.5 text-sm rounded border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-        >
-          Següent
-        </button>
+    <nav className="mt-4" aria-label="Paginació">
+      {/* Mobile: previous / page x of y / next with large touch targets */}
+      <div className="sm:hidden">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onPageChange(currentPage - 1)}
+            disabled={prevDisabled}
+            className="min-h-11 flex-1 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed active:bg-gray-50"
+          >
+            ← Anterior
+          </button>
+          <span className="shrink-0 px-1 text-xs text-gray-600 whitespace-nowrap">
+            Pàg. {currentPage.toLocaleString("ca-ES")} de {totalPages.toLocaleString("ca-ES")}
+          </span>
+          <button
+            type="button"
+            onClick={() => onPageChange(currentPage + 1)}
+            disabled={nextDisabled}
+            className="min-h-11 flex-1 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed active:bg-gray-50"
+          >
+            Següent →
+          </button>
+        </div>
+        <p className="mt-2 text-center text-xs text-gray-500">{rangeLabel}</p>
       </div>
-    </div>
+
+      {/* Desktop: numbered pages */}
+      <div className="hidden sm:flex items-center justify-between">
+        <p className="text-sm text-gray-600">{rangeLabel}</p>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => onPageChange(currentPage - 1)}
+            disabled={prevDisabled}
+            className="px-3 py-1.5 text-sm rounded border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+          >
+            Anterior
+          </button>
+          {getPageNumbers().map((page) =>
+            page === "dots-left" || page === "dots-right" ? (
+              <span key={page} className="px-2 text-gray-400">
+                ...
+              </span>
+            ) : (
+              <button
+                type="button"
+                key={page}
+                onClick={() => onPageChange(page as number)}
+                aria-current={page === currentPage ? "page" : undefined}
+                className={`px-3 py-1.5 text-sm rounded border ${
+                  page === currentPage
+                    ? "bg-gray-900 text-white border-gray-900"
+                    : "border-gray-300 hover:bg-gray-50"
+                }`}
+              >
+                {page}
+              </button>
+            )
+          )}
+          <button
+            type="button"
+            onClick={() => onPageChange(currentPage + 1)}
+            disabled={nextDisabled}
+            className="px-3 py-1.5 text-sm rounded border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+          >
+            Següent
+          </button>
+        </div>
+      </div>
+    </nav>
   );
 }
