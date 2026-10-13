@@ -46,7 +46,10 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  const data = await fetchOrgans(offset, limit, search || undefined, { includeCurrentYear });
+  const [data, total] = await Promise.all([
+    fetchOrgans(offset, limit, search || undefined, { includeCurrentYear }),
+    includeTotal ? fetchOrgansCount(search || undefined) : Promise.resolve(undefined),
+  ]);
 
   if (!includeTotal) {
     return NextResponse.json(
@@ -58,8 +61,6 @@ export async function GET(request: NextRequest) {
       }
     );
   }
-
-  const total = await fetchOrgansCount(search || undefined);
 
   return NextResponse.json(
     { data, total },

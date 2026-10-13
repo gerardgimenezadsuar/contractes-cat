@@ -379,17 +379,22 @@ export async function fetchCompanies(
   const searchCondition = search ? buildAwardeeSearchCondition(search) : null;
   const conditions = searchCondition ? [...baseConditions, searchCondition] : baseConditions;
 
-  // Over-fetch then merge by NIF to handle name variations. When searching,
-  // fetch a bit more so relevance ranking has candidates beyond the top totals.
-  const fetchLimit = (offset + limit) * (searchCondition ? 8 : 6);
-  const raw = await soqlFetch<CompanyAggregation>({
-    $select:
-      "identificacio_adjudicatari, denominacio_adjudicatari, sum(import_adjudicacio_amb_iva::number) as total, count(*) as num_contracts",
-    $where: conditions.join(" AND "),
-    $group: "identificacio_adjudicatari, denominacio_adjudicatari",
-    $order: "total DESC",
-    $limit: String(fetchLimit),
-  });
+  // Over-fetch then merge by NIF to handle name variations. A search fetches
+  // the same candidate set as fetchCompaniesCount (identical query, so the two
+  // share one Socrata request) and ranks it in the app.
+  const fetchLimit = searchCondition ? EXACT_COUNT_SCAN_LIMIT : (offset + limit) * 6;
+  const raw = await soqlFetch<CompanyAggregation>(
+    searchCondition
+      ? buildCompanyCandidatesQuery(conditions)
+      : {
+          $select:
+            "identificacio_adjudicatari, denominacio_adjudicatari, sum(import_adjudicacio_amb_iva::number) as total, count(*) as num_contracts",
+          $where: conditions.join(" AND "),
+          $group: "identificacio_adjudicatari, denominacio_adjudicatari",
+          $order: "total DESC",
+          $limit: String(fetchLimit),
+        }
+  );
 
   const merged = mergeByNif(raw);
   const ordered = parsed
@@ -469,6 +474,28 @@ export async function fetchCompanies(
 // to fetch in one query; beyond that the backend's own count is used.
 const EXACT_COUNT_SCAN_LIMIT = 3000;
 
+function buildCompanyCandidatesQuery(conditions: string[]): Record<string, string> {
+  return {
+    $select:
+      "identificacio_adjudicatari, denominacio_adjudicatari, sum(import_adjudicacio_amb_iva::number) as total, count(*) as num_contracts",
+    $where: conditions.join(" AND "),
+    $group: "identificacio_adjudicatari, denominacio_adjudicatari",
+    $order: "total DESC",
+    $limit: String(EXACT_COUNT_SCAN_LIMIT),
+  };
+}
+
+function buildOrganCandidatesQuery(conditions: string[]): Record<string, string> {
+  return {
+    $select:
+      "nom_organ, sum(import_adjudicacio_amb_iva::number) as total, count(*) as num_contracts",
+    $where: conditions.join(" AND "),
+    $group: "nom_organ",
+    $order: "total DESC",
+    $limit: String(EXACT_COUNT_SCAN_LIMIT),
+  };
+}
+
 export async function fetchCompaniesCount(
   search?: string,
   cpvFilters?: string[]
@@ -491,13 +518,7 @@ export async function fetchCompaniesCount(
     // The LIKE patterns over-match (vowel wildcards); count what the search
     // page would actually list by fetching the candidate groups and scoring
     // them, as long as the set is small enough to fetch in one go.
-    const candidates = await soqlFetch<CompanyAggregation>({
-      $select:
-        "identificacio_adjudicatari, denominacio_adjudicatari, sum(import_adjudicacio_amb_iva::number) as total, count(*) as num_contracts",
-      $where: conditions.join(" AND "),
-      $group: "identificacio_adjudicatari, denominacio_adjudicatari",
-      $limit: String(EXACT_COUNT_SCAN_LIMIT),
-    });
+    const candidates = await soqlFetch<CompanyAggregation>(buildCompanyCandidatesQuery(conditions));
     if (candidates.length < EXACT_COUNT_SCAN_LIMIT) {
       return mergeByNif(candidates).filter(
         (row) => scoreNameMatch(row.denominacio_adjudicatari, parsed) > 0
@@ -584,15 +605,7 @@ export async function fetchOrgans(
   if (parsed && searchCondition) {
     // Rank matches by how well the name fits the query, not only by amount:
     // "ics" should list the ICS before every organ merely containing "ics".
-    const candidateLimit = Math.min(500, Math.max(200, (offset + limit) * 4));
-    const candidates = await soqlFetch<OrganAggregation>({
-      $select:
-        "nom_organ, sum(import_adjudicacio_amb_iva::number) as total, count(*) as num_contracts",
-      $where: conditions.join(" AND "),
-      $group: "nom_organ",
-      $order: "total DESC",
-      $limit: String(candidateLimit),
-    });
+    const candidates = await soqlFetch<OrganAggregation>(buildOrganCandidatesQuery(conditions));
     rows = rankByMatch(
       candidates,
       parsed,
@@ -647,12 +660,7 @@ export async function fetchOrgansCount(search?: string): Promise<number> {
   }
 
   if (parsed) {
-    const candidates = await soqlFetch<{ nom_organ: string }>({
-      $select: "nom_organ",
-      $where: conditions.join(" AND "),
-      $group: "nom_organ",
-      $limit: String(EXACT_COUNT_SCAN_LIMIT),
-    });
+    const candidates = await soqlFetch<OrganAggregation>(buildOrganCandidatesQuery(conditions));
     if (candidates.length < EXACT_COUNT_SCAN_LIMIT) {
       return candidates.filter((row) => scoreNameMatch(row.nom_organ, parsed) > 0).length;
     }

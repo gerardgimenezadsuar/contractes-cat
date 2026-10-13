@@ -16,10 +16,30 @@ class NonRetryableError extends Error {}
  * timeouts, 429/5xx responses and truncated bodies are retried with backoff;
  * other 4xx responses (bad queries) fail immediately.
  */
-export async function socrataFetch<T>(
+// Identical queries issued while one is already running share its promise
+// (e.g. a search list and its count read the same candidate set). Entries are
+// removed as soon as the request settles, so this never serves stale data.
+const inFlight = new Map<string, Promise<unknown>>();
+
+export function socrataFetch<T>(
   baseUrl: string,
   params: Record<string, string>,
   label = "Socrata"
+): Promise<T[]> {
+  const key = `${baseUrl}?${new URLSearchParams(params).toString()}`;
+  const pending = inFlight.get(key);
+  if (pending) return pending as Promise<T[]>;
+  const request = socrataFetchUncached<T>(baseUrl, params, label).finally(() => {
+    inFlight.delete(key);
+  });
+  inFlight.set(key, request);
+  return request;
+}
+
+async function socrataFetchUncached<T>(
+  baseUrl: string,
+  params: Record<string, string>,
+  label: string
 ): Promise<T[]> {
   const url = new URL(baseUrl);
   if (SOCRATA_ORIGIN_OVERRIDE) {

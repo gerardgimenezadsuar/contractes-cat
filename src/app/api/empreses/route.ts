@@ -68,13 +68,24 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  const data = await fetchCompanies(
+  // List and count run concurrently; for a search they share the same
+  // candidate query, so this costs a single Socrata round trip.
+  const dataPromise = fetchCompanies(
     offset,
     DEFAULT_PAGE_SIZE,
     search || undefined,
     cpvFilters.length > 0 ? cpvFilters : undefined,
     { includeCurrentYear }
   );
+  const totalPromise = includeTotal
+    ? fetchCompaniesCount(search || undefined, cpvFilters.length > 0 ? cpvFilters : undefined).catch(
+        (error: unknown) => {
+          console.error("fetchCompaniesCount failed:", error);
+          return undefined;
+        }
+      )
+    : Promise.resolve(undefined);
+  const [data, total] = await Promise.all([dataPromise, totalPromise]);
 
   if (!includeTotal) {
     return NextResponse.json(
@@ -87,15 +98,8 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  let total: number | undefined;
-  try {
-    total = await fetchCompaniesCount(
-      search || undefined,
-      cpvFilters.length > 0 ? cpvFilters : undefined
-    );
-  } catch (error) {
+  if (total === undefined) {
     // Return the rows anyway; the client keeps its previous total.
-    console.error("fetchCompaniesCount failed:", error);
     return NextResponse.json({ data }, { headers: { "Cache-Control": "no-store" } });
   }
 
