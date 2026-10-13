@@ -1,13 +1,21 @@
 import { test, expect, type Page } from "@playwright/test";
 
+// Against a live deployment (E2E_BASE_URL) only the tests that don't depend on
+// the mock fixture run; entity pages and fixture names are mock-only.
+const LIVE = Boolean(process.env.E2E_BASE_URL);
+
 const PAGES = [
   { path: "/", heading: "Contractació pública a Catalunya" },
   { path: "/contractes", heading: "Explorador de contractes" },
   { path: "/empreses", heading: "Empreses adjudicatàries" },
   { path: "/organismes", heading: /Organismes/ },
   { path: "/analisi", heading: "Anàlisi ciutadana" },
-  { path: "/empreses/A08000001", heading: "EMPRESA MOCK U SL" },
-  { path: "/organismes/Ajuntament%20de%20Barcelona", heading: "Ajuntament de Barcelona" },
+  ...(LIVE
+    ? [{ path: "/organismes/Ajuntament%20de%20Barcelona", heading: "Ajuntament de Barcelona" }]
+    : [
+        { path: "/empreses/A08000001", heading: "EMPRESA MOCK U SL" },
+        { path: "/organismes/Ajuntament%20de%20Barcelona", heading: "Ajuntament de Barcelona" },
+      ]),
 ];
 
 async function expectNoHorizontalOverflow(page: Page) {
@@ -49,6 +57,7 @@ test("contracts API accepts date range and sort", async ({ request }) => {
 });
 
 test("contracts table links awardee and organ", async ({ page }) => {
+  test.skip(LIVE, "fixture names only exist in the mock");
   await page.goto("/contractes");
   const awardee = page.getByRole("link", { name: "EMPRESA MOCK U SL" }).first();
   await expect(awardee).toHaveAttribute("href", /\/empreses\/A08000001/);

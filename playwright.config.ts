@@ -6,6 +6,10 @@ import { defineConfig, devices } from "@playwright/test";
 const APP_PORT = 3100;
 const MOCK_PORT = 4545;
 
+// Set E2E_BASE_URL (e.g. https://www.contractes.cat) to run the deployment-safe
+// subset of the suite against a live site instead of the local build + mock.
+const EXTERNAL_BASE_URL = process.env.E2E_BASE_URL;
+
 export default defineConfig({
   testDir: "./tests/e2e",
   timeout: 60_000,
@@ -13,7 +17,7 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
   use: {
-    baseURL: `http://127.0.0.1:${APP_PORT}`,
+    baseURL: EXTERNAL_BASE_URL || `http://127.0.0.1:${APP_PORT}`,
     trace: "retain-on-failure",
   },
   projects: [
@@ -21,7 +25,9 @@ export default defineConfig({
     { name: "mobile", use: { ...devices["iPhone 13"], browserName: "chromium", defaultBrowserType: "chromium" } },
     { name: "desktop", use: { ...devices["Desktop Chrome"] } },
   ],
-  webServer: [
+  webServer: EXTERNAL_BASE_URL
+    ? undefined
+    : [
     {
       command: `node tests/mock-socrata/server.mjs ${MOCK_PORT}`,
       url: `http://127.0.0.1:${MOCK_PORT}/health`,
