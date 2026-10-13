@@ -194,6 +194,9 @@ export default function PersonSearchExplorer({
         </div>
       </div>
 
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        {canSearch && !loading && hasResultForCurrentQuery && `${formatNumber(total)} resultats trobats per a ${trimmed}`}
+      </div>
       {canSearch && !loading && (
         hasResultForCurrentQuery ? (
           <p className="mb-3 text-sm text-gray-500">
