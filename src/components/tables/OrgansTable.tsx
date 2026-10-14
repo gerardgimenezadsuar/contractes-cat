@@ -27,6 +27,7 @@ export default function OrgansTable({
   const [search, setSearch] = useState(initialSearch);
   const [page, setPage] = useState(initialPage);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const totalDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -45,11 +46,16 @@ export default function OrgansTable({
       const res = await fetch(`/api/organismes?${params.toString()}`, {
         signal: controller.signal,
       });
+      if (!res.ok) throw new Error(`Request failed with status ${res.status}`);
       const json = await res.json();
+      if (controller.signal.aborted) return;
       setData(json.data);
       if (typeof json.total === "number") setTotal(json.total);
+      setError(false);
     } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") return;
+      if (controller.signal.aborted) return;
+      // Keep the rows already on screen; tell the user the refresh failed.
+      setError(true);
       console.error("Error fetching organismes:", err);
     } finally {
       if (!controller.signal.aborted) setLoading(false);
@@ -126,6 +132,21 @@ export default function OrgansTable({
         </a>
       </div>
 
+      {error && (
+        <div
+          role="alert"
+          className="mb-3 flex flex-col gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <span>{"No s'han pogut actualitzar els resultats. La font de dades no ha respost."}</span>
+          <button
+            type="button"
+            onClick={() => fetchData(search, page, true)}
+            className="min-h-10 rounded-lg border border-amber-300 bg-white px-4 text-sm font-medium text-gray-900 hover:bg-amber-100"
+          >
+            Torna-ho a provar
+          </button>
+        </div>
+      )}
       <div className={`hidden md:block transition-opacity ${loading ? "opacity-50" : ""}`}>
         <table className="w-full table-fixed text-sm">
           <thead>
