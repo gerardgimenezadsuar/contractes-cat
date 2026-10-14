@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { cache } from "react";
 import {
+  COMPETITION_SINCE_YEAR,
+  fetchCataloniaCompetition,
+  fetchCompanyCompetition,
   fetchCompanyDetail,
   fetchCompanyContracts,
   fetchCompanyContractsCount,
@@ -9,10 +12,8 @@ import {
   fetchCompanyTopOrgans,
 } from "@/lib/api";
 import { withFallback } from "@/lib/socrata";
-import {
-  formatNumber,
-  formatCompactNumber,
-} from "@/lib/utils";
+import { buildCompanyIndicators, formatCompactEuros, lastCompleteYear, toYearlyRows } from "@/lib/indicators";
+import { formatNumber, formatCompactNumber, formatDate } from "@/lib/utils";
 import { safeJsonLd } from "@/lib/seo/jsonld";
 import {
   buildEntityBreadcrumbJsonLd,
@@ -20,13 +21,16 @@ import {
   buildEntityMetadata,
   buildEntityPrimaryJsonLd,
 } from "@/lib/seo/entity-seo";
-import StatCard from "@/components/ui/StatCard";
 import { YearlyTrendChartLazy } from "@/components/charts/LazyCharts";
 import CompanyContractsExplorer from "@/components/company/CompanyContractsExplorer";
 import SharePageButton from "@/components/ui/SharePageButton";
 import CompanyCounterpartyTable from "@/components/company/CompanyCounterpartyTable";
 import BormeSummaryCard from "@/components/company/BormeSummaryCard";
+import EntityHeader, { type HeaderChip, type KeyFigure } from "@/components/entity/EntityHeader";
+import SectionTabs from "@/components/entity/SectionTabs";
+import { IndicatorGrid } from "@/components/entity/IndicatorCard";
 import { loadAdminHistory } from "@/lib/borme";
+import { isAmbiguousCompanyId } from "@/lib/company-identity";
 
 export const revalidate = 21600;
 
@@ -35,9 +39,7 @@ interface Props {
   searchParams: Promise<{ name?: string }>;
 }
 
-const getCompanyDetail = cache(async (id: string, companyName?: string) =>
-  fetchCompanyDetail(id, companyName)
-);
+const getCompanyDetail = cache(async (id: string, companyName?: string) => fetchCompanyDetail(id, companyName));
 
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const { id } = await params;
@@ -49,9 +51,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const totalAmount = parseFloat(company?.total || "0");
   const totalContracts = parseInt(company?.num_contracts || "0", 10);
   const description = company
-    ? `${formatCompactNumber(totalAmount)} adjudicats en ${formatNumber(
-        totalContracts
-      )} contractes públics a ${companyName}.`
+    ? `${formatCompactNumber(totalAmount)} adjudicats en ${formatNumber(totalContracts)} contractes públics a ${companyName}.`
     : `Detall dels contractes públics adjudicats a ${companyName}.`;
 
   const entityPath = `/empreses/${encodeURIComponent(canonicalCompanyId)}`;
@@ -61,12 +61,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     path: entityPath,
     imagePath: `${entityPath}/opengraph-image`,
     imageAlt: `Resum de contractació pública de ${companyName}`,
-    keywords: [
-      companyName,
-      decodedId,
-      `${companyName} contractes`,
-      "contractació pública Catalunya",
-    ],
+    keywords: [companyName, decodedId, `${companyName} contractes`, "contractació pública Catalunya"],
     openGraphType: "article",
   });
 }
@@ -76,41 +71,62 @@ export default async function CompanyDetailPage({ params, searchParams }: Props)
   const { name } = await searchParams;
   const decodedId = decodeURIComponent(id);
 
-  const [{ company, yearly }, contracts, contractsCount, topOrgans, lastAwardDate] = await Promise.all([
-    getCompanyDetail(decodedId, name),
-    withFallback(fetchCompanyContracts(decodedId, name, 0, 50), [], "fetchCompanyContracts"),
-    withFallback(fetchCompanyContractsCount(decodedId, name), 0, "fetchCompanyContractsCount"),
-    withFallback(fetchCompanyTopOrgans(decodedId, name, 10), [], "fetchCompanyTopOrgans"),
-    withFallback(fetchCompanyLastAwardDate(decodedId, name), undefined, "fetchCompanyLastAwardDate"),
-  ]);
-
-  const adminHistory = await loadAdminHistory(decodedId);
-  const hasBormeData = Boolean(adminHistory && adminHistory.spans.length > 0);
+  const { company, yearly } = await getCompanyDetail(decodedId, name);
 
   if (!company) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="mx-auto max-w-7xl px-4 py-8">
         <p className="text-gray-500">No s&apos;ha trobat l&apos;empresa.</p>
-        <Link href="/empreses" className="text-blue-600 hover:underline mt-4 inline-block">
+        <Link href="/empreses" className="mt-4 inline-block text-accent hover:underline">
           Tornar a empreses
         </Link>
       </div>
     );
   }
 
+  const nif = company.identificacio_adjudicatari;
+  const canMeasureCompetition = !isAmbiguousCompanyId(nif);
+  const [contracts, contractsCount, topOrgans, lastAwardDate, competition, baseline, adminHistory] = await Promise.all([
+    withFallback(fetchCompanyContracts(decodedId, name, 0, 50), [], "fetchCompanyContracts"),
+    withFallback(fetchCompanyContractsCount(decodedId, name), 0, "fetchCompanyContractsCount"),
+    withFallback(fetchCompanyTopOrgans(decodedId, name, 10), [], "fetchCompanyTopOrgans"),
+    withFallback(fetchCompanyLastAwardDate(decodedId, name), undefined, "fetchCompanyLastAwardDate"),
+    canMeasureCompetition
+      ? withFallback(fetchCompanyCompetition(nif), null, "fetchCompanyCompetition")
+      : Promise.resolve(null),
+    canMeasureCompetition
+      ? withFallback(fetchCataloniaCompetition(), null, "fetchCataloniaCompetition")
+      : Promise.resolve(null),
+    loadAdminHistory(decodedId),
+  ]);
+  const hasBormeData = Boolean(adminHistory && adminHistory.spans.length > 0);
+
   const totalAmount = parseFloat(company.total);
   const numContracts = parseInt(company.num_contracts, 10);
   const currentYear = new Date().getFullYear();
-  const currentYearRow = yearly.find((row) => parseInt(row.year, 10) === currentYear);
-  const currentYearContracts = currentYearRow ? parseInt(currentYearRow.num_contracts, 10) || 0 : 0;
-  const currentYearAmount = currentYearRow ? parseFloat(currentYearRow.total) || 0 : 0;
-  const currentYearContractsSubtitle = currentYearRow
-    ? `Total històric: ${formatNumber(numContracts)}`
-    : `Sense dades ${currentYear}. Total històric: ${formatNumber(numContracts)}`;
-  const currentYearAmountSubtitle = currentYearRow
-    ? `Total històric: ${formatCompactNumber(totalAmount)}`
-    : `Sense dades ${currentYear}. Total històric: ${formatCompactNumber(totalAmount)}`;
-  const entityPath = `/empreses/${encodeURIComponent(company.identificacio_adjudicatari)}`;
+  const yearlyRows = toYearlyRows(yearly);
+  const lastYear = lastCompleteYear(yearlyRows);
+  const currentRow = yearlyRows.find((row) => row.year === currentYear) ?? null;
+  const indicators = buildCompanyIndicators(competition, baseline, COMPETITION_SINCE_YEAR);
+
+  const figures: KeyFigure[] = [
+    { label: "Total adjudicat", value: formatCompactEuros(totalAmount), note: "IVA inclòs, tots els anys" },
+    { label: "Contractes", value: formatNumber(numContracts), note: "publicats al portal" },
+    lastYear
+      ? { label: `Adjudicat el ${lastYear.year}`, value: formatCompactEuros(lastYear.total), note: `${formatNumber(lastYear.contracts)} contractes` }
+      : { label: `Adjudicat el ${currentYear}`, value: formatCompactEuros(currentRow?.total ?? 0), note: "any en curs" },
+    {
+      label: `Adjudicat el ${currentYear}`,
+      value: formatCompactEuros(currentRow?.total ?? 0),
+      note: currentRow ? `${formatNumber(currentRow.contracts)} contractes, any en curs` : "sense dades encara",
+    },
+  ];
+
+  const chips: HeaderChip[] = [{ label: "NIF", value: nif, mono: true }];
+  if (lastAwardDate) chips.push({ label: "Darrera adjudicació", value: formatDate(lastAwardDate) });
+  if (hasBormeData && adminHistory?.matched_name) chips.push({ label: "BORME", value: adminHistory.matched_name });
+
+  const entityPath = `/empreses/${encodeURIComponent(nif)}`;
   const companyDescription = `${formatCompactNumber(totalAmount)} adjudicats en ${formatNumber(numContracts)} contractes públics a ${company.denominacio_adjudicatari}.`;
   const jsonLd = buildEntityJsonLdGraph(
     buildEntityPrimaryJsonLd({
@@ -118,9 +134,7 @@ export default async function CompanyDetailPage({ params, searchParams }: Props)
       name: company.denominacio_adjudicatari,
       path: entityPath,
       description: companyDescription,
-      extraFields: {
-        identifier: company.identificacio_adjudicatari,
-      },
+      extraFields: { identifier: nif },
     }),
     buildEntityBreadcrumbJsonLd([
       { name: "Inici", path: "/" },
@@ -129,86 +143,70 @@ export default async function CompanyDetailPage({ params, searchParams }: Props)
     ])
   );
 
+  const tabs = [
+    { id: "resum", label: "Resum" },
+    ...(topOrgans.length > 0 ? [{ id: "organismes", label: "Organismes" }] : []),
+    ...(hasBormeData ? [{ id: "administradors", label: "Administradors" }] : []),
+    { id: "contractes", label: "Contractes" },
+  ];
+
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="mx-auto max-w-7xl px-4 pb-8">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
 
-      <Link
-        href="/empreses"
-        className="text-sm text-gray-500 hover:text-gray-900 mb-4 inline-block"
-      >
-        &larr; Tornar a empreses
-      </Link>
+      <EntityHeader
+        backHref="/empreses"
+        backLabel="Tornar a empreses"
+        eyebrow="Empresa adjudicatària"
+        title={company.denominacio_adjudicatari}
+        chips={chips}
+        figures={figures}
+        actions={<SharePageButton className="shrink-0" />}
+      />
+      <SectionTabs tabs={tabs} />
 
-      <div className="mb-1 flex items-start justify-between gap-3">
-        <h1 className="text-3xl font-bold text-gray-900">
-          {company.denominacio_adjudicatari}
-        </h1>
-        <SharePageButton className="shrink-0" />
-      </div>
-      <p className="text-gray-500 font-mono mb-8">
-        NIF: {company.identificacio_adjudicatari}
-      </p>
+      <section id="resum" className="scroll-mt-32 pt-8">
+        {indicators.length > 0 ? (
+          <>
+            <div className="mb-3 flex items-baseline justify-between gap-3">
+              <h2 className="font-display text-xl font-semibold text-gray-900">Com guanya els contractes</h2>
+              <Link href="/metodologia" className="text-sm text-accent hover:underline">
+                Metodologia
+              </Link>
+            </div>
+            <IndicatorGrid indicators={indicators} />
+          </>
+        ) : null}
 
-      <section
-        className={`mb-10 ${
-          hasBormeData
-            ? "grid grid-cols-1 xl:grid-cols-12 gap-6 items-start"
-            : "flex justify-center"
-        }`}
-      >
-        <div className={`${hasBormeData ? "xl:col-span-7" : "w-full xl:max-w-4xl"}`}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <StatCard
-              title={`Import adjudicat ${currentYear}`}
-              value={formatCompactNumber(currentYearAmount)}
-              subtitle={currentYearAmountSubtitle}
-              compact
-            />
-            <StatCard
-              title={`Contractes ${currentYear}`}
-              value={formatNumber(currentYearContracts)}
-              subtitle={currentYearContractsSubtitle}
-              compact
-            />
-          </div>
-
-          <div className="mt-4">
-            <h2 className="text-2xl font-bold text-gray-900 mb-3">Evolució anual</h2>
-            <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
+        <div className={`grid grid-cols-1 gap-6 ${indicators.length > 0 ? "mt-8" : ""} xl:grid-cols-5`}>
+          <div className="min-w-0 xl:col-span-3">
+            <h2 className="mb-3 font-display text-xl font-semibold text-gray-900">Import adjudicat per any</h2>
+            <div className="rounded-lg border border-gray-200 bg-white p-4">
               {yearly.length > 0 ? (
-                <YearlyTrendChartLazy data={yearly} />
+                <YearlyTrendChartLazy data={yearly} color="#0f5e63" />
               ) : (
                 <p className="text-sm text-gray-500">No hi ha prou dades anuals per mostrar la gràfica.</p>
               )}
             </div>
           </div>
-        </div>
-
-        <div className="xl:col-span-5 space-y-4">
-          {hasBormeData && (
-            <BormeSummaryCard
-              spans={adminHistory?.spans || []}
-              matchedName={adminHistory?.matched_name || ""}
-              compact
-            />
-          )}
+          {hasBormeData ? (
+            <div id="administradors" className="min-w-0 scroll-mt-32 xl:col-span-2">
+              <h2 className="mb-3 font-display text-xl font-semibold text-gray-900">Administradors (BORME)</h2>
+              <BormeSummaryCard spans={adminHistory?.spans || []} matchedName={adminHistory?.matched_name || ""} compact />
+            </div>
+          ) : null}
         </div>
       </section>
 
-      {/* Counterparties */}
-      {topOrgans.length > 0 && (
-        <CompanyCounterpartyTable
-          rows={topOrgans}
-          companyTotalAmount={totalAmount}
-          lastAwardDate={lastAwardDate}
-        />
-      )}
+      {topOrgans.length > 0 ? (
+        <section id="organismes" className="scroll-mt-32 pt-10">
+          <CompanyCounterpartyTable rows={topOrgans} companyTotalAmount={totalAmount} lastAwardDate={lastAwardDate} />
+        </section>
+      ) : null}
 
-      {/* Full contracts with pagination */}
-      <section>
+      <section id="contractes" className="scroll-mt-32 pt-10">
         <CompanyContractsExplorer
-          nif={company.identificacio_adjudicatari}
+          nif={nif}
           awardeeName={company.denominacio_adjudicatari}
           initialContracts={contracts}
           totalContracts={contractsCount}

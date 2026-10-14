@@ -63,6 +63,9 @@ export interface OrganYearAggregation {
   year: string;
   total: string;
   num_contracts: string;
+  /** Amount and count of "Contracte menor" rows within the year (organ detail only). */
+  minors_total?: string;
+  minors_count?: string;
 }
 
 export interface ProcedureAggregation {

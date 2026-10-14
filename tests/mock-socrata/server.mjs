@@ -131,6 +131,11 @@ function valueFor(column, i, where) {
   }
   if (c === "nom_organ") return extractEquality(where, "nom_organ") || ORGANS[i % ORGANS.length];
   if (c === "procediment") return PROCEDURES[i % PROCEDURES.length];
+  // Indicator aggregates (competition, municipality code)
+  if (c === "codi_ine10") return "0801930008";
+  if (c === "avg_offers") return "3.2";
+  if (c === "single" || c === "n_capped") return String(Math.max(1, 400 - i * 30));
+  if (c.includes("capped") || c.includes("_total")) return String(2_000_000 - i * 100_000);
   if (c === "tipus_contracte") return TYPES[i % TYPES.length];
   if (c === "codi_cpv") return CPVS[i % CPVS.length];
   if (c.includes("amount") || c === "total_current_year") return String(5_000_000 - i * 350_000 + 0.5);

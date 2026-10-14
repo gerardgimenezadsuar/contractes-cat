@@ -10,12 +10,26 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-source-serif);
+}
+
+/* Design tokens. The accent is reserved for navigation and emphasis; good,
+   warn and bad carry meaning (comparisons, risk) and are never decorative. */
+@theme {
+  --color-accent: #0f5e63;
+  --color-accent-soft: #e2efee;
+  --color-good: #2a6a3b;
+  --color-good-soft: #e3efe3;
+  --color-warn: #8a5a00;
+  --color-warn-soft: #f7ead1;
+  --color-bad: #9a2f2f;
+  --color-bad-soft: #f6e0dd;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), "Helvetica Neue", Arial, sans-serif;
 }
 
 /* Prevent iOS auto-zoom on input focus — 16px is the minimum to avoid it */

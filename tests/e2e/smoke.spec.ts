@@ -10,6 +10,7 @@ const PAGES = [
   { path: "/empreses", heading: "Empreses adjudicatàries" },
   { path: "/organismes", heading: /Organismes/ },
   { path: "/analisi", heading: "Anàlisi ciutadana" },
+  { path: "/metodologia", heading: "Com es calculen els indicadors" },
   ...(LIVE
     ? [{ path: "/organismes/Ajuntament%20de%20Barcelona", heading: "Ajuntament de Barcelona" }]
     : [
@@ -36,6 +37,22 @@ for (const { path, heading } of PAGES) {
     expect(errors).toEqual([]);
   });
 }
+
+test("entity pages show the header figures, tabs and indicators", async ({ page }) => {
+  test.skip(LIVE, "fixture-dependent");
+  await page.goto("/organismes/Ajuntament%20de%20Barcelona");
+  await expect(page.getByRole("navigation", { name: "Seccions de la pàgina" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Com contracta" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Ofertes per licitació" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Metodologia" })).toHaveAttribute("href", "/metodologia");
+  await expect(page.getByText("Total adjudicat")).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+
+  await page.goto("/empreses/A08000001");
+  await expect(page.getByRole("navigation", { name: "Seccions de la pàgina" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Com guanya els contractes" })).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+});
 
 test("manifest and icons are served", async ({ request }) => {
   const manifest = await request.get("/manifest.webmanifest");

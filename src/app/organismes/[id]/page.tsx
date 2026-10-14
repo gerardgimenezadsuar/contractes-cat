@@ -2,20 +2,27 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { cache } from "react";
 import {
+  COMPETITION_SINCE_YEAR,
+  fetchCataloniaCompetition,
+  fetchOrganCompetition,
   fetchOrganDetail,
+  fetchOrganIneCode,
   fetchOrganRecentContracts,
   fetchOrganTopCompanies,
 } from "@/lib/api";
 import { withFallback } from "@/lib/socrata";
 import { fetchCurrentEnsOfficeHolders } from "@/lib/electes";
+import { municipalityFromIne10 } from "@/lib/idescat";
 import {
-  formatCurrency,
-  formatNumber,
-  formatCompactNumber,
-  getBestAvailableContractDate,
-  getPublicationUrl,
-  formatDate,
-} from "@/lib/utils";
+  buildOrganIndicators,
+  formatCompactEuros,
+  formatDecimal,
+  formatEuros,
+  lastCompleteYear,
+  perInhabitant,
+  toYearlyRows,
+} from "@/lib/indicators";
+import { formatNumber, formatCompactNumber } from "@/lib/utils";
 import { safeJsonLd } from "@/lib/seo/jsonld";
 import {
   buildEntityBreadcrumbJsonLd,
@@ -23,14 +30,21 @@ import {
   buildEntityMetadata,
   buildEntityPrimaryJsonLd,
 } from "@/lib/seo/entity-seo";
-import StatCard from "@/components/ui/StatCard";
 import { YearlyTrendChartLazy } from "@/components/charts/LazyCharts";
 import SharePageButton from "@/components/ui/SharePageButton";
+import EntityHeader, { type HeaderChip, type KeyFigure } from "@/components/entity/EntityHeader";
+import SectionTabs from "@/components/entity/SectionTabs";
+import { IndicatorGrid } from "@/components/entity/IndicatorCard";
+import ContextBand from "@/components/entity/ContextBand";
 import OrganContractsExplorer from "@/components/organ/OrganContractsExplorer";
 import OrganTopCompaniesTable from "@/components/organ/OrganTopCompaniesTable";
+import OrganRecentContracts from "@/components/organ/OrganRecentContracts";
+import OrganElectesCard from "@/components/organ/OrganElectesCard";
 
 export const revalidate = 21600;
 const ELECTES_PAGE_SIZE = 10;
+// Supplier concentration is measured from this year on (see /metodologia).
+const CONCENTRATION_SINCE_YEAR = 2023;
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -42,6 +56,16 @@ const getOrganDetail = cache(async (id: string) => fetchOrganDetail(id));
 function readSingleQueryParam(value: string | string[] | undefined): string {
   if (Array.isArray(value)) return value[0] || "";
   return value || "";
+}
+
+function organKind(name: string): string {
+  const n = name.toLowerCase();
+  if (n.startsWith("ajuntament")) return "Ajuntament";
+  if (n.startsWith("consell comarcal")) return "Consell comarcal";
+  if (n.startsWith("diputació")) return "Diputació";
+  if (n.startsWith("departament")) return "Departament de la Generalitat";
+  if (n.startsWith("universitat")) return "Universitat";
+  return "Organisme contractant";
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -63,12 +87,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     path: entityPath,
     imagePath: `${entityPath}/opengraph-image`,
     imageAlt: `Resum de contractació pública de ${organName}`,
-    keywords: [
-      organName,
-      `${organName} contractes`,
-      "organisme contractant",
-      "contractació pública Catalunya",
-    ],
+    keywords: [organName, `${organName} contractes`, "organisme contractant", "contractació pública Catalunya"],
     openGraphType: "article",
   });
 }
@@ -78,328 +97,216 @@ export default async function OrganDetailPage({ params, searchParams }: Props) {
   const decodedId = decodeURIComponent(id);
   const rawElectesPage = readSingleQueryParam(query.electes_page);
   const parsedElectesPage = parseInt(rawElectesPage, 10);
-  const electesPage = Number.isFinite(parsedElectesPage) && parsedElectesPage > 0
-    ? parsedElectesPage
-    : 1;
+  const electesPage = Number.isFinite(parsedElectesPage) && parsedElectesPage > 0 ? parsedElectesPage : 1;
 
-  const [{ organ, yearly }, recentContracts, topCompanies] = await Promise.all([
-    getOrganDetail(decodedId),
-    withFallback(fetchOrganRecentContracts(decodedId, 10), [], "fetchOrganRecentContracts"),
-    withFallback(fetchOrganTopCompanies(decodedId, 10), [], "fetchOrganTopCompanies"),
-  ]);
+  const { organ, yearly } = await getOrganDetail(decodedId);
 
   if (!organ) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="mx-auto max-w-7xl px-4 py-8">
         <p className="text-gray-500">No s&apos;ha trobat l&apos;organisme.</p>
-        <Link href="/organismes" className="text-blue-600 hover:underline mt-4 inline-block">
+        <Link href="/organismes" className="mt-4 inline-block text-accent hover:underline">
           Tornar a organismes
         </Link>
       </div>
     );
   }
 
-  const electes = await withFallback(
-    fetchCurrentEnsOfficeHolders(organ.nom_organ, {
-      page: electesPage,
-      pageSize: ELECTES_PAGE_SIZE,
-    }),
-    {
-      codiEns: null,
-      ensName: null,
-      matchedEnsNames: [],
-      totalCurrentRoles: 0,
-      page: electesPage,
-      pageSize: ELECTES_PAGE_SIZE,
-      rows: [],
-    },
-    "fetchCurrentEnsOfficeHolders"
-  );
+  const organName = organ.nom_organ;
+  const [recentContracts, topCompanies, topSince, ineCode, competition, baseline, electes] = await Promise.all([
+    withFallback(fetchOrganRecentContracts(organName, 10), [], "fetchOrganRecentContracts"),
+    withFallback(fetchOrganTopCompanies(organName, 10), [], "fetchOrganTopCompanies"),
+    withFallback(fetchOrganTopCompanies(organName, 5, CONCENTRATION_SINCE_YEAR), [], "fetchOrganTopCompaniesSince"),
+    withFallback(fetchOrganIneCode(organName), null, "fetchOrganIneCode"),
+    withFallback(fetchOrganCompetition(organName), null, "fetchOrganCompetition"),
+    withFallback(fetchCataloniaCompetition(), null, "fetchCataloniaCompetition"),
+    withFallback(
+      fetchCurrentEnsOfficeHolders(organName, { page: electesPage, pageSize: ELECTES_PAGE_SIZE }),
+      {
+        codiEns: null,
+        ensName: null,
+        matchedEnsNames: [],
+        totalCurrentRoles: 0,
+        page: electesPage,
+        pageSize: ELECTES_PAGE_SIZE,
+        rows: [],
+      },
+      "fetchCurrentEnsOfficeHolders"
+    ),
+  ]);
 
   const totalAmount = parseFloat(organ.total);
   const numContracts = parseInt(organ.num_contracts, 10);
   const currentYear = new Date().getFullYear();
-  const currentYearRow = yearly.find((row) => parseInt(row.year, 10) === currentYear);
-  const currentYearContracts = currentYearRow ? parseInt(currentYearRow.num_contracts, 10) || 0 : 0;
-  const currentYearAmount = currentYearRow ? parseFloat(currentYearRow.total) || 0 : 0;
-  const currentYearContractsSubtitle = currentYearRow
-    ? `Total històric: ${formatNumber(numContracts)}`
-    : `Sense dades ${currentYear}. Total històric: ${formatNumber(numContracts)}`;
-  const currentYearAmountSubtitle = currentYearRow
-    ? `Total històric: ${formatCompactNumber(totalAmount)}`
-    : `Sense dades ${currentYear}. Total històric: ${formatCompactNumber(totalAmount)}`;
+  const yearlyRows = toYearlyRows(yearly);
+  const lastYear = lastCompleteYear(yearlyRows);
+  const currentRow = yearlyRows.find((row) => row.year === currentYear) ?? null;
+  const municipality = organName.toLowerCase().startsWith("ajuntament") ? municipalityFromIne10(ineCode) : null;
 
-  const lastAwardDate = getBestAvailableContractDate(
-    recentContracts[0]?.data_adjudicacio_contracte,
-    recentContracts[0]?.data_formalitzacio_contracte,
-    recentContracts[0]?.data_publicacio_anunci
-  ).date;
-  const entityPath = `/organismes/${encodeURIComponent(organ.nom_organ)}`;
-  const organDescription = `${formatCompactNumber(totalAmount)} adjudicats en ${formatNumber(numContracts)} contractes públics per ${organ.nom_organ}.`;
+  const indicators = buildOrganIndicators({
+    yearly: yearlyRows,
+    population: municipality?.population ?? null,
+    populationYear: municipality?.populationYear ?? null,
+    competition,
+    baseline,
+    topAmountsSince: topSince.map((row) => parseFloat(row.total) || 0),
+    topNameSince: topSince[0]?.denominacio_adjudicatari,
+    sinceYear: CONCENTRATION_SINCE_YEAR,
+    competitionSinceYear: COMPETITION_SINCE_YEAR,
+  });
+
+  const perHab = lastYear ? perInhabitant(lastYear.total, municipality?.population) : null;
+  const figures: KeyFigure[] = [
+    { label: "Total adjudicat", value: formatCompactEuros(totalAmount), note: "IVA inclòs, tots els anys" },
+    { label: "Contractes", value: formatNumber(numContracts), note: "publicats al portal" },
+    lastYear
+      ? {
+          label: `Adjudicat el ${lastYear.year}`,
+          value: formatCompactEuros(lastYear.total),
+          note: `${formatNumber(lastYear.contracts)} contractes`,
+        }
+      : { label: `Adjudicat el ${currentYear}`, value: formatCompactEuros(currentRow?.total ?? 0), note: "any en curs" },
+    perHab !== null && lastYear
+      ? { label: `Per habitant, ${lastYear.year}`, value: formatEuros(perHab), unit: "/ hab.", note: "Població: Idescat" }
+      : {
+          label: `Adjudicat el ${currentYear}`,
+          value: formatCompactEuros(currentRow?.total ?? 0),
+          note: currentRow ? `${formatNumber(currentRow.contracts)} contractes, any en curs` : "sense dades encara",
+        },
+  ];
+
+  const chips: HeaderChip[] = [];
+  if (ineCode) chips.push({ label: "INE", value: ineCode.slice(0, 5), mono: true });
+  if (municipality) chips.push({ label: "Idescat", value: municipality.id, mono: true });
+  const firstYear = yearlyRows.filter((row) => row.year >= 2015 && row.total > 0).map((row) => row.year).sort()[0];
+  if (firstYear) chips.push({ label: "Publica des de", value: String(firstYear) });
+  if (currentRow) chips.push({ label: `Publicats el ${currentYear}`, value: formatNumber(currentRow.contracts) });
+
+  const eyebrow = municipality
+    ? `${organKind(organName)} · ${municipality.comarca} · ${formatDecimal(municipality.population ?? 0, 0)} habitants (${municipality.populationYear})`
+    : organKind(organName);
+
+  const entityPath = `/organismes/${encodeURIComponent(organName)}`;
+  const organDescription = `${formatCompactNumber(totalAmount)} adjudicats en ${formatNumber(numContracts)} contractes públics per ${organName}.`;
   const electesTotalPages = Math.max(1, Math.ceil(electes.totalCurrentRoles / electes.pageSize));
   const hasElectes = electes.totalCurrentRoles > 0;
   const hasTopCompanies = topCompanies.length > 0;
-  const electesBasePath = `/organismes/${encodeURIComponent(organ.nom_organ)}`;
   const buildElectesPageHref = (targetPage: number): string => {
-    const params = new URLSearchParams();
+    const qs = new URLSearchParams();
     for (const [key, value] of Object.entries(query)) {
       if (key === "electes_page") continue;
       if (Array.isArray(value)) {
-        for (const v of value) {
-          if (v) params.append(key, v);
-        }
+        for (const v of value) if (v) qs.append(key, v);
       } else if (value) {
-        params.set(key, value);
+        qs.set(key, value);
       }
     }
-    if (targetPage > 1) params.set("electes_page", String(targetPage));
-    const qs = params.toString();
-    return qs ? `${electesBasePath}?${qs}` : electesBasePath;
+    if (targetPage > 1) qs.set("electes_page", String(targetPage));
+    const s = qs.toString();
+    return s ? `${entityPath}?${s}#carrecs` : `${entityPath}#carrecs`;
   };
+
+  const tabs = [
+    { id: "resum", label: "Resum" },
+    ...(hasTopCompanies ? [{ id: "empreses", label: "Empreses" }] : []),
+    ...(hasElectes ? [{ id: "carrecs", label: "Càrrecs electes" }] : []),
+    { id: "contractes", label: "Contractes" },
+  ];
 
   const jsonLd = buildEntityJsonLdGraph(
     buildEntityPrimaryJsonLd({
       schemaType: "GovernmentOrganization",
-      name: organ.nom_organ,
+      name: organName,
       path: entityPath,
       description: organDescription,
     }),
     buildEntityBreadcrumbJsonLd([
       { name: "Inici", path: "/" },
       { name: "Organismes", path: "/organismes" },
-      { name: organ.nom_organ },
+      { name: organName },
     ])
   );
 
-  const electesCard = hasElectes ? (
-    <div className="min-w-0">
-      <h2 className="text-xl font-bold text-gray-900 mb-1">Càrrecs electes actuals</h2>
-      <p className="mb-3 text-xs text-gray-500">
-        Font: Transparència Catalunya. Llistat inferit per darrer nomenament conegut per plaça.
-      </p>
-      <div className="bg-white rounded-lg border border-gray-100 shadow-sm overflow-hidden">
-        <div className="border-b border-gray-100 bg-gray-50 px-3 py-2.5 text-xs text-gray-700">
-          <span className="font-medium">{formatNumber(electes.totalCurrentRoles)}</span> càrrecs inferits.
-        </div>
-        <ul className="divide-y divide-gray-100">
-          {electes.rows.map((row) => (
-            <li
-              key={row.key}
-              className="px-3 py-2.5 flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <Link
-                href={`/persones?search=${encodeURIComponent(row.personName)}`}
-                className="text-sm font-medium text-gray-900 hover:underline"
-              >
-                {row.personName}
-              </Link>
-              <span className="inline-flex w-fit shrink-0 rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-[11px] font-medium text-gray-700">
-                {row.carrec}
-              </span>
-            </li>
-          ))}
-        </ul>
-        {electesTotalPages > 1 ? (
-          <div className="border-t border-gray-100 px-3 py-2.5 flex flex-col gap-2 text-xs sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-gray-600">
-              Pàgina {formatNumber(electes.page)} de {formatNumber(electesTotalPages)}
-            </p>
-            <div className="flex items-center gap-1.5">
-              {electes.page > 1 ? (
-                <Link
-                  href={buildElectesPageHref(electes.page - 1)}
-                  scroll={false}
-                  className="px-2.5 py-1 rounded border border-gray-300 hover:bg-gray-50"
-                >
-                  Anterior
-                </Link>
-              ) : (
-                <span className="px-2.5 py-1 rounded border border-gray-200 text-gray-400">
-                  Anterior
-                </span>
-              )}
-              {electes.page < electesTotalPages ? (
-                <Link
-                  href={buildElectesPageHref(electes.page + 1)}
-                  scroll={false}
-                  className="px-2.5 py-1 rounded border border-gray-300 hover:bg-gray-50"
-                >
-                  Següent
-                </Link>
-              ) : (
-                <span className="px-2.5 py-1 rounded border border-gray-200 text-gray-400">
-                  Següent
-                </span>
-              )}
-            </div>
-          </div>
-        ) : null}
-      </div>
-    </div>
-  ) : null;
-
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="mx-auto max-w-7xl px-4 pb-8">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
 
-      <Link href="/organismes" className="text-sm text-gray-500 hover:text-gray-900 mb-4 inline-block">
-        &larr; Tornar a organismes
-      </Link>
+      <EntityHeader
+        backHref="/organismes"
+        backLabel="Tornar a organismes"
+        eyebrow={eyebrow}
+        title={organName}
+        chips={chips}
+        figures={figures}
+        actions={<SharePageButton className="shrink-0" />}
+      />
+      <SectionTabs tabs={tabs} />
 
-      <div className="mb-1 flex items-start justify-between gap-3">
-        <h1 className="text-3xl font-bold text-gray-900">{organ.nom_organ}</h1>
-        <SharePageButton className="shrink-0" />
-      </div>
-      <p className="text-gray-500 mb-8">Organisme contractant</p>
+      <section id="resum" className="scroll-mt-32 pt-8">
+        <div className="mb-3 flex items-baseline justify-between gap-3">
+          <h2 className="font-display text-xl font-semibold text-gray-900">Com contracta</h2>
+          <Link href="/metodologia" className="text-sm text-accent hover:underline">
+            Metodologia
+          </Link>
+        </div>
+        {indicators.length > 0 ? (
+          <IndicatorGrid indicators={indicators} />
+        ) : (
+          <p className="rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-500">
+            No hi ha prou dades per calcular indicadors de competència per a aquest organisme.
+          </p>
+        )}
+        {municipality ? (
+          <div className="mt-3">
+            <ContextBand municipality={municipality} />
+          </div>
+        ) : null}
 
-      <section className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-12">
-        <StatCard
-          title={`Import adjudicat ${currentYear}`}
-          value={formatCompactNumber(currentYearAmount)}
-          subtitle={currentYearAmountSubtitle}
-        />
-        <StatCard
-          title={`Contractes ${currentYear}`}
-          value={formatNumber(currentYearContracts)}
-          subtitle={currentYearContractsSubtitle}
-        />
-      </section>
-
-      <section className="mb-12">
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Evolució anual</h2>
-            <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
+        <div className="mt-8 grid grid-cols-1 gap-6 xl:grid-cols-5">
+          <div className="min-w-0 xl:col-span-3">
+            <h2 className="mb-3 font-display text-xl font-semibold text-gray-900">Import adjudicat per any</h2>
+            <div className="rounded-lg border border-gray-200 bg-white p-4">
               {yearly.length > 0 ? (
-                <YearlyTrendChartLazy data={yearly} />
+                <YearlyTrendChartLazy data={yearly} color="#0f5e63" />
               ) : (
                 <p className="text-sm text-gray-500">No hi ha prou dades anuals per mostrar la gràfica.</p>
               )}
             </div>
           </div>
-
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Contractes recents</h2>
-            <div className="bg-white rounded-lg border border-gray-100 shadow-sm overflow-hidden">
-              <div className="border-b border-gray-100 px-4 py-3 text-xs text-gray-500">
-                Darrera data ref.: <span className="font-medium text-gray-700">{formatDate(lastAwardDate)}</span>
-              </div>
-              <ul className="md:hidden divide-y divide-gray-100">
-                {recentContracts.map((contract, idx) => {
-                  const bestDate = getBestAvailableContractDate(
-                    contract.data_adjudicacio_contracte,
-                    contract.data_formalitzacio_contracte,
-                    contract.data_publicacio_anunci
-                  );
-                  const publicationUrl = getPublicationUrl(contract.enllac_publicacio);
-                  return (
-                    <li key={`${contract.codi_expedient}-card-${idx}`} className="px-4 py-3">
-                      {publicationUrl ? (
-                        <a
-                          href={publicationUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="block text-sm font-medium text-gray-900 line-clamp-2 hover:underline"
-                        >
-                          {contract.denominacio_adjudicatari || "—"}
-                        </a>
-                      ) : (
-                        <p className="text-sm font-medium text-gray-900 line-clamp-2">
-                          {contract.denominacio_adjudicatari || "—"}
-                        </p>
-                      )}
-                      <div className="mt-1 flex items-center justify-between text-xs text-gray-600">
-                        <span>{formatDate(bestDate.date)}</span>
-                        <span className="font-mono text-gray-900">
-                          {contract.import_adjudicacio_sense ? formatCurrency(contract.import_adjudicacio_sense) : "—"}
-                        </span>
-                      </div>
-                    </li>
-                  );
-                })}
-                {recentContracts.length === 0 && (
-                  <li className="px-4 py-6 text-center text-sm text-gray-500">No hi ha contractes recents.</li>
-                )}
-              </ul>
-              <div className="hidden md:block overflow-x-auto">
-                <table className="min-w-[520px] w-full table-auto text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-100 bg-gray-50">
-                      <th className="w-[50%] text-left py-2.5 px-3 md:px-4 font-medium text-gray-500">Empresa</th>
-                      <th className="w-[20%] text-left py-2.5 px-3 md:px-4 font-medium text-gray-500 whitespace-nowrap">Data ref.</th>
-                      <th className="w-[30%] text-right py-2.5 px-3 md:px-4 font-medium text-gray-500 whitespace-nowrap">Import (sense IVA)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {recentContracts.map((contract, idx) => {
-                      const bestDate = getBestAvailableContractDate(
-                        contract.data_adjudicacio_contracte,
-                        contract.data_formalitzacio_contracte,
-                        contract.data_publicacio_anunci
-                      );
-                      const publicationUrl = getPublicationUrl(contract.enllac_publicacio);
-                      return (
-                        <tr key={`${contract.codi_expedient}-mini-${idx}`} className="border-b border-gray-100 last:border-b-0">
-                          <td className="py-2.5 px-3 md:px-4 align-top text-gray-700">
-                            {publicationUrl ? (
-                              <a
-                                href={publicationUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                title={contract.denominacio_adjudicatari || ""}
-                                className="block line-clamp-2 break-words leading-6 hover:underline"
-                              >
-                                {contract.denominacio_adjudicatari || "—"}
-                              </a>
-                            ) : (
-                              <span
-                                title={contract.denominacio_adjudicatari || ""}
-                                className="block line-clamp-2 break-words leading-6"
-                              >
-                                {contract.denominacio_adjudicatari || "—"}
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-2.5 px-3 md:px-4 align-top whitespace-nowrap text-gray-700">{formatDate(bestDate.date)}</td>
-                          <td className="py-2.5 px-3 md:px-4 align-top text-right whitespace-nowrap text-gray-900 tabular-nums">
-                            {contract.import_adjudicacio_sense ? formatCurrency(contract.import_adjudicacio_sense) : "—"}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+          <div className="min-w-0 xl:col-span-2">
+            <h2 className="mb-3 font-display text-xl font-semibold text-gray-900">Contractes recents</h2>
+            <OrganRecentContracts contracts={recentContracts} />
           </div>
         </div>
       </section>
 
-      {hasTopCompanies || hasElectes ? (
-        <section className="mb-12">
-          {hasTopCompanies && hasElectes ? (
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
-              <div className="min-w-0 xl:col-span-2">
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">Empreses adjudicatàries principals</h2>
-                <OrganTopCompaniesTable rows={topCompanies} organTotalAmount={totalAmount} />
-              </div>
-              <div className="min-w-0 xl:col-span-1">{electesCard}</div>
-            </div>
-          ) : null}
-
-          {hasTopCompanies && !hasElectes ? (
-            <div className="min-w-0">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Empreses adjudicatàries principals</h2>
-              <OrganTopCompaniesTable rows={topCompanies} organTotalAmount={totalAmount} />
-            </div>
-          ) : null}
-
-          {!hasTopCompanies && hasElectes ? electesCard : null}
+      {hasTopCompanies ? (
+        <section id="empreses" className="scroll-mt-32 pt-10">
+          <div className="mb-3 flex items-baseline justify-between gap-3">
+            <h2 className="font-display text-xl font-semibold text-gray-900">Empreses adjudicatàries principals</h2>
+            <span className="text-sm text-gray-500">tots els anys</span>
+          </div>
+          <OrganTopCompaniesTable rows={topCompanies} organTotalAmount={totalAmount} />
         </section>
       ) : null}
 
-      <section>
-        <OrganContractsExplorer organName={organ.nom_organ} />
+      {hasElectes ? (
+        <section id="carrecs" className="scroll-mt-32 pt-10">
+          <h2 className="mb-3 font-display text-xl font-semibold text-gray-900">Càrrecs electes actuals</h2>
+          <div className="xl:max-w-3xl">
+            <OrganElectesCard
+              rows={electes.rows}
+              totalCurrentRoles={electes.totalCurrentRoles}
+              page={electes.page}
+              totalPages={electesTotalPages}
+              buildPageHref={buildElectesPageHref}
+            />
+          </div>
+        </section>
+      ) : null}
+
+      <section id="contractes" className="scroll-mt-32 pt-10">
+        <OrganContractsExplorer organName={organName} />
       </section>
     </div>
   );

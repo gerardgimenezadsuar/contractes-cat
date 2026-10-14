@@ -54,6 +54,20 @@ SUPABASE_PUBLISHABLE_KEY=sb_publishable_...  # clau pública (només lectura via
 SEARCH_INDEX_DISABLED=1                      # força el camí Socrata (tests, CI)
 ```
 
+### Indicadors i context municipal (Idescat)
+
+Les pàgines d'organisme i d'empresa mostren indicadors de competència (ofertes per licitació,
+licitacions amb una sola oferta, rebaixa sobre el pressupost), el pes dels contractes menors, la
+concentració de proveïdors i, per als ajuntaments, la despesa per habitant. La definició de cadascun
+és a `/metodologia` i el càlcul a `src/lib/indicators.ts` (amb tests a `tests/unit`).
+
+El context municipal (població, renda, PIB, IST, atur) ve d'Idescat i es distribueix com a fitxer
+estàtic (`src/data/municipis.json`). Per regenerar-lo, un cop l'any:
+
+```bash
+node scripts/fetch-idescat.mjs
+```
+
 ### Tests i CI
 
 ```bash

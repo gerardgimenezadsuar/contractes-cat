@@ -34,6 +34,7 @@ import {
   scoreNameMatch,
   type ParsedSearchQuery,
 } from "@/lib/search-query";
+import type { CompetitionAggregate } from "@/lib/indicators";
 
 const BEST_AVAILABLE_CONTRACT_DATE_EXPR =
   "coalesce(data_adjudicacio_contracte, data_formalitzacio_contracte, data_publicacio_anunci)";
@@ -693,6 +694,79 @@ export async function fetchOrgansCount(search?: string): Promise<number> {
   return parseInt(data[0]?.total || "0", 10);
 }
 
+// ---------------------------------------------------------------------------
+// Indicators (see src/lib/indicators.ts and /metodologia)
+
+/** INE 10-digit local-entity code the organ publishes with, by frequency. */
+export async function fetchOrganIneCode(organName: string): Promise<string | null> {
+  const safeName = organName.replace(/'/g, "''");
+  const rows = await soqlFetch<{ codi_ine10: string; n: string }>({
+    $select: "codi_ine10, count(*) as n",
+    $where: `nom_organ='${safeName}' AND codi_ine10 IS NOT NULL`,
+    $group: "codi_ine10",
+    $order: "n DESC",
+    $limit: "1",
+  });
+  return rows[0]?.codi_ine10 || null;
+}
+
+// Competition can only be measured where several bids are possible and the
+// number of offers is recorded: open procedures, from 2021 on, with a budget.
+const OPEN_PROCEDURES = ["Obert", "Obert simplificat", "Obert simplificat abreujat"];
+export const COMPETITION_SINCE_YEAR = 2021;
+const COMPETITION_WHERE =
+  `procediment in(${OPEN_PROCEDURES.map((p) => `'${p}'`).join(",")}) AND ofertes_rebudes IS NOT NULL ` +
+  `AND pressupost_licitacio_sense > 0 AND import_adjudicacio_sense IS NOT NULL AND import_adjudicacio_sense not like '%||%' ` +
+  `AND date_extract_y(data_adjudicacio_contracte) >= ${COMPETITION_SINCE_YEAR}`;
+// Awards above budget are modifications or data errors; the discount only
+// counts contracts awarded at or below their budget.
+const CAPPED = "import_adjudicacio_sense::number <= pressupost_licitacio_sense";
+
+interface CompetitionRow {
+  n: string;
+  avg_offers: string;
+  single: string;
+  adj_capped: string;
+  pres_capped: string;
+  n_capped: string;
+}
+
+async function fetchCompetition(extraWhere?: string): Promise<CompetitionAggregate> {
+  const rows = await soqlFetch<CompetitionRow>({
+    $select:
+      "count(*) as n, avg(ofertes_rebudes) as avg_offers, sum(case(ofertes_rebudes=1, 1, true, 0)) as single, " +
+      `sum(case(${CAPPED}, import_adjudicacio_sense::number, true, 0)) as adj_capped, ` +
+      `sum(case(${CAPPED}, pressupost_licitacio_sense, true, 0)) as pres_capped, ` +
+      `sum(case(${CAPPED}, 1, true, 0)) as n_capped`,
+    $where: extraWhere ? `${extraWhere} AND ${COMPETITION_WHERE}` : COMPETITION_WHERE,
+  });
+  const row = rows[0];
+  const num = (v: string | undefined) => (v ? parseFloat(v) || 0 : 0);
+  return {
+    contracts: num(row?.n),
+    avgOffers: row?.avg_offers && Number.isFinite(parseFloat(row.avg_offers)) ? parseFloat(row.avg_offers) : null,
+    singleOfferContracts: num(row?.single),
+    awardedCapped: num(row?.adj_capped),
+    budgetCapped: num(row?.pres_capped),
+    contractsCapped: num(row?.n_capped),
+  };
+}
+
+export async function fetchOrganCompetition(organName: string): Promise<CompetitionAggregate> {
+  const safeName = organName.replace(/'/g, "''");
+  return fetchCompetition(`nom_organ='${safeName}'`);
+}
+
+export async function fetchCompanyCompetition(nif: string): Promise<CompetitionAggregate> {
+  const safeNif = nif.replace(/'/g, "''");
+  return fetchCompetition(`identificacio_adjudicatari='${safeNif}'`);
+}
+
+/** Catalonia-wide baseline for the same indicators (cached like every query). */
+export async function fetchCataloniaCompetition(): Promise<CompetitionAggregate> {
+  return fetchCompetition();
+}
+
 /** Lightweight paginated list of organ names for sitemap generation. */
 export async function fetchOrganNamesPage(offset = 0, limit = DEFAULT_PAGE_SIZE): Promise<string[]> {
   const conditions = [
@@ -728,7 +802,9 @@ export async function fetchOrganDetail(
     }),
     soqlFetch<OrganYearAggregation>({
       $select:
-        "nom_organ, date_extract_y(data_adjudicacio_contracte) as year, sum(import_adjudicacio_amb_iva::number) as total, count(*) as num_contracts",
+        "nom_organ, date_extract_y(data_adjudicacio_contracte) as year, sum(import_adjudicacio_amb_iva::number) as total, count(*) as num_contracts, " +
+        "sum(case(procediment='Contracte menor', import_adjudicacio_amb_iva::number, true, 0)) as minors_total, " +
+        "sum(case(procediment='Contracte menor', 1, true, 0)) as minors_count",
       $where: `nom_organ='${safeName}' AND ${CLEAN_AMOUNT_FILTER} AND import_adjudicacio_amb_iva IS NOT NULL AND data_adjudicacio_contracte IS NOT NULL`,
       $group: "nom_organ, year",
       $order: "year ASC",
@@ -797,13 +873,17 @@ export async function fetchOrganLastAwardDate(
 
 export async function fetchOrganTopCompanies(
   organName: string,
-  limit = 10
+  limit = 10,
+  sinceYear?: number
 ): Promise<CompanyAggregation[]> {
   const safeName = organName.replace(/'/g, "''");
+  const yearCondition = sinceYear
+    ? ` AND date_extract_y(${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) >= ${sinceYear}`
+    : "";
   const raw = await soqlFetch<CompanyAggregation>({
     $select:
       "identificacio_adjudicatari, denominacio_adjudicatari, sum(import_adjudicacio_amb_iva::number) as total, count(*) as num_contracts",
-    $where: `nom_organ='${safeName}' AND ${CLEAN_AMOUNT_FILTER} AND import_adjudicacio_amb_iva IS NOT NULL AND denominacio_adjudicatari IS NOT NULL AND identificacio_adjudicatari IS NOT NULL`,
+    $where: `nom_organ='${safeName}' AND ${CLEAN_AMOUNT_FILTER} AND import_adjudicacio_amb_iva IS NOT NULL AND denominacio_adjudicatari IS NOT NULL AND identificacio_adjudicatari IS NOT NULL${yearCondition}`,
     $group: "identificacio_adjudicatari, denominacio_adjudicatari",
     $order: "total DESC",
     $limit: String(limit * 8),
