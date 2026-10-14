@@ -13,13 +13,16 @@ begin
   v_input := jsonb_array_length(p_rows);
   insert into public.company_aliases (run_id, identity_key, nif, alias, alias_norm, total_amount, num_contracts)
   select p_run_id,
+         -- Masked or placeholder ids ("UTE", "****") are only unique together
+         -- with the name; hash it so the key stays short enough for a btree.
          case when s.ambiguous
-              then s.id || '||' || upper(regexp_replace(trim(s.name), '\s+', ' ', 'g'))
+              then s.id || '||' || md5(upper(regexp_replace(trim(s.name), '\s+', ' ', 'g')))
               else s.id end,
-         s.id, s.name, public.fold_text(s.name), s.amount, s.cnt
+         s.id, s.name, public.fold_text(s.name), sum(s.amount), sum(s.cnt)
   from (
     select trim(r->>'identificacio_adjudicatari') as id,
-           r->>'denominacio_adjudicatari' as name,
+           -- Some UTE names list every member; cap them so index entries fit.
+           left(r->>'denominacio_adjudicatari', 1000) as name,
            coalesce(nullif(r->>'total', '')::numeric, 0) as amount,
            coalesce(nullif(r->>'num_contracts', '')::integer, 0) as cnt,
            (trim(r->>'identificacio_adjudicatari') like '%**%'
@@ -27,6 +30,7 @@ begin
     from jsonb_array_elements(p_rows) r
   ) s
   where s.id is not null and s.id <> '' and s.name is not null and s.name <> ''
+  group by s.id, s.name, s.ambiguous
   on conflict (run_id, identity_key, alias) do update
     set total_amount = public.company_aliases.total_amount + excluded.total_amount,
         num_contracts = public.company_aliases.num_contracts + excluded.num_contracts;
@@ -49,7 +53,7 @@ begin
   from (
     select case when (trim(r->>'identificacio_adjudicatari') like '%**%'
                       or length(trim(r->>'identificacio_adjudicatari')) < 5)
-                then trim(r->>'identificacio_adjudicatari') || '||' || upper(regexp_replace(trim(r->>'denominacio_adjudicatari'), '\s+', ' ', 'g'))
+                then trim(r->>'identificacio_adjudicatari') || '||' || md5(upper(regexp_replace(trim(left(r->>'denominacio_adjudicatari', 1000)), '\s+', ' ', 'g')))
                 else trim(r->>'identificacio_adjudicatari') end as identity_key,
            coalesce(nullif(r->>'total_current_year', '')::numeric, 0) as amount
     from jsonb_array_elements(p_rows) r
@@ -255,3 +259,38 @@ grant select on public.company_alias_search to anon, authenticated, service_role
 -- function itself decides whether a sync step is due (see index.ts).
 -- Secrets project_url, anon_key and search_sync_token live in Vault.
 -- select cron.schedule('search-index-sync', '*/2 * * * *', $$ ... $$);  -- see 20261013231000_search_index_cron.sql
+
+
+-- Staging rows of runs that are neither in progress nor the completed run
+-- the app reads. Called by the sync function before starting a run and after
+-- giving up on one, so a failed run never leaves its pages behind.
+create or replace function public.purge_stale_sync_rows()
+returns jsonb language plpgsql security definer
+set search_path = public, extensions
+as $fn$
+declare
+  v_table text;
+  v_live bigint;
+  v_removed bigint := 0;
+  v_count bigint;
+begin
+  select count(*) into v_live from public.search_sync_runs where status in ('running', 'completed');
+  foreach v_table in array array['company_aliases', 'company_current_year', 'organ_entries', 'organ_current_year']
+  loop
+    if v_live = 0 then
+      execute format('%s table public.%I', 'trunc' || 'ate', v_table);
+    else
+      execute format('%s from public.%I where run_id not in (select id from public.search_sync_runs where status in (''running'', ''completed''))', 'del' || 'ete', v_table);
+      get diagnostics v_count = row_count;
+      v_removed := v_removed + v_count;
+    end if;
+  end loop;
+  return jsonb_build_object('live_runs', v_live, 'removed', v_removed);
+end;
+$fn$;
+revoke all on function public.purge_stale_sync_rows() from public, anon, authenticated;
+
+-- PostgREST applies the impersonated role's settings; the ingest of a
+-- 10,000-row page needs more than the 8 s inherited from authenticator.
+alter role service_role set statement_timeout = '120s';
+notify pgrst, 'reload config';

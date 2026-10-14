@@ -17,6 +17,8 @@ const SOCRATA_APP_TOKEN = Deno.env.get("SOCRATA_APP_TOKEN") ?? "";
 const PAGE_SIZE = 10000;
 const SYNC_MIN_INTERVAL_HOURS = 20;
 const MAX_CONSECUTIVE_ERRORS = 8;
+// After a failed run, wait this long before starting another one.
+const FAILED_RETRY_HOURS = 6;
 // No new step starts after this much of the invocation has elapsed, leaving
 // room for one slow Socrata page before the 150 s wall-clock limit.
 const STEP_BUDGET_MS = 60_000;
@@ -141,14 +143,22 @@ const NEXT_STAGE: Record<string, Stage> = {
   organs_cy: "finalize",
 };
 
-async function loadRuns(): Promise<{ running: SyncRun | null; lastCompleted: SyncRun | null }> {
+async function loadRuns(): Promise<{ running: SyncRun | null; lastCompleted: SyncRun | null; lastFailed: SyncRun | null }> {
   const running = await rest<SyncRun[]>(
     "search_sync_runs?status=eq.running&order=id.desc&limit=1"
   );
   const completed = await rest<SyncRun[]>(
     "search_sync_runs?status=eq.completed&order=id.desc&limit=1"
   );
-  return { running: running[0] ?? null, lastCompleted: completed[0] ?? null };
+  const failed = await rest<SyncRun[]>(
+    "search_sync_runs?status=eq.failed&order=id.desc&limit=1"
+  );
+  return { running: running[0] ?? null, lastCompleted: completed[0] ?? null, lastFailed: failed[0] ?? null };
+}
+
+/** Drops staging rows left behind by failed runs (the live run's rows stay). */
+async function purgeStaleRows(): Promise<void> {
+  await rest("rpc/purge_stale_sync_rows", { method: "POST", body: "{}" });
 }
 
 async function updateRun(id: number, patch: Record<string, unknown>): Promise<void> {
@@ -212,15 +222,20 @@ Deno.serve(async (req: Request) => {
     // empty body is fine
   }
 
-  const { running, lastCompleted } = await loadRuns();
+  const { running, lastCompleted, lastFailed } = await loadRuns();
   let run = running;
   if (!run) {
-    const hoursSinceLast = lastCompleted?.finished_at
-      ? (Date.now() - new Date(lastCompleted.finished_at).getTime()) / 3_600_000
-      : Infinity;
+    const hoursSince = (at: string | null | undefined) =>
+      at ? (Date.now() - new Date(at).getTime()) / 3_600_000 : Infinity;
+    const hoursSinceLast = hoursSince(lastCompleted?.finished_at);
     if (!body.force && hoursSinceLast < SYNC_MIN_INTERVAL_HOURS) {
       return Response.json({ idle: true, lastCompleted: lastCompleted?.finished_at, hoursSinceLast });
     }
+    const hoursSinceFailure = hoursSince(lastFailed?.finished_at);
+    if (!body.force && (lastFailed?.id ?? 0) > (lastCompleted?.id ?? 0) && hoursSinceFailure < FAILED_RETRY_HOURS) {
+      return Response.json({ idle: true, lastFailed: lastFailed?.finished_at, hoursSinceFailure });
+    }
+    await purgeStaleRows();
     run = await createRun();
   }
 
@@ -239,11 +254,13 @@ Deno.serve(async (req: Request) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const errors = run.consecutive_errors + 1;
+    const failed = errors >= MAX_CONSECUTIVE_ERRORS;
     await updateRun(run.id, {
       consecutive_errors: errors,
       error: message,
-      ...(errors >= MAX_CONSECUTIVE_ERRORS ? { status: "failed", finished_at: new Date().toISOString() } : {}),
+      ...(failed ? { status: "failed", finished_at: new Date().toISOString() } : {}),
     });
+    if (failed) await purgeStaleRows().catch((e) => console.error("purge after failure failed:", e));
     console.error(`sync step failed (run ${run.id}, stage ${run.stage}, page ${run.page}):`, message);
     return Response.json({ run: run.id, stage: run.stage, page: run.page, error: message, consecutive_errors: errors }, { status: 500 });
   }
