@@ -42,6 +42,8 @@ export default defineConfig({
       timeout: 120_000,
       env: {
         SOCRATA_ORIGIN_OVERRIDE: `http://127.0.0.1:${MOCK_PORT}`,
+        // Tests exercise the Socrata path; the Supabase index is live data.
+        SEARCH_INDEX_DISABLED: "1",
       },
     },
   ],

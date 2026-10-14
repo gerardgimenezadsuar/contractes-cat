@@ -105,3 +105,11 @@ export const SITE_URL = "https://www.contractes.cat";
 export const GITHUB_URL = "https://github.com/gerardgimenezadsuar/contractes-cat";
 export const CREATOR_NAME = "Ciència de Dades";
 export const CREATOR_URL = "https://cienciadedades.cat";
+
+// Search index (Supabase Postgres). The publishable key is safe to ship: the
+// tables only allow SELECT through row level security. Override with env vars
+// or set SEARCH_INDEX_DISABLED=1 to force the Socrata-only search path.
+export const SUPABASE_URL =
+  process.env.SUPABASE_URL || "https://igugctxdpetsmewmacpm.supabase.co";
+export const SUPABASE_PUBLISHABLE_KEY =
+  process.env.SUPABASE_PUBLISHABLE_KEY || "sb_publishable_vg-CwwS-mGJuTSudeyVtdw_CQsm15du";
