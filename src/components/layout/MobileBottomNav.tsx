@@ -44,7 +44,7 @@ const TABS = [
 
 /**
  * Persistent tab bar for phones. The header hamburger still holds the
- * secondary pages (Anàlisi, Sobre, Com licitar).
+ * secondary pages (Anàlisi, Sobre).
  */
 export default function MobileBottomNav() {
   const pathname = usePathname();
