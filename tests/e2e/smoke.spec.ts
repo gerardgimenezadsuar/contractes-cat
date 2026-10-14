@@ -105,3 +105,68 @@ test.describe("mobile explorer", () => {
     expect(new Set(boxes.map((b) => Math.round(b))).size).toBe(1);
   });
 });
+
+// The home search used to show "no results" while a slow request was still
+// running (an aborted request switched the loading state off), and read any
+// backend failure as an empty result set.
+test.describe("home search resilience", () => {
+  // Keystrokes sent before React hydrates never reach the component, so the
+  // scenario below (two overlapping requests) needs a hydrated input.
+  async function openHydratedHome(page: Page) {
+    await page.goto("/");
+    await page.waitForFunction(() => {
+      const el = document.querySelector("#home-search-input");
+      return Boolean(el && Object.keys(el).some((key) => key.startsWith("__reactFiber")));
+    });
+    return page.locator("#home-search-input");
+  }
+
+  const row = {
+    identificacio_adjudicatari: "A08000001",
+    denominacio_adjudicatari: "EMPRESA MOCK U SL",
+    total: "1000",
+    num_contracts: "3",
+    total_current_year: "0",
+  };
+
+  test("a slow search shows the loading state, never an empty one", async ({ page }) => {
+    let calls = 0;
+    await page.route("**/api/empreses?*", async (route) => {
+      calls += 1;
+      if (calls <= 2) await new Promise((resolve) => setTimeout(resolve, 1500));
+      try {
+        await route.fulfill({ json: { data: [row] } });
+      } catch {
+        // The browser aborted this request when the user kept typing.
+      }
+    });
+    const input = await openHydratedHome(page);
+    await input.pressSequentially("em", { delay: 40 });
+    await page.waitForTimeout(450); // first request is in flight
+    await input.pressSequentially("presa", { delay: 40 }); // second request supersedes it
+    const empty = page.getByText("No s'han trobat empreses.");
+    const deadline = Date.now() + 1500;
+    while (Date.now() < deadline) {
+      await expect(empty).toHaveCount(0);
+      await page.waitForTimeout(100);
+    }
+    await expect(page.getByRole("link", { name: /EMPRESA MOCK U SL A08000001/ })).toBeVisible({ timeout: 5000 });
+  });
+
+  test("a backend failure shows an error with retry, not an empty state", async ({ page }) => {
+    let fail = true;
+    await page.route("**/api/empreses?*", async (route) => {
+      if (fail) return route.fulfill({ status: 500, body: "Internal Server Error" });
+      await route.fulfill({ json: { data: [row] } });
+    });
+    const input = await openHydratedHome(page);
+    await input.fill("empresa");
+    // Next.js renders its own empty role="alert" route announcer; filter it out.
+    const alert = page.getByRole("alert").filter({ hasText: "No s'ha pogut completar la cerca" });
+    await expect(alert).toBeVisible();
+    await expect(page.getByText("No s'han trobat empreses.")).toHaveCount(0);
+    fail = false;
+    await alert.getByRole("button", { name: "Torna-ho a provar" }).click();
+    await expect(page.getByRole("link", { name: /EMPRESA MOCK U SL A08000001/ })).toBeVisible();
+  });
+});

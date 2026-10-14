@@ -41,6 +41,7 @@ export default function CompanySearch() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
   const [open, setOpen] = useState(false);
   const debounceRef = useRef<NodeJS.Timeout>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -52,24 +53,30 @@ export default function CompanySearch() {
       setResults([]);
       setOpen(false);
       setLoading(false);
+      setError(false);
       return;
     }
+    // Supersede any request still in flight: its handlers below check
+    // `controller` so a late or aborted answer never touches the state of
+    // the newer search (an aborted request used to switch `loading` off and
+    // flash "no results" while the current one was still running).
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
     setLoading(true);
+    setError(false);
     setOpen(true);
     try {
-      if (abortRef.current) abortRef.current.abort();
-      abortRef.current = new AbortController();
       const endpoint =
         nextMode === "empresa"
           ? `/api/empreses?search=${encodeURIComponent(q)}&page=1&includeTotal=0&includeCurrentYear=0`
           : nextMode === "organisme"
             ? `/api/organismes?search=${encodeURIComponent(q)}&page=1&limit=8&includeTotal=0&includeCurrentYear=0`
             : `/api/persones?search=${encodeURIComponent(q)}&page=1&includeTotal=0`;
-      const res = await fetch(
-        endpoint,
-        { signal: abortRef.current.signal }
-      );
+      const res = await fetch(endpoint, { signal: controller.signal });
+      if (!res.ok) throw new Error(`Search request failed with status ${res.status}`);
       const json = await res.json();
+      if (controller.signal.aborted) return;
       const sliced = (json.data || []).slice(0, 8);
       if (nextMode === "empresa") {
         setResults(sliced.map((row: CompanyAggregation) => ({ kind: "empresa" as const, ...row })));
@@ -79,10 +86,16 @@ export default function CompanySearch() {
         setResults(sliced.map((row: PersonSearchResult) => ({ kind: "persona" as const, ...row })));
       }
       setOpen(true);
-    } catch {
-      // Ignore aborted requests while the user is still typing.
+    } catch (err) {
+      // Aborted requests were replaced by a newer search; anything else is
+      // a real failure (backend error, timeout) and must not read as "no
+      // results".
+      if (controller.signal.aborted) return;
+      console.error("Search failed:", err);
+      setResults([]);
+      setError(true);
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) setLoading(false);
     }
   }, []);
 
@@ -93,9 +106,11 @@ export default function CompanySearch() {
       if (debounceRef.current) clearTimeout(debounceRef.current);
       const minChars = minCharsForMode(mode);
       if (val.trim().length < minChars) {
+        abortRef.current?.abort();
         setResults([]);
         setOpen(false);
         setLoading(false);
+        setError(false);
         return;
       }
       debounceRef.current = setTimeout(() => search(val, mode), 300);
@@ -107,6 +122,7 @@ export default function CompanySearch() {
     trackEvent("search_mode", { mode: nextMode });
     setMode(nextMode);
     setResults([]);
+    setError(false);
     setOpen(false);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (query.trim().length >= minCharsForMode(nextMode)) {
@@ -309,7 +325,23 @@ export default function CompanySearch() {
         </div>
       )}
 
-      {open && query.trim().length >= minCharsForMode(mode) && results.length === 0 && !loading && (
+      {open && error && !loading && (
+        <div
+          role="alert"
+          className="absolute z-50 w-full mt-1 bg-white border border-amber-200 rounded-xl shadow-lg p-4 text-sm text-gray-700 text-center"
+        >
+          <p>{"No s'ha pogut completar la cerca. La font de dades no ha respost."}</p>
+          <button
+            type="button"
+            onClick={() => search(query, mode)}
+            className="mt-2 min-h-10 rounded-lg border border-gray-300 px-4 text-sm font-medium text-gray-900 hover:bg-gray-50"
+          >
+            Torna-ho a provar
+          </button>
+        </div>
+      )}
+
+      {open && !error && query.trim().length >= minCharsForMode(mode) && results.length === 0 && !loading && (
         <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg p-4 text-sm text-gray-500 text-center">
           {mode === "empresa"
             ? "No s'han trobat empreses."
