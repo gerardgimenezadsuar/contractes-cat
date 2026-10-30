@@ -118,19 +118,24 @@ export default async function Image() {
             ))}
           </div>
 
-          {/* Bottom: data source */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div
-              style={{
-                display: "flex",
-                width: 12,
-                height: 12,
-                borderRadius: "50%",
-                background: "#22C55E",
-              }}
-            />
-            <div style={{ display: "flex", fontSize: 16, color: "#6B7280" }}>
-              Plataforma de serveis de contractació pública · Dades obertes
+          {/* Bottom: data source + CTA */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div
+                style={{
+                  display: "flex",
+                  width: 12,
+                  height: 12,
+                  borderRadius: "50%",
+                  background: "#22C55E",
+                }}
+              />
+              <div style={{ display: "flex", fontSize: 16, color: "#6B7280" }}>
+                Plataforma de serveis de contractació pública · Dades obertes
+              </div>
+            </div>
+            <div style={{ display: "flex", fontSize: 20, fontWeight: 600, color: "#4F46E5" }}>
+              Explora les dades →
             </div>
           </div>
         </div>
