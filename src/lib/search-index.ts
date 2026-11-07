@@ -12,6 +12,7 @@ import {
   scoreNameMatch,
   type ParsedSearchQuery,
 } from "@/lib/search-query";
+import { clusterMaskedAwardees, maskedDigits } from "@/lib/masked-awardee";
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "@/config/constants";
 
 // How many alias rows to pull per search before ranking in the app; counts
@@ -92,6 +93,54 @@ interface AliasRow {
   total_amount: number | string;
   num_contracts: number | string;
   total_current_year: number | string;
+}
+
+/**
+ * The index keys masked personal ids by (id, exact name), so one autònom's
+ * spellings come back as separate companies. Merge them by name cluster
+ * within the same 4 visible digits (lib/masked-awardee.ts), summing totals and
+ * keeping the best-matching spelling.
+ */
+function mergeMaskedAliasRows(rows: AliasRow[], parsed: ParsedSearchQuery): AliasRow[] {
+  const byDigits = new Map<string, AliasRow[]>();
+  const out: AliasRow[] = [];
+  for (const row of rows) {
+    const digits = maskedDigits(row.nif);
+    if (!digits) {
+      out.push(row);
+      continue;
+    }
+    const list = byDigits.get(digits) || [];
+    list.push(row);
+    byDigits.set(digits, list);
+  }
+  for (const [digits, list] of byDigits) {
+    const groups = list.map((row) => ({
+      id: row.nif,
+      name: row.display_name,
+      contracts: Number(row.num_contracts) || 0,
+      total: Number(row.total_amount) || 0,
+    }));
+    for (const cluster of clusterMaskedAwardees(digits, groups)) {
+      const members = list.filter((row) =>
+        cluster.members.some((m) => m.id === row.nif && m.name === row.display_name)
+      );
+      const best = members.reduce((a, b) =>
+        scoreNameMatch(b.matched_alias, parsed) > scoreNameMatch(a.matched_alias, parsed) ? b : a
+      );
+      const sum = (field: "total_amount" | "num_contracts" | "total_current_year") =>
+        members.reduce((acc, row) => acc + (Number(row[field]) || 0), 0);
+      out.push({
+        ...best,
+        nif: cluster.id,
+        display_name: cluster.name,
+        total_amount: sum("total_amount"),
+        num_contracts: sum("num_contracts"),
+        total_current_year: sum("total_current_year"),
+      });
+    }
+  }
+  return out;
 }
 
 interface OrganRow {
@@ -190,7 +239,7 @@ async function rankedCompanies(db: SupabaseClient, parsed: ParsedSearchQuery): P
       }
     }
     return rankByMatch(
-      Array.from(byIdentity.values()),
+      mergeMaskedAliasRows(Array.from(byIdentity.values()), parsed),
       parsed,
       (row) => row.matched_alias,
       (row) => Number(row.total_amount) || 0

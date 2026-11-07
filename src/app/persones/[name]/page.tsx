@@ -3,7 +3,6 @@ import Link from "next/link";
 import { cache, Suspense } from "react";
 import { getPersonAwardeeTargets, loadPersonProfile } from "@/lib/borme";
 import { fetchContractsByAwardeesSummary } from "@/lib/api";
-import { withFallback } from "@/lib/socrata";
 import { fetchPublicOfficeProfile } from "@/lib/electes";
 import { formatCompactNumber, formatDate, formatNumber } from "@/lib/utils";
 import { formatPersonDisplayName } from "@/lib/person-utils";
@@ -22,6 +21,10 @@ import PersonContractsSection, {
 import { buildCompanyHref } from "@/lib/company-identity";
 
 export const revalidate = 21600;
+
+// No withFallback on this page: it is ISR-cached, so a degraded render (zeros
+// standing in for a failed Socrata query) would be served for hours. Letting the
+// error throw makes Next.js keep serving the last good version and retry later.
 
 // Render on demand and cache via ISR. Do not read searchParams here: it would force
 // per-request rendering. URL filters are read client-side in PersonContractsSection.
@@ -49,11 +52,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const targets = profile ? getPersonAwardeeTargets(profile) : { nifs: [], companyNames: [] };
   const contractsSummary =
     targets.nifs.length > 0
-      ? await withFallback(
-          getContractsSummary(targets.nifs),
-          { total: 0, totalAmount: 0 },
-          "fetchContractsByAwardeesSummary"
-        )
+      ? await getContractsSummary(targets.nifs)
       : { total: 0, totalAmount: 0 };
 
   const description = profile
@@ -100,18 +99,10 @@ export default async function PersonDetailPage({ params }: Props) {
   const targets = getPersonAwardeeTargets(profile);
   const contractsSummary =
     targets.nifs.length > 0
-      ? await withFallback(
-          getContractsSummary(targets.nifs),
-          { total: 0, totalAmount: 0 },
-          "fetchContractsByAwardeesSummary"
-        )
+      ? await getContractsSummary(targets.nifs)
       : { total: 0, totalAmount: 0 };
   const activeCompanies = profile.companies.filter((c) => c.active_spans > 0).length;
-  const publicOffice = await withFallback(
-    fetchPublicOfficeProfile(profile.person_name),
-    { periods: [], matchedNames: [] },
-    "fetchPublicOfficeProfile"
-  );
+  const publicOffice = await fetchPublicOfficeProfile(profile.person_name);
 
   function normalizeDate(value?: string | null): string | null {
     if (!value) return null;
@@ -210,25 +201,16 @@ export default async function PersonDetailPage({ params }: Props) {
             eligibleNifWindows,
           ] as const;
         }
-        const emptySummary = { total: 0, totalAmount: 0 };
         const [summary, summaryByOrgan] = await Promise.all([
-          withFallback(
-            fetchContractsByAwardeesSummary({
-              nifs: targets.nifs,
-              nifDateWindows: eligibleNifWindows,
-            }),
-            emptySummary,
-            "overlap summary"
-          ),
-          withFallback(
-            fetchContractsByAwardeesSummary({
-              nifs: targets.nifs,
-              nifDateWindows: eligibleNifWindows,
-              nom_organ: period.ensName || undefined,
-            }),
-            emptySummary,
-            "overlap summary by organ"
-          ),
+          fetchContractsByAwardeesSummary({
+            nifs: targets.nifs,
+            nifDateWindows: eligibleNifWindows,
+          }),
+          fetchContractsByAwardeesSummary({
+            nifs: targets.nifs,
+            nifDateWindows: eligibleNifWindows,
+            nom_organ: period.ensName || undefined,
+          }),
         ]);
         return [period.key, summary, summaryByOrgan, eligibleNifWindows] as const;
       })

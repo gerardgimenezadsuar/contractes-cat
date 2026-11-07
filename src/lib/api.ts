@@ -35,6 +35,13 @@ import {
   type ParsedSearchQuery,
 } from "@/lib/search-query";
 import type { CompetitionAggregate } from "@/lib/indicators";
+import {
+  clusterMaskedAwardees,
+  maskedDigits,
+  pickMaskedCluster,
+  type MaskedAwardeeCluster,
+  type MaskedNameGroup,
+} from "@/lib/masked-awardee";
 
 const BEST_AVAILABLE_CONTRACT_DATE_EXPR =
   "coalesce(data_adjudicacio_contracte, data_formalitzacio_contracte, data_publicacio_anunci)";
@@ -68,19 +75,87 @@ function getContractsFutureCutoffIso(): string {
   return `${cutoff.toISOString().slice(0, 10)}T23:59:59`;
 }
 
-function buildAwardeeIdentityCondition(id: string, name?: string): string {
-  const safeId = id.replace(/'/g, "''");
-  if (!isAmbiguousCompanyId(id)) {
-    return `identificacio_adjudicatari='${safeId}'`;
-  }
-
+function buildExactIdentityCondition(id: string, name?: string): string {
+  const safeId = escapeSoql(id);
   const trimmedName = (name || "").trim();
-  if (!trimmedName) {
+  if (!isAmbiguousCompanyId(id) || !trimmedName) {
     return `identificacio_adjudicatari='${safeId}'`;
   }
+  return `identificacio_adjudicatari='${safeId}' AND upper(denominacio_adjudicatari)=upper('${escapeSoql(trimmedName)}')`;
+}
 
-  const safeName = trimmedName.replace(/'/g, "''");
-  return `identificacio_adjudicatari='${safeId}' AND upper(denominacio_adjudicatari)=upper('${safeName}')`;
+// Upper bound on spellings per cluster in the IN list, to keep the URL short.
+const MAX_CLUSTER_NAMES = 150;
+
+/**
+ * Every awardee sharing the 4 digits of a masked id, clustered by name (see
+ * lib/masked-awardee.ts). Spans all mask layouts ("*** 0721 **", "*****0721****").
+ */
+export async function fetchMaskedAwardeeClusters(id: string): Promise<MaskedAwardeeCluster[]> {
+  const digits = maskedDigits(id);
+  if (!digits) return [];
+  const rows = await soqlFetch<{
+    identificacio_adjudicatari: string;
+    denominacio_adjudicatari?: string;
+    num_contracts: string;
+  }>({
+    // Counts only: membership must include rows with missing or dirty amounts.
+    $select: "identificacio_adjudicatari, denominacio_adjudicatari, count(*) as num_contracts",
+    $where: `identificacio_adjudicatari like '%*%' AND identificacio_adjudicatari like '%${digits}%' AND denominacio_adjudicatari IS NOT NULL`,
+    $group: "identificacio_adjudicatari, denominacio_adjudicatari",
+    $limit: "5000",
+  });
+  const groups: MaskedNameGroup[] = rows
+    .filter((row) => row.denominacio_adjudicatari && maskedDigits(row.identificacio_adjudicatari) === digits)
+    .map((row) => ({
+      id: row.identificacio_adjudicatari,
+      name: row.denominacio_adjudicatari as string,
+      contracts: parseInt(row.num_contracts, 10) || 0,
+      total: 0,
+    }));
+  return clusterMaskedAwardees(digits, groups);
+}
+
+export interface MaskedAwardeeResolution {
+  cluster: MaskedAwardeeCluster;
+  /** Other awardees that share the same masked digits, largest first. */
+  others: MaskedAwardeeCluster[];
+}
+
+export async function resolveMaskedAwardee(
+  id: string,
+  name?: string
+): Promise<MaskedAwardeeResolution | null> {
+  if (!maskedDigits(id)) return null;
+  const clusters = await fetchMaskedAwardeeClusters(id);
+  const cluster = pickMaskedCluster(clusters, name);
+  if (!cluster) return null;
+  return { cluster, others: clusters.filter((c) => c !== cluster) };
+}
+
+function buildClusterCondition(cluster: MaskedAwardeeCluster): string {
+  const ids = Array.from(new Set(cluster.members.map((m) => m.id)));
+  const names = Array.from(
+    new Set(
+      [...cluster.members].sort((a, b) => b.contracts - a.contracts).map((m) => m.name)
+    )
+  ).slice(0, MAX_CLUSTER_NAMES);
+  const idList = ids.map((v) => `'${escapeSoql(v)}'`).join(", ");
+  const nameList = names.map((v) => `'${escapeSoql(v)}'`).join(", ");
+  return `identificacio_adjudicatari IN (${idList}) AND denominacio_adjudicatari IN (${nameList})`;
+}
+
+/**
+ * SoQL condition selecting one awardee's contracts. Real NIFs match by id.
+ * Masked personal ids match the awardee's name cluster across every mask
+ * layout, so people who only share the 4 visible digits are kept apart.
+ * Other ambiguous ids (placeholders) fall back to id + exact name.
+ */
+async function buildAwardeeIdentityCondition(id: string, name?: string): Promise<string> {
+  if (!isAmbiguousCompanyId(id)) return buildExactIdentityCondition(id);
+  const resolved = await resolveMaskedAwardee(id, name);
+  if (resolved) return buildClusterCondition(resolved.cluster);
+  return buildExactIdentityCondition(id, name);
 }
 
 function normalizeSearchTerm(search: string): string {
@@ -256,8 +331,40 @@ export async function fetchUniqueCompanies(): Promise<number> {
   return parseInt(data[0]?.total || "0", 10);
 }
 
-// Merge rows by company identity. For masked IDs ("**"), identity is ID + name.
+/**
+ * Identity keys for masked-id rows: rows sharing the 4 visible digits are
+ * clustered by name (lib/masked-awardee.ts), so one autònom's spellings and
+ * mask layouts merge while different people sharing the digits stay apart.
+ * Keys keep the "id||name" shape of buildCompanyIdentityKey.
+ */
+function buildMaskedIdentityKeys(rows: CompanyAggregation[]): Map<string, string> {
+  const byDigits = new Map<string, MaskedNameGroup[]>();
+  for (const row of rows) {
+    const digits = maskedDigits(row.identificacio_adjudicatari);
+    if (!digits || !row.denominacio_adjudicatari) continue;
+    const list = byDigits.get(digits) || [];
+    list.push({
+      id: row.identificacio_adjudicatari,
+      name: row.denominacio_adjudicatari,
+      contracts: parseInt(row.num_contracts, 10) || 0,
+      total: parseFloat(row.total) || 0,
+    });
+    byDigits.set(digits, list);
+  }
+  const keys = new Map<string, string>();
+  for (const [digits, groups] of byDigits) {
+    for (const cluster of clusterMaskedAwardees(digits, groups)) {
+      const key = `${cluster.id}||${digits}:${cluster.name}`;
+      for (const member of cluster.members) keys.set(`${member.id}\u0000${member.name}`, key);
+    }
+  }
+  return keys;
+}
+
+// Merge rows by company identity. Real NIFs merge by id; masked ids by name
+// cluster (see buildMaskedIdentityKeys); placeholders by id + name.
 function mergeByNif(rows: CompanyAggregation[]): CompanyAggregation[] {
+  const maskedKeys = buildMaskedIdentityKeys(rows);
   const map = new Map<
     string,
     {
@@ -271,7 +378,9 @@ function mergeByNif(rows: CompanyAggregation[]): CompanyAggregation[] {
 
   for (const row of rows) {
     const nif = row.identificacio_adjudicatari;
-    const identityKey = buildCompanyIdentityKey(nif, row.denominacio_adjudicatari);
+    const identityKey =
+      maskedKeys.get(`${nif}\u0000${row.denominacio_adjudicatari}`) ??
+      buildCompanyIdentityKey(nif, row.denominacio_adjudicatari);
     const total = parseFloat(row.total) || 0;
     const contracts = parseInt(row.num_contracts, 10) || 0;
     const totalCurrentYear = parseFloat(row.total_current_year || "0") || 0;
@@ -896,7 +1005,7 @@ export async function fetchCompanyDetail(
   id: string,
   companyName?: string
 ): Promise<{ company: CompanyAggregation; yearly: CompanyYearAggregation[] }> {
-  const identityWhere = buildAwardeeIdentityCondition(id, companyName);
+  const identityWhere = await buildAwardeeIdentityCondition(id, companyName);
 
   const [companyRows, yearlyRows] = await Promise.all([
     soqlFetch<CompanyAggregation>({
@@ -960,7 +1069,7 @@ export async function fetchCompanyContracts(
   offset = 0,
   limit = DEFAULT_PAGE_SIZE
 ): Promise<Contract[]> {
-  const identityWhere = buildAwardeeIdentityCondition(id, companyName);
+  const identityWhere = await buildAwardeeIdentityCondition(id, companyName);
   return soqlFetch<Contract>({
     $where: `${identityWhere} AND ${AWARDED_CONTRACT_WHERE} AND (${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) IS NOT NULL`,
     $order: `${BEST_AVAILABLE_CONTRACT_DATE_EXPR} DESC`,
@@ -970,7 +1079,7 @@ export async function fetchCompanyContracts(
 }
 
 export async function fetchCompanyContractsCount(id: string, companyName?: string): Promise<number> {
-  const identityWhere = buildAwardeeIdentityCondition(id, companyName);
+  const identityWhere = await buildAwardeeIdentityCondition(id, companyName);
   const data = await soqlFetch<{ total: string }>({
     $select: "count(*) as total",
     $where: `${identityWhere} AND ${AWARDED_CONTRACT_WHERE} AND (${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) IS NOT NULL`,
@@ -979,7 +1088,7 @@ export async function fetchCompanyContractsCount(id: string, companyName?: strin
 }
 
 export async function fetchCompanyLastAwardDate(id: string, companyName?: string): Promise<string | undefined> {
-  const identityWhere = buildAwardeeIdentityCondition(id, companyName);
+  const identityWhere = await buildAwardeeIdentityCondition(id, companyName);
   const futureCutoffIso = getContractsFutureCutoffIso();
   const data = await soqlFetch<{ last_date?: string }>({
     $select: `max(${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) as last_date`,
@@ -1218,7 +1327,7 @@ export async function fetchContracts(
   } = filters;
 
   if (nif) {
-    conditions.push(buildAwardeeIdentityCondition(nif, filters.awardee_name));
+    conditions.push(await buildAwardeeIdentityCondition(nif, filters.awardee_name));
   }
   if (year) {
     const parsedYear = parseYearFilter(year);
@@ -1296,7 +1405,7 @@ export async function fetchContractsCount(
   } = filters;
 
   if (nif) {
-    conditions.push(buildAwardeeIdentityCondition(nif, awardee_name));
+    conditions.push(await buildAwardeeIdentityCondition(nif, awardee_name));
   }
   if (year) {
     const parsedYear = parseYearFilter(year);
@@ -1669,7 +1778,7 @@ export async function fetchCompanyTopOrgans(
   companyName?: string,
   limit = 10
 ): Promise<{ nom_organ: string; total: string; num_contracts: string }[]> {
-  const identityWhere = buildAwardeeIdentityCondition(companyId, companyName);
+  const identityWhere = await buildAwardeeIdentityCondition(companyId, companyName);
   return soqlFetch({
     $select:
       "nom_organ, sum(import_adjudicacio_amb_iva::number) as total, count(*) as num_contracts",
