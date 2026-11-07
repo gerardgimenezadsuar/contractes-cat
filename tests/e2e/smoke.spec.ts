@@ -114,12 +114,29 @@ test.describe("mobile explorer", () => {
     await expect(nav.getByText(/Pàg\. 1 de/)).toBeVisible();
   });
 
-  test("home search mode control fits in one row", async ({ page }) => {
+  test("home search shows companies, public bodies and people together", async ({ page }) => {
+    await page.route("**/api/empreses?*", (route) =>
+      route.fulfill({
+        json: { data: [{ identificacio_adjudicatari: "A08000002", denominacio_adjudicatari: "MARTA OBRES SL", total: "1000", num_contracts: "2" }] },
+      })
+    );
+    await page.route("**/api/organismes?*", (route) =>
+      route.fulfill({ json: { data: [{ nom_organ: "Ajuntament de Martorell", total: "5000", num_contracts: "7" }] } })
+    );
+    await page.route("**/api/persones?*", (route) =>
+      route.fulfill({
+        json: { data: [{ person_name: "COLET GONZALO MARTA", num_companies: 3, num_companies_with_nif: 2, active_spans: 1 }] },
+      })
+    );
     await page.goto("/");
-    const tabs = page.getByRole("tab");
-    await expect(tabs).toHaveCount(3);
-    const boxes = await tabs.evaluateAll((els) => els.map((el) => el.getBoundingClientRect().top));
-    expect(new Set(boxes.map((b) => Math.round(b))).size).toBe(1);
+    await page.waitForFunction(() => {
+      const el = document.querySelector("#home-search-input");
+      return Boolean(el && Object.keys(el).some((key) => key.startsWith("__reactFiber")));
+    });
+    await page.locator("#home-search-input").fill("marta");
+    await expect(page.getByRole("link", { name: /MARTA OBRES SL/ })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Ajuntament de Martorell/ })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Marta Colet Gonzalo/ })).toBeVisible();
   });
 });
 
