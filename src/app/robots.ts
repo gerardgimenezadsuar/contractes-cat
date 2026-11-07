@@ -22,6 +22,7 @@ const BLOCKED_CRAWLERS = [
   "ZoominfoBot",
   "AwarioBot",
   "Bytespider",
+  "PetalBot",
 ];
 
 export default function robots(): MetadataRoute.Robots {
