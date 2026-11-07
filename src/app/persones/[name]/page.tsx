@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { cache } from "react";
+import { cache, Suspense } from "react";
 import { getPersonAwardeeTargets, loadPersonProfile } from "@/lib/borme";
 import { fetchContractsByAwardeesSummary } from "@/lib/api";
 import { withFallback } from "@/lib/socrata";
@@ -16,20 +16,21 @@ import {
 } from "@/lib/seo/entity-seo";
 import StatCard from "@/components/ui/StatCard";
 import SharePageButton from "@/components/ui/SharePageButton";
-import PersonContractsExplorer from "@/components/person/PersonContractsExplorer";
+import PersonContractsSection, {
+  PersonContractsSectionFallback,
+} from "@/components/person/PersonContractsSection";
 import { buildCompanyHref } from "@/lib/company-identity";
 
 export const revalidate = 21600;
 
+// Render on demand and cache via ISR. Do not read searchParams here: it would force
+// per-request rendering. URL filters are read client-side in PersonContractsSection.
+export async function generateStaticParams() {
+  return [];
+}
+
 interface Props {
   params: Promise<{ name: string }>;
-  searchParams: Promise<{
-    date_from?: string;
-    date_to?: string;
-    nifs?: string;
-    nif_windows?: string;
-    nom_organ?: string;
-  }>;
 }
 
 const getPersonProfile = cache(async (name: string) => loadPersonProfile(name));
@@ -78,9 +79,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   });
 }
 
-export default async function PersonDetailPage({ params, searchParams }: Props) {
+export default async function PersonDetailPage({ params }: Props) {
   const { name } = await params;
-  const query = await searchParams;
   const decodedName = decodeURIComponent(name);
   const profile = await getPersonProfile(decodedName);
 
@@ -112,36 +112,6 @@ export default async function PersonDetailPage({ params, searchParams }: Props) 
     { periods: [], matchedNames: [] },
     "fetchPublicOfficeProfile"
   );
-
-  const safeDateFrom = /^\d{4}-\d{2}-\d{2}$/.test(query?.date_from || "")
-    ? query.date_from || ""
-    : "";
-  const safeDateTo = /^\d{4}-\d{2}-\d{2}$/.test(query?.date_to || "")
-    ? query.date_to || ""
-    : "";
-  const safeNomOrgan = (query?.nom_organ || "").trim().slice(0, 160);
-  const scopedNifs = (query?.nifs || "")
-    .split(",")
-    .map((nif) => nif.trim().toUpperCase())
-    .filter((nif) => /^[A-Z0-9]{8,12}$/.test(nif));
-  const effectiveNifs = scopedNifs.length > 0 ? Array.from(new Set(scopedNifs)) : targets.nifs;
-  const rawNifWindows = (query?.nif_windows || "").trim();
-  const requestedNifWindows = rawNifWindows
-    .split(";")
-    .map((chunk) => chunk.trim())
-    .filter(Boolean)
-    .map((chunk) => {
-      const [nifRaw, fromRaw, toRaw] = chunk.split(",");
-      const nif = (nifRaw || "").trim().toUpperCase();
-      const from = (fromRaw || "").trim();
-      const to = (toRaw || "").trim();
-      return {
-        nif,
-        dateFrom: /^\d{4}-\d{2}-\d{2}$/.test(from) ? from : undefined,
-        dateTo: /^\d{4}-\d{2}-\d{2}$/.test(to) ? to : undefined,
-      };
-    })
-    .filter((item) => /^[A-Z0-9]{8,12}$/.test(item.nif));
 
   function normalizeDate(value?: string | null): string | null {
     if (!value) return null;
@@ -320,27 +290,6 @@ export default async function PersonDetailPage({ params, searchParams }: Props) 
           };
         })()
       : null;
-
-  const effectiveNifWindows =
-    requestedNifWindows.length > 0 ? requestedNifWindows : undefined;
-  const explorerScopeKey = [
-    personNameForHref,
-    safeNomOrgan,
-    safeDateFrom,
-    safeDateTo,
-    rawNifWindows,
-    effectiveNifs.join(","),
-  ].join("|");
-  const scopedContractsSummary =
-    effectiveNifs.length > 0 && (safeDateFrom || safeDateTo || safeNomOrgan || effectiveNifWindows)
-      ? await fetchContractsByAwardeesSummary({
-          nifs: effectiveNifs,
-          nom_organ: safeNomOrgan || undefined,
-          dateFrom: safeDateFrom || undefined,
-          dateTo: safeDateTo || undefined,
-          nifDateWindows: effectiveNifWindows,
-        })
-      : contractsSummary;
 
   const personPath = `/persones/${encodeURIComponent(profile.person_name)}`;
   const personDescription = `${displayName}: vinculacions societàries i contractes públics a Catalunya.`;
@@ -533,19 +482,21 @@ export default async function PersonDetailPage({ params, searchParams }: Props) 
       </section>
 
       <section id="contractes">
-        <PersonContractsExplorer
-          key={explorerScopeKey}
-          personName={profile.person_name}
-          personNifs={effectiveNifs}
-          initialContracts={[]}
-          initialTotalContracts={scopedContractsSummary.total}
-          initialTotalAmount={scopedContractsSummary.totalAmount}
-          hasNifTargets={effectiveNifs.length > 0}
-          initialOrganFilter={safeNomOrgan}
-          initialDateFrom={safeDateFrom}
-          initialDateTo={safeDateTo}
-          initialNifWindows={rawNifWindows}
-        />
+        <Suspense
+          fallback={
+            <PersonContractsSectionFallback
+              totalContracts={contractsSummary.total}
+              totalAmount={contractsSummary.totalAmount}
+            />
+          }
+        >
+          <PersonContractsSection
+            personName={profile.person_name}
+            defaultNifs={targets.nifs}
+            totalContracts={contractsSummary.total}
+            totalAmount={contractsSummary.totalAmount}
+          />
+        </Suspense>
       </section>
     </div>
   );
