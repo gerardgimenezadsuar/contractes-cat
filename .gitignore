@@ -61,6 +61,7 @@ next-env.d.ts
 !/scripts/borme_bulk_extract.py
 !/scripts/borme_build_sqlite.py
 !/scripts/borme_repair_person_fts.py
+!/scripts/borme_check.py
 /scripts/borme_turso_import.py
 /scripts/borme_turso_import.mjs
 /scripts/calc_active_period_operacions.py
