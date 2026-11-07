@@ -44,6 +44,12 @@ jobs:
           if [ -n "$START_DATE" ]; then args+=(--start-date "$START_DATE"); fi
           python3 scripts/borme_incremental_update.py "${args[@]}"
 
+      - name: Rebuild related-companies graph (company_links, diff-synced)
+        env:
+          TURSO_URL: ${{ secrets.TURSO_URL }}
+          TURSO_WRITE_TOKEN: ${{ secrets.TURSO_WRITE_TOKEN }}
+        run: python3 scripts/borme_build_company_graph.py
+
       - name: Health checks (fails the job, and GitHub emails you, if the DB looks wrong)
         env:
           TURSO_URL: ${{ secrets.TURSO_URL }}

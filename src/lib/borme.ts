@@ -586,6 +586,132 @@ export async function listAllPersonNames(): Promise<string[]> {
   return listPersonNamesPage(0, total);
 }
 
+// ---------------------------------------------------------------------------
+// Related companies (company_links, built by scripts/borme_build_company_graph.py)
+// ---------------------------------------------------------------------------
+
+export type CompanyLinkType = "PARENT" | "SUBSIDIARY" | "SHARED_ADMIN";
+export type CompanyRoleClass = "OWNER" | "ADMIN";
+
+export interface CompanyLinkSpan {
+  roleClass: CompanyRoleClass;
+  roleCode: string;
+  dateStart: string;
+  dateEnd: string | null;
+  sourcePdf: string | null;
+}
+
+export interface CompanyLinkEvidence {
+  linkType: CompanyLinkType;
+  /** Owner/administrator shared by both companies, or the parent company itself. */
+  officer: string;
+  /** PARENT/SUBSIDIARY: the parent's role in the child. SHARED_ADMIN: role in this company. */
+  span: CompanyLinkSpan;
+  /** SHARED_ADMIN only: the officer's role in the related company. */
+  relatedSpan: CompanyLinkSpan | null;
+}
+
+export interface RelatedCompany {
+  relatedId: number;
+  name: string;
+  /** True when `name` comes from the contracts dataset (already well formatted). */
+  hasMatchedName: boolean;
+  nif: string | null;
+  linkTypes: CompanyLinkType[];
+  active: boolean;
+  strength: number;
+  evidence: CompanyLinkEvidence[];
+}
+
+interface RawLinkSpan {
+  r: CompanyRoleClass;
+  c: string;
+  s: string;
+  e: string | null;
+  p: string | null;
+}
+
+function toLinkSpan(raw: RawLinkSpan): CompanyLinkSpan {
+  return { roleClass: raw.r, roleCode: raw.c, dateStart: raw.s, dateEnd: raw.e ?? null, sourcePdf: raw.p ?? null };
+}
+
+function parseLinkEvidence(linkType: CompanyLinkType, json: string): CompanyLinkEvidence[] {
+  try {
+    const items = JSON.parse(json) as Array<Record<string, unknown>>;
+    return items.map((item) =>
+      linkType === "SHARED_ADMIN"
+        ? {
+            linkType,
+            officer: String(item.o),
+            span: toLinkSpan(item.a as RawLinkSpan),
+            relatedSpan: toLinkSpan(item.b as RawLinkSpan),
+          }
+        : { linkType, officer: String(item.o), span: toLinkSpan(item as unknown as RawLinkSpan), relatedSpan: null }
+    );
+  } catch {
+    return [];
+  }
+}
+
+const LINK_TYPE_ORDER: Record<CompanyLinkType, number> = { PARENT: 0, SUBSIDIARY: 1, SHARED_ADMIN: 2 };
+
+/**
+ * Companies related to a NIF through ownership (sole shareholder) or
+ * administration, one entry per related company. Reads one indexed range of
+ * company_links (at most ~100 rows).
+ */
+export async function loadRelatedCompanies(nif: string): Promise<RelatedCompany[]> {
+  try {
+    const client = getDb();
+    if (!client) return [];
+    if (!canReadTurso()) return [];
+    const result = await client.execute({
+      sql: `SELECT l.link_type, l.related_id, l.active, l.strength, l.evidence,
+                   c.company_name, c.matched_name, c.nif
+            FROM company_links l
+            JOIN companies c ON c.id = l.related_id
+            WHERE l.nif = ?`,
+      args: [nif.trim().toUpperCase()],
+    });
+
+    const byRelated = new Map<number, RelatedCompany>();
+    for (const row of result.rows) {
+      const linkType = String(row.link_type) as CompanyLinkType;
+      const relatedId = Number(row.related_id);
+      const evidence = parseLinkEvidence(linkType, String(row.evidence ?? "[]"));
+      const relatedNif = row.nif != null && String(row.nif).trim() !== "" ? String(row.nif) : null;
+      const existing = byRelated.get(relatedId);
+      if (existing) {
+        existing.linkTypes.push(linkType);
+        existing.active = existing.active || Number(row.active) === 1;
+        existing.strength = Math.max(existing.strength, Number(row.strength) || 0);
+        existing.evidence.push(...evidence);
+      } else {
+        byRelated.set(relatedId, {
+          relatedId,
+          name: String(row.matched_name || row.company_name || ""),
+          hasMatchedName: Boolean(row.matched_name),
+          nif: relatedNif,
+          linkTypes: [linkType],
+          active: Number(row.active) === 1,
+          strength: Number(row.strength) || 0,
+          evidence,
+        });
+      }
+    }
+    const related = Array.from(byRelated.values());
+    for (const r of related) r.linkTypes.sort((a, b) => LINK_TYPE_ORDER[a] - LINK_TYPE_ORDER[b]);
+    return related;
+  } catch (error) {
+    markBlockedRead(error);
+    if (isBlockedReadError(error)) return [];
+    // Table not created yet (graph build has not run): treat as no links.
+    if (String(error).includes("no such table")) return [];
+    console.error("Failed to load related companies from Turso:", error);
+    return [];
+  }
+}
+
 export function getPersonAwardeeTargets(profile: BormePersonProfile): BormePersonAwardeeTargets {
   const nifs = new Set<string>();
   const names = new Set<string>();
