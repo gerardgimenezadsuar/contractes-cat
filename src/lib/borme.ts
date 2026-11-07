@@ -541,11 +541,16 @@ export async function listPersonNamesPage(offset = 0, limit = 1000): Promise<str
 
     const safeOffset = Math.max(0, Math.floor(offset));
     const safeLimit = Math.max(1, Math.floor(limit));
+    // ORDER BY must match idx_person_summary_nif_rank column for column.
+    // Any other order makes Turso sort all ~735k rows in a temp B-tree for
+    // every sitemap chunk; dozens of chunks at once ran it out of memory
+    // (SQLITE_NOMEM), which also failed unrelated queries such as BORME
+    // admin history on company pages.
     const result = await client.execute({
       sql: `SELECT person_name
             FROM person_summary
             WHERE ${VALID_PERSON_SQL}
-            ORDER BY num_companies_with_nif DESC, total_spans DESC
+            ORDER BY num_companies_with_nif DESC, num_companies DESC, active_spans DESC, total_spans DESC
             LIMIT ? OFFSET ?`,
       args: [safeLimit, safeOffset],
     });
