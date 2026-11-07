@@ -9,6 +9,7 @@ import {
   fetchCompanyContracts,
   fetchCompanyContractsCount,
   fetchCompanyLastAwardDate,
+  fetchAwardeeTotalsByNifs,
   fetchCompanyTopOrgans,
   resolveMaskedAwardee,
 } from "@/lib/api";
@@ -29,7 +30,8 @@ import BormeSummaryCard from "@/components/company/BormeSummaryCard";
 import EntityHeader, { type HeaderChip, type KeyFigure } from "@/components/entity/EntityHeader";
 import SectionTabs from "@/components/entity/SectionTabs";
 import { IndicatorGrid } from "@/components/entity/IndicatorCard";
-import { loadAdminHistory } from "@/lib/borme";
+import { loadAdminHistory, loadRelatedCompanies } from "@/lib/borme";
+import RelatedCompaniesSection from "@/components/company/RelatedCompaniesSection";
 import { buildCompanyHref, isAmbiguousCompanyId } from "@/lib/company-identity";
 import MaskedIdentityNotice from "@/components/company/MaskedIdentityNotice";
 
@@ -85,7 +87,7 @@ export async function CompanyDetail({ decodedId, name }: { decodedId: string; na
 
   const nif = company.identificacio_adjudicatari;
   const canMeasureCompetition = !isAmbiguousCompanyId(nif);
-  const [contracts, contractsCount, topOrgans, lastAwardDate, competition, baseline, adminHistory] = await Promise.all([
+  const [contracts, contractsCount, topOrgans, lastAwardDate, competition, baseline, adminHistory, relatedCompanies] = await Promise.all([
     fetchCompanyContracts(decodedId, name, 0, 50),
     fetchCompanyContractsCount(decodedId, name),
     fetchCompanyTopOrgans(decodedId, name, 10),
@@ -93,7 +95,12 @@ export async function CompanyDetail({ decodedId, name }: { decodedId: string; na
     canMeasureCompetition ? fetchCompanyCompetition(nif) : Promise.resolve(null),
     canMeasureCompetition ? fetchCataloniaCompetition() : Promise.resolve(null),
     loadAdminHistory(decodedId),
+    canMeasureCompetition ? loadRelatedCompanies(nif) : Promise.resolve([]),
   ]);
+  const relatedTotals =
+    relatedCompanies.length > 0
+      ? await fetchAwardeeTotalsByNifs(relatedCompanies.flatMap((r) => (r.nif ? [r.nif] : []))).catch(() => new Map())
+      : new Map();
   const maskedIdentity = isAmbiguousCompanyId(nif) ? await resolveMaskedAwardee(decodedId, name) : null;
   const hasBormeData = Boolean(adminHistory && adminHistory.spans.length > 0);
 
@@ -143,6 +150,7 @@ export async function CompanyDetail({ decodedId, name }: { decodedId: string; na
     { id: "resum", label: "Resum" },
     ...(topOrgans.length > 0 ? [{ id: "organismes", label: "Organismes" }] : []),
     ...(hasBormeData ? [{ id: "administradors", label: "Administradors" }] : []),
+    ...(relatedCompanies.length > 0 ? [{ id: "relacionades", label: "Empreses relacionades" }] : []),
     { id: "contractes", label: "Contractes" },
   ];
 
@@ -200,6 +208,16 @@ export async function CompanyDetail({ decodedId, name }: { decodedId: string; na
       {topOrgans.length > 0 ? (
         <section id="organismes" className="scroll-mt-32 pt-10">
           <CompanyCounterpartyTable rows={topOrgans} companyTotalAmount={totalAmount} lastAwardDate={lastAwardDate} />
+        </section>
+      ) : null}
+
+      {relatedCompanies.length > 0 ? (
+        <section id="relacionades" className="scroll-mt-32 pt-10">
+          <RelatedCompaniesSection
+            companyName={company.denominacio_adjudicatari}
+            related={relatedCompanies}
+            totals={relatedTotals}
+          />
         </section>
       ) : null}
 

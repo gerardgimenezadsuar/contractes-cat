@@ -668,6 +668,33 @@ export async function fetchCompaniesCount(
 }
 
 /** Number of distinct unambiguous company ids, matching fetchCompanyIdsPage. */
+export interface AwardeeTotals {
+  total: number;
+  numContracts: number;
+}
+
+/** Public-contract totals (IVA inclòs) for a list of real NIFs, in one Socrata query. */
+export async function fetchAwardeeTotalsByNifs(nifs: string[]): Promise<Map<string, AwardeeTotals>> {
+  const unique = Array.from(new Set(nifs.map((n) => n.trim().toUpperCase()).filter((n) => n && !isAmbiguousCompanyId(n))));
+  const out = new Map<string, AwardeeTotals>();
+  if (unique.length === 0) return out;
+  const rows = await soqlFetch<{ identificacio_adjudicatari: string; total: string; num_contracts: string }>({
+    $select: "identificacio_adjudicatari, sum(import_adjudicacio_amb_iva::number) as total, count(*) as num_contracts",
+    $where: `${CLEAN_AMOUNT_FILTER} AND import_adjudicacio_amb_iva IS NOT NULL AND identificacio_adjudicatari IN (${unique
+      .map((n) => `'${escapeSoql(n)}'`)
+      .join(", ")})`,
+    $group: "identificacio_adjudicatari",
+    $limit: String(unique.length),
+  });
+  for (const row of rows) {
+    out.set(row.identificacio_adjudicatari.toUpperCase(), {
+      total: parseFloat(row.total) || 0,
+      numContracts: parseInt(row.num_contracts, 10) || 0,
+    });
+  }
+  return out;
+}
+
 export async function fetchCompanyIdsCount(): Promise<number> {
   const data = await soqlFetch<{ total: string }>({
     $select: "count(distinct identificacio_adjudicatari) as total",
