@@ -43,3 +43,9 @@ jobs:
           args=(--archive-dir "" --workers 6)
           if [ -n "$START_DATE" ]; then args+=(--start-date "$START_DATE"); fi
           python3 scripts/borme_incremental_update.py "${args[@]}"
+
+      - name: Health checks (fails the job, and GitHub emails you, if the DB looks wrong)
+        env:
+          TURSO_URL: ${{ secrets.TURSO_URL }}
+          TURSO_WRITE_TOKEN: ${{ secrets.TURSO_WRITE_TOKEN }}
+        run: python3 scripts/borme_check.py
