@@ -827,6 +827,208 @@ export function listTopCompanyGroups(offset = 0, limit = 50): Promise<CompanyGro
   });
 }
 
+// ---------------------------------------------------------------------------
+// Path finder: how are two companies connected? (bidirectional BFS over company_links)
+// ---------------------------------------------------------------------------
+
+export interface PathNode {
+  key: string;
+  name: string;
+  hasMatchedName: boolean;
+  nif: string | null;
+}
+
+export interface PathStep {
+  from: PathNode;
+  to: PathNode;
+  /** Relationship of `to` relative to `from`. */
+  relation: "PARENT" | "SUBSIDIARY" | "SHARED_ADMIN";
+  evidence: CompanyLinkEvidence[];
+}
+
+export interface CompanyPathResult {
+  found: boolean;
+  steps: PathStep[];
+  /** True when the search stopped early (very connected companies or too many hops). */
+  truncated: boolean;
+}
+
+const PATH_MAX_HOPS = 4;
+const PATH_MAX_FRONTIER = 400;
+const INVERSE_RELATION = { PARENT: "SUBSIDIARY", SUBSIDIARY: "PARENT", SHARED_ADMIN: "SHARED_ADMIN" } as const;
+
+interface PathEdge {
+  to: string;
+  relation: CompanyLinkType;
+  evidenceJson: string;
+  /** evidence is stored from the anchor's point of view; flipped when the anchor is `to`. */
+  anchorIsFrom: boolean;
+}
+
+function nodeKey(nif: unknown, id: unknown): string {
+  const n = nif != null ? String(nif).trim().toUpperCase() : "";
+  return n ? n : `#${Number(id)}`;
+}
+
+/**
+ * Shortest chain of BORME links between two companies (by NIF), up to
+ * PATH_MAX_HOPS. Each expansion is two indexed queries over company_links.
+ */
+export async function findCompanyPath(nifA: string, nifB: string): Promise<CompanyPathResult | null> {
+  return runGroupQuery("company path", null, async (client) => {
+    const start = nifA.trim().toUpperCase();
+    const goal = nifB.trim().toUpperCase();
+    if (!start || !goal || start === goal) return { found: false, steps: [], truncated: false };
+
+    const neighbours = async (keys: string[]): Promise<Map<string, PathEdge[]>> => {
+      const out = new Map<string, PathEdge[]>();
+      const push = (from: string, edge: PathEdge) => {
+        if (!out.has(from)) out.set(from, []);
+        out.get(from)!.push(edge);
+      };
+      const nifs = keys.filter((k) => !k.startsWith("#"));
+      const idKeys = keys.filter((k) => k.startsWith("#")).map((k) => Number(k.slice(1)));
+      const ph = (n: number) => Array.from({ length: n }, () => "?").join(",");
+
+      // Company ids behind each NIF (a NIF can map to several BORME rows).
+      const idToKey = new Map<number, string>(idKeys.map((id) => [id, `#${id}`]));
+      if (nifs.length > 0) {
+        const ids = await client.execute({ sql: `SELECT id, nif FROM companies WHERE nif IN (${ph(nifs.length)})`, args: nifs });
+        for (const r of ids.rows) idToKey.set(Number(r.id), String(r.nif).toUpperCase());
+      }
+      const [outgoing, incoming] = await Promise.all([
+        nifs.length > 0
+          ? client.execute({
+              sql: `SELECT l.nif, l.link_type, l.evidence, l.related_id, c.nif AS related_nif
+                    FROM company_links l JOIN companies c ON c.id = l.related_id
+                    WHERE l.nif IN (${ph(nifs.length)})`,
+              args: nifs,
+            })
+          : Promise.resolve({ rows: [] as Record<string, unknown>[] }),
+        idToKey.size > 0
+          ? client.execute({
+              sql: `SELECT nif, link_type, evidence, related_id FROM company_links WHERE related_id IN (${ph(idToKey.size)})`,
+              args: Array.from(idToKey.keys()),
+            })
+          : Promise.resolve({ rows: [] as Record<string, unknown>[] }),
+      ]);
+      for (const r of outgoing.rows) {
+        push(String(r.nif).toUpperCase(), {
+          to: nodeKey(r.related_nif, r.related_id),
+          relation: String(r.link_type) as CompanyLinkType,
+          evidenceJson: String(r.evidence ?? "[]"),
+          anchorIsFrom: true,
+        });
+      }
+      for (const r of incoming.rows) {
+        const from = idToKey.get(Number(r.related_id));
+        if (!from) continue;
+        const type = String(r.link_type) as CompanyLinkType;
+        push(from, {
+          to: String(r.nif).toUpperCase(),
+          relation: INVERSE_RELATION[type],
+          evidenceJson: String(r.evidence ?? "[]"),
+          anchorIsFrom: false,
+        });
+      }
+      return out;
+    };
+
+    // prev maps: node -> [previous node, edge used to reach it from that previous node]
+    const prevA = new Map<string, [string, PathEdge] | null>([[start, null]]);
+    const prevB = new Map<string, [string, PathEdge] | null>([[goal, null]]);
+    let frontierA = [start];
+    let frontierB = [goal];
+    let meet: string | null = null;
+    let truncated = false;
+
+    for (let hops = 0; hops < PATH_MAX_HOPS && !meet; hops++) {
+      const expandA = frontierA.length <= frontierB.length;
+      const frontier = expandA ? frontierA : frontierB;
+      const prev = expandA ? prevA : prevB;
+      const other = expandA ? prevB : prevA;
+      if (frontier.length === 0) break;
+      if (frontier.length > PATH_MAX_FRONTIER) {
+        truncated = true;
+        break;
+      }
+      const edges = await neighbours(frontier);
+      const next: string[] = [];
+      for (const from of frontier) {
+        for (const edge of edges.get(from) ?? []) {
+          if (prev.has(edge.to)) continue;
+          prev.set(edge.to, [from, edge]);
+          next.push(edge.to);
+          if (other.has(edge.to)) {
+            meet = edge.to;
+            break;
+          }
+        }
+        if (meet) break;
+      }
+      if (expandA) frontierA = next;
+      else frontierB = next;
+    }
+    if (!meet) return { found: false, steps: [], truncated: truncated || (frontierA.length > 0 && frontierB.length > 0) };
+
+    // Rebuild start -> meet (forward) and meet -> goal (edges walked backwards from B, so invert them).
+    const raw: Array<{ from: string; to: string; edge: PathEdge }> = [];
+    for (let k = meet; prevA.get(k); ) {
+      const [p, e] = prevA.get(k)!;
+      raw.unshift({ from: p, to: k, edge: e });
+      k = p;
+    }
+    for (let k = meet; prevB.get(k); ) {
+      const [p, e] = prevB.get(k)!;
+      raw.push({
+        from: k,
+        to: p,
+        edge: { to: p, relation: INVERSE_RELATION[e.relation], evidenceJson: e.evidenceJson, anchorIsFrom: !e.anchorIsFrom },
+      });
+      k = p;
+    }
+
+    const keys = Array.from(new Set(raw.flatMap((s) => [s.from, s.to])));
+    const nifKeys = keys.filter((k) => !k.startsWith("#"));
+    const idKeys = keys.filter((k) => k.startsWith("#")).map((k) => Number(k.slice(1)));
+    const nameRows = await client.execute({
+      sql: `SELECT id, nif, company_name, matched_name FROM companies
+            WHERE ${[nifKeys.length ? `nif IN (${nifKeys.map(() => "?").join(",")})` : "", idKeys.length ? `id IN (${idKeys.map(() => "?").join(",")})` : ""]
+              .filter(Boolean)
+              .join(" OR ")}`,
+      args: [...nifKeys, ...idKeys],
+    });
+    const nodes = new Map<string, PathNode>();
+    for (const r of nameRows.rows) {
+      const key = nodeKey(r.nif, r.id);
+      const existing = nodes.get(key);
+      if (existing && existing.hasMatchedName) continue;
+      nodes.set(key, {
+        key,
+        name: String(r.matched_name || r.company_name || ""),
+        hasMatchedName: Boolean(r.matched_name),
+        nif: r.nif != null && String(r.nif).trim() !== "" ? String(r.nif) : null,
+      });
+    }
+    const node = (k: string): PathNode => nodes.get(k) ?? { key: k, name: k, hasMatchedName: false, nif: k.startsWith("#") ? null : k };
+
+    const steps: PathStep[] = raw.map(({ from, to, edge }) => {
+      // Stored evidence is from the anchor's perspective; parse it with the anchor's link type.
+      const anchorType = edge.anchorIsFrom ? edge.relation : INVERSE_RELATION[edge.relation];
+      let evidence = parseLinkEvidence(anchorType, edge.evidenceJson);
+      if (!edge.anchorIsFrom) {
+        evidence = evidence.map((e) =>
+          e.relatedSpan ? { ...e, linkType: edge.relation, span: e.relatedSpan, relatedSpan: e.span } : { ...e, linkType: edge.relation }
+        );
+      } else {
+        evidence = evidence.map((e) => ({ ...e, linkType: edge.relation }));
+      }
+      return { from: node(from), to: node(to), relation: edge.relation, evidence };
+    });
+    return { found: true, steps, truncated: false };
+  });
+}
+
 export function getPersonAwardeeTargets(profile: BormePersonProfile): BormePersonAwardeeTargets {
   const nifs = new Set<string>();
   const names = new Set<string>();

@@ -532,7 +532,9 @@ def load_existing(db) -> dict[tuple[str, str, int], str]:
 
 def sync(db, final: dict, dry_run: bool) -> None:
   if not dry_run:
-    db.transaction([(SCHEMA, [])])
+    # related_id index: the path finder follows links backwards (from the related side).
+    db.transaction([(SCHEMA, []),
+                    ("CREATE INDEX IF NOT EXISTS idx_company_links_related ON company_links(related_id)", [])])
   try:
     existing = load_existing(db)
   except Exception:  # noqa: BLE001 -- table missing in dry-run

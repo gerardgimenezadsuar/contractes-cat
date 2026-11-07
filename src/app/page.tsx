@@ -215,6 +215,40 @@ export default async function HomePage() {
           />
         </section>
 
+        <section className="mb-10 rounded-xl border border-gray-200 bg-white p-5 sm:p-6">
+          <p className="text-xs font-semibold uppercase tracking-wider text-accent">Nou · dades del BORME</p>
+          <h2 className="mt-1 text-2xl font-bold text-gray-900">Qui hi ha darrere de les empreses adjudicatàries?</h2>
+          <p className="mt-2 max-w-3xl text-gray-600">
+            Creuem el Registre Mercantil amb els contractes públics: filials, empreses que comparteixen
+            administradors i grups empresarials, amb l&apos;enllaç a cada publicació del BORME.
+          </p>
+          <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Link
+              href="/connexions?a=A08146367&an=SOREA&b=A66098435&bn=Aig%C3%BCes%20de%20Barcelona"
+              className="group rounded-lg border border-gray-200 p-4 hover:border-gray-300 hover:bg-gray-50"
+            >
+              <p className="font-semibold text-gray-900">Com estan connectades dues empreses?</p>
+              <p className="mt-1 text-sm text-gray-600">
+                Tria dues empreses i et mostrem la cadena de socis i administradors que les uneix. Exemple: SOREA i
+                Aigües de Barcelona.
+              </p>
+              <span className="mt-2 inline-block text-sm font-medium text-accent group-hover:underline">
+                Prova-ho →
+              </span>
+            </Link>
+            <Link href="/grups" className="group rounded-lg border border-gray-200 p-4 hover:border-gray-300 hover:bg-gray-50">
+              <p className="font-semibold text-gray-900">Grups empresarials</p>
+              <p className="mt-1 text-sm text-gray-600">
+                Empreses i les seves filials segons el BORME, ordenades pels contractes públics que han guanyat
+                plegades.
+              </p>
+              <span className="mt-2 inline-block text-sm font-medium text-accent group-hover:underline">
+                Veure el rànquing →
+              </span>
+            </Link>
+          </div>
+        </section>
+
         <section className="mb-10 grid grid-cols-1 gap-6 xl:grid-cols-[1.4fr_1fr]">
           <div>
             <div className="mb-4 flex items-center justify-between">
