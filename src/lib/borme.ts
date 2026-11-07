@@ -398,14 +398,18 @@ async function resolveCanonicalPersonName(personName: string): Promise<string | 
   if (exact.rows.length > 0) return String(exact.rows[0].person_name);
 
   // Fallback for manual URL edits with case/accents differences.
+  // person_name_norm equality already covers case/accent/punctuation variants
+  // and uses idx_person_summary_name_norm. Do NOT add `upper(person_name) = ...`
+  // here: it can't use an index and turns every miss into a ~750k-row scan.
   const normalized = normalizePersonText(trimmed);
+  if (!normalized) return null;
   const result = await client.execute({
     sql: `SELECT person_name
           FROM person_summary
-          WHERE person_name_norm = ? OR upper(person_name) = upper(?)
+          WHERE person_name_norm = ?
           ORDER BY num_companies_with_nif DESC, total_spans DESC
           LIMIT 1`,
-    args: [normalized, trimmed],
+    args: [normalized],
   });
 
   if (result.rows.length === 0) return null;
@@ -511,7 +515,14 @@ export async function loadPersonProfile(personName: string): Promise<BormePerson
   }
 }
 
-/** Count all people available for sitemap generation. */
+/**
+ * Size of the person sitemap key space: the highest person_summary rowid.
+ *
+ * Person sitemaps are paged by rowid ranges (see listPersonNamesPage), so the
+ * number of chunks is ceil(maxRowid / chunkSize). This reads a single row,
+ * whereas COUNT(*) with the junk-name filter scanned all ~750k rows on every
+ * sitemap regeneration and was ~50% of all Turso reads.
+ */
 export async function countAllPersonNames(): Promise<number> {
   try {
     const client = getDb();
@@ -519,7 +530,7 @@ export async function countAllPersonNames(): Promise<number> {
     if (!canReadTurso()) return 0;
 
     const result = await client.execute({
-      sql: `SELECT COUNT(*) AS total FROM person_summary WHERE ${VALID_PERSON_SQL}`,
+      sql: `SELECT max(rowid) AS total FROM person_summary`,
       args: [],
     });
 
@@ -532,7 +543,17 @@ export async function countAllPersonNames(): Promise<number> {
   }
 }
 
-/** List person names for sitemap generation, paginated by offset/limit. */
+/**
+ * List person names for sitemap generation: the people whose person_summary
+ * rowid is in (offset, offset + limit].
+ *
+ * Paging by rowid range is a primary-key range scan that reads ~limit rows.
+ * LIMIT/OFFSET read offset + limit rows per chunk (up to ~750k for the last
+ * chunks), and the old importance ORDER BY sorted the whole table. Chunks can
+ * hold fewer than `limit` names (rowid gaps, junk names filtered out), which
+ * is fine for sitemaps. Rowids are stable: scripts/borme_incremental_update.py
+ * upserts person_summary and never REPLACEs rows.
+ */
 export async function listPersonNamesPage(offset = 0, limit = 1000): Promise<string[]> {
   try {
     const client = getDb();
@@ -541,18 +562,12 @@ export async function listPersonNamesPage(offset = 0, limit = 1000): Promise<str
 
     const safeOffset = Math.max(0, Math.floor(offset));
     const safeLimit = Math.max(1, Math.floor(limit));
-    // ORDER BY must match idx_person_summary_nif_rank column for column.
-    // Any other order makes Turso sort all ~735k rows in a temp B-tree for
-    // every sitemap chunk; dozens of chunks at once ran it out of memory
-    // (SQLITE_NOMEM), which also failed unrelated queries such as BORME
-    // admin history on company pages.
     const result = await client.execute({
       sql: `SELECT person_name
             FROM person_summary
-            WHERE ${VALID_PERSON_SQL}
-            ORDER BY num_companies_with_nif DESC, num_companies DESC, active_spans DESC, total_spans DESC
-            LIMIT ? OFFSET ?`,
-      args: [safeLimit, safeOffset],
+            WHERE rowid > ? AND rowid <= ? AND ${VALID_PERSON_SQL}
+            ORDER BY rowid`,
+      args: [safeOffset, safeOffset + safeLimit],
     });
 
     return result.rows.map((r) => String(r.person_name));
