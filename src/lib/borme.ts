@@ -712,6 +712,121 @@ export async function loadRelatedCompanies(nif: string): Promise<RelatedCompany[
   }
 }
 
+// ---------------------------------------------------------------------------
+// Business groups (company_groups / company_group_members, ownership chains)
+// ---------------------------------------------------------------------------
+
+export interface CompanyGroupSummary {
+  groupId: number;
+  rootName: string;
+  size: number;
+  numContractors: number;
+  totalAmount: number;
+  numContracts: number;
+}
+
+export interface CompanyGroupMember {
+  companyId: number;
+  name: string;
+  hasMatchedName: boolean;
+  nif: string | null;
+  parentId: number | null;
+  depth: number;
+  since: string | null;
+  sourcePdf: string | null;
+}
+
+function toGroupSummary(row: Record<string, unknown>): CompanyGroupSummary {
+  return {
+    groupId: Number(row.group_id),
+    rootName: String(row.root_name ?? ""),
+    size: Number(row.size) || 0,
+    numContractors: Number(row.num_contractors) || 0,
+    totalAmount: Number(row.total_amount) || 0,
+    numContracts: Number(row.num_contracts) || 0,
+  };
+}
+
+async function runGroupQuery<T>(label: string, fallback: T, fn: (client: NonNullable<ReturnType<typeof getDb>>) => Promise<T>): Promise<T> {
+  try {
+    const client = getDb();
+    if (!client || !canReadTurso()) return fallback;
+    return await fn(client);
+  } catch (error) {
+    markBlockedRead(error);
+    if (isBlockedReadError(error) || String(error).includes("no such table")) return fallback;
+    console.error(`Failed to load ${label} from Turso:`, error);
+    return fallback;
+  }
+}
+
+/** The business group a NIF belongs to, if any (groups of 2+ companies only). */
+export function loadCompanyGroupByNif(nif: string): Promise<CompanyGroupSummary | null> {
+  return runGroupQuery("company group", null, async (client) => {
+    const result = await client.execute({
+      sql: `SELECT g.group_id, g.root_name, g.size, g.num_contractors, g.total_amount, g.num_contracts
+            FROM companies c
+            JOIN company_group_members m ON m.company_id = c.id
+            JOIN company_groups g ON g.group_id = m.group_id
+            WHERE c.nif = ?
+            ORDER BY g.size DESC
+            LIMIT 1`,
+      args: [nif.trim().toUpperCase()],
+    });
+    return result.rows[0] ? toGroupSummary(result.rows[0] as Record<string, unknown>) : null;
+  });
+}
+
+/** One group with all its member companies. */
+export function loadCompanyGroup(groupId: number): Promise<{ group: CompanyGroupSummary; members: CompanyGroupMember[] } | null> {
+  return runGroupQuery("company group detail", null, async (client) => {
+    const [groupResult, membersResult] = await Promise.all([
+      client.execute({
+        sql: `SELECT group_id, root_name, size, num_contractors, total_amount, num_contracts
+              FROM company_groups WHERE group_id = ?`,
+        args: [groupId],
+      }),
+      client.execute({
+        sql: `SELECT m.company_id, m.parent_id, m.depth, m.since, m.source_pdf,
+                     c.company_name, c.matched_name, c.nif
+              FROM company_group_members m
+              JOIN companies c ON c.id = m.company_id
+              WHERE m.group_id = ?`,
+        args: [groupId],
+      }),
+    ]);
+    if (!groupResult.rows[0]) return null;
+    return {
+      group: toGroupSummary(groupResult.rows[0] as Record<string, unknown>),
+      members: membersResult.rows.map((r) => ({
+        companyId: Number(r.company_id),
+        name: String(r.matched_name || r.company_name || ""),
+        hasMatchedName: Boolean(r.matched_name),
+        nif: r.nif != null && String(r.nif).trim() !== "" ? String(r.nif) : null,
+        parentId: r.parent_id != null ? Number(r.parent_id) : null,
+        depth: Number(r.depth) || 0,
+        since: r.since != null ? String(r.since) : null,
+        sourcePdf: r.source_pdf != null ? String(r.source_pdf) : null,
+      })),
+    };
+  });
+}
+
+/** Groups ranked by the public contracts won by their companies (index scan on total_amount). */
+export function listTopCompanyGroups(offset = 0, limit = 50): Promise<CompanyGroupSummary[]> {
+  return runGroupQuery("company groups", [], async (client) => {
+    const result = await client.execute({
+      sql: `SELECT group_id, root_name, size, num_contractors, total_amount, num_contracts
+            FROM company_groups
+            WHERE total_amount > 0
+            ORDER BY total_amount DESC
+            LIMIT ? OFFSET ?`,
+      args: [Math.max(1, Math.floor(limit)), Math.max(0, Math.floor(offset))],
+    });
+    return result.rows.map((r) => toGroupSummary(r as Record<string, unknown>));
+  });
+}
+
 export function getPersonAwardeeTargets(profile: BormePersonProfile): BormePersonAwardeeTargets {
   const nifs = new Set<string>();
   const names = new Set<string>();

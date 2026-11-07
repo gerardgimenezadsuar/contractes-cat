@@ -271,6 +271,247 @@ def build_links(companies: dict[int, dict], spans: list[dict]) -> dict[tuple[str
 
 
 # ---------------------------------------------------------------------------
+# Business groups: connected components of reliable ownership links only
+# ---------------------------------------------------------------------------
+# Companies that sell ready-made ("shelf") companies and stay recorded as their
+# sole shareholder after selling them. Automatic rules catch most of these;
+# list the ones they miss (normalized with normalize_name).
+KNOWN_COMPANY_SELLERS = {normalize_name(n) for n in (
+  "MEDITERRANEAN SEARCH SL",
+)}
+SELLER_MIN_SUBSIDIARIES = 5
+SELLER_CHANGED_SHARE = 0.5
+SOCRATA_URL = "https://analisi.transparenciacatalunya.cat/resource/ybgg-dgi6.json"
+CLEAN_AMOUNT_FILTER = "import_adjudicacio_amb_iva not like '%||%'"
+
+GROUP_SCHEMA = [
+  """CREATE TABLE IF NOT EXISTS company_groups (
+    group_id        INTEGER PRIMARY KEY,
+    root_name       TEXT NOT NULL,
+    size            INTEGER NOT NULL,
+    num_contractors INTEGER NOT NULL,
+    total_amount    REAL NOT NULL,
+    num_contracts   INTEGER NOT NULL,
+    h               TEXT NOT NULL
+  )""",
+  "CREATE INDEX IF NOT EXISTS idx_company_groups_amount ON company_groups(total_amount)",
+  """CREATE TABLE IF NOT EXISTS company_group_members (
+    company_id INTEGER PRIMARY KEY,
+    group_id   INTEGER NOT NULL,
+    parent_id  INTEGER,
+    depth      INTEGER NOT NULL,
+    since      TEXT,
+    source_pdf TEXT,
+    h          TEXT NOT NULL
+  )""",
+  "CREATE INDEX IF NOT EXISTS idx_company_group_members_group ON company_group_members(group_id)",
+]
+
+
+def ownership_edges(companies: dict[int, dict], spans: list[dict]) -> list[dict]:
+  """Reliable parent -> child ownership edges (latest sole shareholder is a company)."""
+  norm_index: dict[str, list[int]] = defaultdict(list)
+  for cid, c in companies.items():
+    norm_index[normalize_name(c["company_name"])].append(cid)
+
+  def as_company(name: str) -> int | None:
+    hits = norm_index.get(normalize_name(name), [])
+    return hits[0] if len(hits) == 1 else None
+
+  officer_companies: dict[str, set[int]] = defaultdict(set)
+  admins_of: dict[int, set[str]] = defaultdict(set)
+  admin_companies: dict[str, set[int]] = defaultdict(set)
+  owners_ever: dict[int, set[str]] = defaultdict(set)
+  latest: dict[int, tuple[str, dict[str, dict]]] = {}
+  for s in spans:
+    name = (s["person_name"] or "").strip()
+    cls = role_class(s["relation_type"], s["role_title_code"])
+    if not name or cls is None or is_junk(name):
+      continue
+    cid = s["company_id"]
+    if cls == "OWNER":
+      officer_companies[name].add(cid)
+      owners_ever[cid].add(normalize_name(name))
+      cur = latest.get(cid)
+      if cur is None or s["date_start"] > cur[0]:
+        latest[cid] = (s["date_start"], {name: s})
+      elif s["date_start"] == cur[0]:
+        cur[1][name] = s
+      continue
+    if span_days(s["date_start"], s["date_end"]) < SHORT_SPAN_DAYS:
+      continue
+    officer_companies[name].add(cid)
+    admins_of[cid].add(name)
+    admin_companies[name].add(cid)
+  hubs = {n for n, cs in officer_companies.items() if len(cs) > HUB_LIMIT}
+
+  candidates: list[dict] = []
+  for child, (_, owners) in latest.items():
+    if len({normalize_name(n) for n in owners}) != 1:
+      continue  # several sole shareholders on the same date: ambiguous
+    name, span = next(iter(owners.items()))
+    if not is_entity(name) or normalize_name(name) in KNOWN_COMPANY_SELLERS:
+      continue
+    parent = as_company(name)
+    if parent is None or parent == child:
+      continue
+    if len(admin_companies[name]) > HUB_LIMIT:
+      continue  # corporate-service provider, not a parent
+    real_admins = {a for a in admins_of[child] if a not in hubs and a != name}
+    if not real_admins and name not in admins_of[child]:
+      continue  # shelf company: only nominee administrators
+    candidates.append({"parent": parent, "child": child, "since": span["date_start"], "pdf": span["source_pdf_start"]})
+
+  by_parent: dict[int, list[int]] = defaultdict(list)
+  for e in candidates:
+    by_parent[e["parent"]].append(e["child"])
+  sellers = set()
+  for parent, children in by_parent.items():
+    if len(children) >= SELLER_MIN_SUBSIDIARIES:
+      pn = normalize_name(companies[parent]["company_name"])
+      changed = sum(1 for c in children if owners_ever[c] - {pn})
+      if changed / len(children) >= SELLER_CHANGED_SHARE:
+        sellers.add(parent)
+  edges = [e for e in candidates if e["parent"] not in sellers]
+  log(f"  ownership edges {len(edges):,} (company sellers dropped: {len(sellers)})")
+  return edges
+
+
+def fetch_contract_totals(nifs: list[str]) -> dict[str, tuple[float, int]]:
+  import requests
+  out: dict[str, tuple[float, int]] = {}
+  for i in range(0, len(nifs), 150):
+    part = nifs[i:i + 150]
+    in_list = ",".join("'" + n.replace("'", "''") + "'" for n in part)
+    params = {
+      "$select": "identificacio_adjudicatari, sum(import_adjudicacio_amb_iva::number) as total, count(*) as n",
+      "$where": f"{CLEAN_AMOUNT_FILTER} AND import_adjudicacio_amb_iva IS NOT NULL "
+                f"AND identificacio_adjudicatari IN ({in_list})",
+      "$group": "identificacio_adjudicatari",
+      "$limit": "1000",
+    }
+    for attempt in range(5):
+      try:
+        r = requests.get(SOCRATA_URL, params=params, timeout=120)
+        r.raise_for_status()
+        break
+      except requests.RequestException:
+        if attempt == 4:
+          raise
+        time.sleep(2 ** attempt * 3)
+    for row in r.json():
+      out[row["identificacio_adjudicatari"].upper()] = (float(row.get("total") or 0), int(row.get("n") or 0))
+  return out
+
+
+def build_groups(companies: dict[int, dict], spans: list[dict]) -> tuple[dict[int, dict], dict[int, dict]]:
+  edges = ownership_edges(companies, spans)
+  parent: dict[int, int] = {}
+
+  def find(x: int) -> int:
+    while parent.setdefault(x, x) != x:
+      parent[x] = parent[parent[x]]
+      x = parent[x]
+    return x
+
+  for e in edges:
+    parent[find(e["parent"])] = find(e["child"])
+  components: dict[int, list[int]] = defaultdict(list)
+  for x in list(parent):
+    components[find(x)].append(x)
+
+  children_of: dict[int, list[dict]] = defaultdict(list)
+  has_parent: set[int] = set()
+  for e in edges:
+    children_of[e["parent"]].append(e)
+    has_parent.add(e["child"])
+
+  def descendants(root: int) -> int:
+    seen, stack = {root}, [root]
+    while stack:
+      for e in children_of[stack.pop()]:
+        if e["child"] not in seen:
+          seen.add(e["child"])
+          stack.append(e["child"])
+    return len(seen)
+
+  members: dict[int, dict] = {}
+  groups: dict[int, dict] = {}
+  for comp in components.values():
+    roots = [c for c in comp if c not in has_parent] or comp  # cycles: no natural root
+    root = max(roots, key=lambda c: (descendants(c), -c))
+    members[root] = {"group_id": root, "parent_id": None, "depth": 0, "since": None, "source_pdf": None}
+    queue = [root]
+    while queue:  # BFS from the root; first parent found wins
+      node = queue.pop(0)
+      for e in sorted(children_of[node], key=lambda e: e["child"]):
+        child = e["child"]
+        if child in members and members[child]["group_id"] == root:
+          continue
+        members[child] = {"group_id": root, "parent_id": node, "depth": members[node]["depth"] + 1,
+                          "since": e["since"], "source_pdf": e["pdf"]}
+        queue.append(child)
+    for c in comp:  # members not reachable from the root (other roots)
+      if c not in members or members[c]["group_id"] != root:
+        members[c] = {"group_id": root, "parent_id": None, "depth": 0, "since": None, "source_pdf": None}
+    groups[root] = {"root_name": companies[root]["company_name"], "size": len(comp), "members": comp}
+
+  nifs = sorted({companies[c]["nif"].upper() for g in groups.values() for c in g["members"] if companies[c]["nif"]})
+  log(f"  {len(groups):,} groups, fetching contract totals for {len(nifs):,} NIFs from Socrata …")
+  totals = fetch_contract_totals(nifs)
+  for g in groups.values():
+    g_nifs = {companies[c]["nif"].upper() for c in g["members"] if companies[c]["nif"]}
+    contracted = [n for n in g_nifs if n in totals]
+    g["num_contractors"] = len(contracted)
+    g["total_amount"] = round(sum(totals[n][0] for n in contracted), 2)
+    g["num_contracts"] = sum(totals[n][1] for n in contracted)
+  log(f"  groups with public contracts: {sum(1 for g in groups.values() if g['num_contractors']):,}")
+
+  def h(*vals: object) -> str:
+    return hashlib.sha1("|".join("" if v is None else str(v) for v in vals).encode()).hexdigest()[:16]
+
+  for gid, g in groups.items():
+    g["h"] = h(g["root_name"], g["size"], g["num_contractors"], g["total_amount"], g["num_contracts"])
+  for cid, m in members.items():
+    m["h"] = h(m["group_id"], m["parent_id"], m["depth"], m["since"], m["source_pdf"])
+  return groups, members
+
+
+def sync_table(db, table: str, key: str, rows: dict[int, dict], cols: list[str], dry_run: bool) -> None:
+  existing: dict[int, str] = {}
+  last = -1
+  try:
+    while True:
+      page = db.query(f"SELECT {key} AS k, h FROM {table} WHERE {key} > ? ORDER BY {key} LIMIT ?", [last, PAGE])
+      existing.update({r["k"]: r["h"] for r in page})
+      if len(page) < PAGE:
+        break
+      last = page[-1]["k"]
+  except Exception:  # noqa: BLE001 -- table missing in dry-run
+    existing = {}
+  upserts = [k for k, v in rows.items() if existing.get(k) != v["h"]]
+  deletes = [k for k in existing if k not in rows]
+  log(f"  {table}: {len(upserts):,} upserts, {len(deletes):,} deletes (existing {len(existing):,})")
+  if dry_run:
+    return
+  ph = ",".join("?" for _ in range(len(cols) + 2))
+  stmts = [(f"DELETE FROM {table} WHERE {key} = ?", [k]) for k in deletes]
+  stmts += [(f"INSERT OR REPLACE INTO {table} ({key}, {', '.join(cols)}, h) VALUES ({ph})",
+             [k, *[rows[k][c] for c in cols], rows[k]["h"]]) for k in upserts]
+  for i in range(0, len(stmts), WRITE_BATCH):
+    db.transaction(stmts[i:i + WRITE_BATCH])
+
+
+def sync_groups(db, groups: dict[int, dict], members: dict[int, dict], dry_run: bool) -> None:
+  if not dry_run:
+    db.transaction([(sql, []) for sql in GROUP_SCHEMA])
+  sync_table(db, "company_groups", "group_id", groups,
+             ["root_name", "size", "num_contractors", "total_amount", "num_contracts"], dry_run)
+  sync_table(db, "company_group_members", "company_id", members,
+             ["group_id", "parent_id", "depth", "since", "source_pdf"], dry_run)
+
+
+# ---------------------------------------------------------------------------
 # Sync (diff by hash)
 # ---------------------------------------------------------------------------
 def load_existing(db) -> dict[tuple[str, str, int], str]:
@@ -331,13 +572,16 @@ def main() -> int:
     db = TursoDB(url, token)
 
   t0 = time.time()
-  log("[1/3] loading companies and spans …")
+  log("[1/4] loading companies and spans …")
   companies, spans = load(db)
   log(f"  {len(companies):,} companies, {len(spans):,} spans ({time.time() - t0:.0f}s)")
-  log("[2/3] building links …")
+  log("[2/4] building links …")
   final = build_links(companies, spans)
-  log("[3/3] syncing company_links …")
+  log("[3/4] syncing company_links …")
   sync(db, final, args.dry_run)
+  log("[4/4] building and syncing business groups …")
+  groups, members = build_groups(companies, spans)
+  sync_groups(db, groups, members, args.dry_run)
   log(f"[DONE] {time.time() - t0:.0f}s")
   return 0
 
