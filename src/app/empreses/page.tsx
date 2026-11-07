@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { fetchCompanies, fetchCompaniesCount } from "@/lib/api";
 import CompaniesTable from "@/components/tables/CompaniesTable";
 import { DEFAULT_PAGE_SIZE } from "@/config/constants";
@@ -49,7 +50,12 @@ export default async function EmpresePage({ searchParams }: Props) {
       <p className="text-gray-600 mb-8">
         Rànquing d&apos;empreses per import total de contractes públics
         adjudicats. Pots filtrar per empresa i també per sector CPV (codi o
-        descripció) per veure qui concentra més activitat en cada àmbit.
+        descripció) per veure qui concentra més activitat en cada àmbit. També
+        pots veure els{" "}
+        <Link href="/grups" className="text-accent hover:underline">
+          grups empresarials
+        </Link>{" "}
+        (empreses i les seves filials segons el BORME).
       </p>
 
       <CompaniesTable

@@ -1,10 +1,11 @@
 import Link from "next/link";
-import type { CompanyLinkEvidence, CompanyLinkSpan, RelatedCompany } from "@/lib/borme";
+import type { CompanyGroupSummary, CompanyLinkEvidence, CompanyLinkSpan, RelatedCompany } from "@/lib/borme";
 import type { AwardeeTotals } from "@/lib/api";
 import { buildCompanyHref } from "@/lib/company-identity";
 import { formatCompactEuros } from "@/lib/indicators";
 import { formatNumber } from "@/lib/utils";
-import { formatPersonDisplayName, toTitleCase } from "@/lib/person-utils";
+import { formatPersonDisplayName } from "@/lib/person-utils";
+import { displayCompanyName, formatBormeCompanyName } from "@/lib/company-names";
 
 const VISIBLE_ROWS = 10;
 const ENTITY_SUFFIX = /\b(SL|SA|SLU|SAU|SLP|SLL|SCCL|S\.?L\.?U?|S\.?A\.?U?|SOCIEDAD|SOCIETAT|AIE|FUNDACION|FUNDACIO|COOPERATIVA)\b\.?$/i;
@@ -13,17 +14,30 @@ interface Props {
   companyName: string;
   related: RelatedCompany[];
   totals: Map<string, AwardeeTotals>;
+  group?: CompanyGroupSummary | null;
+}
+
+function GroupBanner({ group }: { group: CompanyGroupSummary }) {
+  return (
+    <Link
+      href={`/grups/${group.groupId}`}
+      className="mb-4 flex flex-col gap-1 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 hover:border-gray-300 sm:flex-row sm:items-center sm:justify-between"
+    >
+      <span className="text-sm text-gray-700">
+        Forma part del grup empresarial{" "}
+        <span className="font-semibold text-gray-900">{displayCompanyName(group.rootName, false)}</span>
+      </span>
+      <span className="text-sm text-gray-600">
+        {formatNumber(group.size)} empreses
+        {group.totalAmount > 0 ? ` · ${formatCompactEuros(group.totalAmount)} en contractes` : ""}{" "}
+        <span className="text-accent">→</span>
+      </span>
+    </Link>
+  );
 }
 
 function isEntityName(name: string): boolean {
   return ENTITY_SUFFIX.test(name.trim());
-}
-
-const LEGAL_TOKENS = /\b(Sl|Sa|Slu|Sau|Slp|Sll|Sccl|Scp|Aie|Ute|S\.l|S\.a|S\.l\.u|S\.a\.u)\b\.?/g;
-
-/** BORME names are uppercase: title-case them but keep legal forms (SL, SA…) uppercase. */
-function formatBormeCompanyName(name: string): string {
-  return toTitleCase(name).replace(LEGAL_TOKENS, (m) => m.toUpperCase());
 }
 
 function year(d: string | null): string {
@@ -106,9 +120,10 @@ function EvidenceLine({ ev, companyName }: { ev: CompanyLinkEvidence; companyNam
     );
   }
   // PARENT: the related company holds a role in this one; SUBSIDIARY: the reverse.
+  const self = displayCompanyName(companyName, true);
   return (
     <li>
-      {ev.linkType === "PARENT" ? `Té ${roleLabel(ev.span)} de ${companyName}` : `${companyName} n'és ${roleLabel(ev.span)}`}{" "}
+      {ev.linkType === "PARENT" ? `Té ${roleLabel(ev.span)} de ${self}` : `${self} n'és ${roleLabel(ev.span)}`}{" "}
       ({period(ev.span)}
       {ev.span.sourcePdf ? (
         <>
@@ -123,10 +138,7 @@ function EvidenceLine({ ev, companyName }: { ev: CompanyLinkEvidence; companyNam
 
 function RelatedRow({ company, totals, companyName }: { company: RelatedCompany; totals?: AwardeeTotals; companyName: string }) {
   const evidence = company.evidence.slice(0, 3);
-  const displayName =
-    company.hasMatchedName && company.name !== company.name.toUpperCase()
-      ? company.name
-      : formatBormeCompanyName(company.name);
+  const displayName = displayCompanyName(company.name, company.hasMatchedName);
   return (
     <li className="grid grid-cols-1 gap-2 border-b border-gray-100 px-4 py-3 last:border-b-0 md:grid-cols-12 md:gap-4">
       <div className="min-w-0 md:col-span-5">
@@ -172,7 +184,7 @@ function RelatedRow({ company, totals, companyName }: { company: RelatedCompany;
   );
 }
 
-export default function RelatedCompaniesSection({ companyName, related, totals }: Props) {
+export default function RelatedCompaniesSection({ companyName, related, totals, group }: Props) {
   const rows = [...related].sort((a, b) => {
     if (a.active !== b.active) return a.active ? -1 : 1;
     const ta = a.nif ? totals.get(a.nif.toUpperCase())?.total ?? 0 : 0;
@@ -195,13 +207,17 @@ export default function RelatedCompaniesSection({ companyName, related, totals }
     <section>
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-3">
         <h2 className="font-display text-xl font-semibold text-gray-900">Empreses relacionades (BORME)</h2>
+        {rows.length > 0 ? (
         <p className="text-sm text-gray-600">
           {formatNumber(rows.length)} empreses
           {withContracts.length > 0
             ? `, ${formatNumber(withContracts.length)} amb contractes públics (${formatCompactEuros(groupTotal)})`
             : ""}
         </p>
+        ) : null}
       </div>
+      {group && group.size > 1 ? <GroupBanner group={group} /> : null}
+      {rows.length > 0 ? (
       <div className="rounded-lg border border-gray-200 bg-white">
         <ul>{rows.slice(0, VISIBLE_ROWS).map(renderRow)}</ul>
         {rows.length > VISIBLE_ROWS ? (
@@ -213,6 +229,7 @@ export default function RelatedCompaniesSection({ companyName, related, totals }
           </details>
         ) : null}
       </div>
+      ) : null}
       <p className="mt-2 text-xs text-gray-500">
         Relacions deduïdes del BORME a partir del soci únic i dels administradors (inclosos presidents i consellers
         delegats). No s&apos;hi inclouen apoderats, secretaris, liquidadors ni administradors professionals que
