@@ -2,6 +2,32 @@
 
 Independent open-data project about public procurement in Catalonia.
 
+## For AI agents
+
+HTML pages are protected against scrapers. Use the read-only JSON API or the CLI instead.
+The JSON API needs no key and accepts any HTTP client (curl, fetch, requests).
+Please keep it under ~5 requests/second; there is a per-IP limit of 300 requests/minute.
+
+All endpoints are GET, return `{"data": [...]}`, and paginate with `page=N` (1-based).
+Text search is accent- and case-insensitive.
+
+- Contracts: `https://www.contractes.cat/api/contractes?search=<text>`
+  - Filters: `year`, `nif` (awardee tax id), `awardee_name`, `nom_organ` (contracting body), `tipus_contracte`, `procediment`, `amountMin`, `amountMax`, `date_from`, `date_to` (YYYY-MM-DD)
+  - `sort`: `date-desc` (default), `date-asc`, `amount-desc`, `amount-asc`
+  - `format=csv` for CSV
+- Companies (awardees, ranked by awarded amount): `https://www.contractes.cat/api/empreses?search=<text>`
+  - `cpv=72,48` filters by CPV division; `format=csv` for CSV
+- Contracting bodies: `https://www.contractes.cat/api/organismes?search=<text>&limit=N`
+- Top companies for a body: `https://www.contractes.cat/api/organismes/top-empreses?organ=<exact organ name>&limit=N`
+- People (company owners and administrators from BORME): `https://www.contractes.cat/api/persones?search=<name>`
+- Contracts linked to a person: `https://www.contractes.cat/api/persones/<NAME>/contractes` (optional `date_from`, `date_to`, `nom_organ`, `sort`)
+
+Human-readable pages to cite for users:
+
+- Company: `https://www.contractes.cat/empreses/<NIF>`
+- Contracting body: `https://www.contractes.cat/organismes/<organ name>`
+- Person: `https://www.contractes.cat/persones/<NAME>`
+
 ## CLI
 
 - Package: `@gerardgimenezadsuar/contractes-cli`
