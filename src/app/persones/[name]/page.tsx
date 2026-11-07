@@ -1,7 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { cache, Suspense } from "react";
-import { getPersonAwardeeTargets, loadPersonProfile } from "@/lib/borme";
+import {
+  getPersonAwardeeTargets,
+  getPersonControlTargets,
+  loadPersonProfile,
+  serializeNifWindows,
+  type BormePersonCompany,
+  type BormePersonRoleSpan,
+} from "@/lib/borme";
+import { PROFESSIONAL_ADMIN_THRESHOLD } from "@/lib/borme-roles";
 import { fetchContractsByAwardeesSummary } from "@/lib/api";
 import { fetchPublicOfficeProfile } from "@/lib/electes";
 import { formatCompactNumber, formatDate, formatNumber } from "@/lib/utils";
@@ -37,9 +45,82 @@ interface Props {
 }
 
 const getPersonProfile = cache(async (name: string) => loadPersonProfile(name));
-const getContractsSummary = cache(async (nifs: string[]) =>
-  fetchContractsByAwardeesSummary({ nifs })
-);
+
+/** Contracts of the companies the person owned or administered, only while they did. */
+const getControlSummary = cache(async (name: string) => {
+  const profile = await getPersonProfile(name);
+  const targets = profile ? getPersonControlTargets(profile) : null;
+  if (!targets || targets.nifs.length === 0) return { total: 0, totalAmount: 0 };
+  return fetchContractsByAwardeesSummary({ nifs: targets.nifs, nifDateWindows: targets.windows });
+});
+
+/** Upper bound for comparison: every contract of every company the person had any role in. */
+const getAllCompaniesSummary = cache(async (name: string) => {
+  const profile = await getPersonProfile(name);
+  const nifs = profile ? getPersonAwardeeTargets(profile).nifs : [];
+  if (nifs.length === 0) return { total: 0, totalAmount: 0 };
+  return fetchContractsByAwardeesSummary({ nifs });
+});
+
+const OTHER_ROLE_LABELS: Record<string, string> = {
+  APODERADO: "Apoderat/da",
+  LIQUIDADOR: "Liquidador/a",
+  SOCIO: "Soci/a",
+  ADMINISTRADOR: "Administració concursal o suplent",
+};
+
+function roleLabel(role: BormePersonRoleSpan): string {
+  const code = (role.role_title_code || "").toUpperCase();
+  if (role.control === "OWNER") return "Soci únic";
+  if (role.control === "ADMIN") {
+    if (code.includes("VICEPRESID")) return "Vicepresidència";
+    if (code.includes("PRESIDEN")) return "Presidència";
+    if (code.includes("CONS_DEL") || code.includes("CONS_EJECUT")) return "Conseller/a delegat/da";
+    if (code.includes("SOLID")) return "Adm. solidari/ària";
+    if (code.includes("CONJUNT") || code.includes("MANC")) return "Adm. mancomunat/da";
+    if (code.includes("UNICO")) return "Adm. únic/a";
+    return "Administració";
+  }
+  if (role.relation_type === "ORGANO_GOBIERNO") {
+    if (code.includes("SECRETAR")) return "Secretari/ària";
+    return "Conseller/a";
+  }
+  return OTHER_ROLE_LABELS[role.relation_type] || role.relation_type;
+}
+
+function yearOf(d: string | null): string {
+  return d && d.length >= 4 ? d.slice(0, 4) : "";
+}
+
+function rolePeriod(role: BormePersonRoleSpan): string {
+  const start = yearOf(role.date_start);
+  if (!role.date_end) return start ? `des de ${start}` : "";
+  const end = yearOf(role.date_end);
+  return start === end ? start : `${start}–${end}`;
+}
+
+interface RoleChip {
+  key: string;
+  label: string;
+  period: string;
+  control: boolean;
+  active: boolean;
+}
+
+/** Distinct role labels with their periods, control roles first. */
+function roleChips(company: BormePersonCompany): RoleChip[] {
+  const seen = new Set<string>();
+  return [...company.roles]
+    .sort((a, b) => Number(b.control !== null) - Number(a.control !== null) || b.date_start.localeCompare(a.date_start))
+    .flatMap((role) => {
+      const label = roleLabel(role);
+      const period = rolePeriod(role);
+      const key = `${label}|${period}`;
+      if (seen.has(key)) return [];
+      seen.add(key);
+      return [{ key, label, period, control: role.control !== null, active: role.date_end === null }];
+    });
+}
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { name } = await params;
@@ -49,14 +130,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const displayName = formatPersonDisplayName(profile?.person_name || decodedName);
   const bormeName = profile?.person_name || decodedName;
 
-  const targets = profile ? getPersonAwardeeTargets(profile) : { nifs: [], companyNames: [] };
-  const contractsSummary =
-    targets.nifs.length > 0
-      ? await getContractsSummary(targets.nifs)
-      : { total: 0, totalAmount: 0 };
+  const contractsSummary = await getControlSummary(decodedName);
 
   const description = profile
-    ? `${displayName}: ${formatNumber(profile.num_companies)} empreses vinculades, ${formatNumber(contractsSummary.total)} contractes públics (${formatCompactNumber(contractsSummary.totalAmount)}). Informació societària del BORME i contractes públics a Catalunya.`
+    ? `${displayName}: propietat o administració de ${formatNumber(profile.num_control_companies)} empreses, ${formatNumber(contractsSummary.total)} contractes públics durant el càrrec (${formatCompactNumber(contractsSummary.totalAmount)}). Informació societària del BORME i contractes públics a Catalunya.`
     : `Informació societària de ${displayName} segons BORME.`;
 
   const entityPath = `/persones/${encodeURIComponent(bormeName)}`;
@@ -78,6 +155,51 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   });
 }
 
+function CompanyRoleList({ companies }: { companies: BormePersonCompany[] }) {
+  return (
+    <ul className="rounded-lg border border-gray-200 bg-white">
+      {companies.map((company) => {
+        const label = company.company_name_matched || company.company_name_borme;
+        const chips = roleChips(company);
+        const current = company.control ? company.control_active : company.active_spans > 0;
+        return (
+          <li
+            key={`${company.company_name_borme}-${company.nif || "no-nif"}`}
+            className="flex flex-col gap-2 border-b border-gray-100 px-4 py-3 last:border-b-0 md:flex-row md:items-start md:justify-between md:gap-6"
+          >
+            <div className="min-w-0">
+              {company.nif ? (
+                <Link href={buildCompanyHref(company.nif, label)} className="font-medium text-gray-900 hover:underline">
+                  {label}
+                </Link>
+              ) : (
+                <span className="font-medium text-gray-900">{label}</span>
+              )}
+              <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                {company.nif ? <span className="font-mono">{company.nif}</span> : <span>sense contractes públics</span>}
+                <span className={current ? "text-emerald-700" : ""}>{current ? "Vigent" : "Històric"}</span>
+              </div>
+            </div>
+            <ul className="flex flex-wrap gap-1.5 md:max-w-[55%] md:justify-end">
+              {chips.map((chip) => (
+                <li
+                  key={chip.key}
+                  className={`rounded px-1.5 py-0.5 text-xs ${
+                    chip.control ? "bg-gray-900/5 text-gray-800" : "bg-gray-50 text-gray-500"
+                  }`}
+                >
+                  {chip.label}
+                  {chip.period ? <span className="text-gray-500"> · {chip.period}</span> : null}
+                </li>
+              ))}
+            </ul>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 export default async function PersonDetailPage({ params }: Props) {
   const { name } = await params;
   const decodedName = decodeURIComponent(name);
@@ -96,13 +218,15 @@ export default async function PersonDetailPage({ params }: Props) {
 
   const displayName = formatPersonDisplayName(profile.person_name);
   const personNameForHref = profile.person_name;
-  const targets = getPersonAwardeeTargets(profile);
-  const contractsSummary =
-    targets.nifs.length > 0
-      ? await getContractsSummary(targets.nifs)
-      : { total: 0, totalAmount: 0 };
-  const activeCompanies = profile.companies.filter((c) => c.active_spans > 0).length;
-  const publicOffice = await fetchPublicOfficeProfile(profile.person_name);
+  const controlTargets = getPersonControlTargets(profile);
+  const [contractsSummary, allCompaniesSummary, publicOffice] = await Promise.all([
+    getControlSummary(decodedName),
+    getAllCompaniesSummary(decodedName),
+    fetchPublicOfficeProfile(profile.person_name),
+  ]);
+  const controlCompanies = profile.companies.filter((c) => c.control);
+  const otherCompanies = profile.companies.filter((c) => !c.control);
+  const activeControlCompanies = controlCompanies.filter((c) => c.control_active).length;
 
   function normalizeDate(value?: string | null): string | null {
     if (!value) return null;
@@ -122,17 +246,16 @@ export default async function PersonDetailPage({ params }: Props) {
     return null;
   }
 
+  // Periods when the person owned or administered each company (not just any role).
   const companyWindowsByNif = new Map<string, Array<{ start: string; end: string | null }>>();
-  for (const company of profile.companies) {
+  for (const company of controlCompanies) {
     if (!company.nif) continue;
-    const start = normalizeDate(company.first_date_start);
-    if (!start) continue;
-    const end = normalizeDate(company.last_date_end);
     const windows = companyWindowsByNif.get(company.nif) || [];
-    windows.push({
-      start,
-      end,
-    });
+    for (const period of company.control_periods) {
+      const start = normalizeDate(period.start);
+      if (!start) continue;
+      windows.push({ start, end: normalizeDate(period.end) });
+    }
     companyWindowsByNif.set(company.nif, windows);
   }
 
@@ -171,7 +294,7 @@ export default async function PersonDetailPage({ params }: Props) {
     string,
     Array<{ nif: string; dateFrom?: string; dateTo?: string }>
   >();
-  if (targets.nifs.length > 0 && publicOffice.periods.length > 0) {
+  if (controlTargets.nifs.length > 0 && publicOffice.periods.length > 0) {
     const overlapRows = await Promise.all(
       publicOffice.periods.map(async (period) => {
         if (!period.startDate) {
@@ -183,7 +306,7 @@ export default async function PersonDetailPage({ params }: Props) {
           ] as const;
         }
         const periodStart = period.startDate;
-        const eligibleNifWindows = targets.nifs.flatMap((nif) => {
+        const eligibleNifWindows = controlTargets.nifs.flatMap((nif) => {
           const windows = companyWindowsByNif.get(nif) || [];
           return windows
             .filter((window) => rangesOverlap(window.start, window.end, periodStart, period.endDate))
@@ -203,11 +326,11 @@ export default async function PersonDetailPage({ params }: Props) {
         }
         const [summary, summaryByOrgan] = await Promise.all([
           fetchContractsByAwardeesSummary({
-            nifs: targets.nifs,
+            nifs: controlTargets.nifs,
             nifDateWindows: eligibleNifWindows,
           }),
           fetchContractsByAwardeesSummary({
-            nifs: targets.nifs,
+            nifs: controlTargets.nifs,
             nifDateWindows: eligibleNifWindows,
             nom_organ: period.ensName || undefined,
           }),
@@ -308,22 +431,63 @@ export default async function PersonDetailPage({ params }: Props) {
       <p className="text-sm text-gray-500 mb-1">
         Nom al registre: <span className="font-medium text-gray-700">{profile.person_name}</span>
       </p>
-      <p className="text-gray-600 mb-8">
-        Vinculacions societàries extretes del BORME. Primer es mostra la informació legal i després els contractes públics de les empreses vinculades.
+      <p className="text-gray-600 mb-6">
+        Càrrecs societaris extrets del BORME. Comptem com a vinculació la propietat (soci únic) i
+        l&apos;administració (administradors, presidència i conseller delegat), i només els contractes que les
+        empreses van guanyar mentre aquesta persona en tenia el càrrec.
       </p>
 
+      {profile.is_professional_admin ? (
+        <p className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          Aquest nom apareix com a propietari o administrador de {formatNumber(profile.num_control_companies)} empreses
+          (més de {PROFESSIONAL_ADMIN_THRESHOLD}). Sovint correspon a un administrador professional (gestoria, despatx o
+          societat de serveis) o a diverses persones amb el mateix nom, i no indica control real de cada empresa.
+        </p>
+      ) : null}
+      {profile.ambiguous_name ? (
+        <p className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          Nom curt: el BORME no publica el DNI, i és possible que aquest perfil agrupi diverses persones amb el mateix nom.
+        </p>
+      ) : null}
+
       <section className="mb-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard title="Empreses vinculades" value={formatNumber(profile.num_companies)} compact />
-        <StatCard title="Empreses amb contractes públics" value={formatNumber(profile.num_companies_with_nif)} compact />
-        <StatCard title="Empreses amb càrrecs actius" value={formatNumber(activeCompanies)} compact />
         <StatCard
-          title="Potencials Contractes vinculats"
-          titleTooltip="Import màxim potencial: inclou tots els contractes de les empreses vinculades sense filtrar pels períodes actius del càrrec. El filtratge temporal arribarà aviat."
+          title="Empreses que controla o ha controlat"
+          titleTooltip="Empreses on ha estat soci únic o administrador (inclosa presidència i conseller delegat)."
+          value={formatNumber(profile.num_control_companies)}
+          subtitle={`${formatNumber(profile.num_control_companies_with_nif)} amb contractes públics`}
+          compact
+        />
+        <StatCard
+          title="Amb control actual"
+          value={formatNumber(activeControlCompanies)}
+          subtitle="propietat o administració vigent"
+          compact
+        />
+        <StatCard
+          title="Contractes durant el càrrec"
+          titleTooltip="Contractes adjudicats a les empreses que controlava, només dins del període en què n'era soci únic o administrador."
           value={formatNumber(contractsSummary.total)}
-          subtitle={`Import total: ${formatCompactNumber(contractsSummary.totalAmount)}`}
+          subtitle={`Import: ${formatCompactNumber(contractsSummary.totalAmount)}${
+            allCompaniesSummary.total > contractsSummary.total
+              ? ` · ${formatNumber(allCompaniesSummary.total)} sense filtrar`
+              : ""
+          }`}
+          compact
+        />
+        <StatCard
+          title="Altres càrrecs"
+          titleTooltip="Empreses on només consta com a apoderat, conseller, secretari, liquidador o administrador concursal. No compten com a vinculació."
+          value={formatNumber(otherCompanies.length)}
+          subtitle="apoderat, conseller, secretari…"
           compact
         />
       </section>
+      {controlTargets.truncated ? (
+        <p className="-mt-6 mb-8 text-xs text-gray-500">
+          Per a perfils amb moltes empreses, el recompte de contractes considera els períodes de càrrec més recents.
+        </p>
+      ) : null}
 
       {publicOffice.periods.length > 0 ? (
         <section className="mb-8">
@@ -410,57 +574,27 @@ export default async function PersonDetailPage({ params }: Props) {
       ) : null}
 
       <section className="mb-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-3">Vinculacions legals (BORME)</h2>
-        <div className="bg-white rounded-lg border border-gray-100 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-[920px] w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="text-left py-3 px-4 font-medium text-gray-500">Empresa</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-500">NIF</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-500">Relacions</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-500">Primer alta</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-500">Fi darrer càrrec</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-500">Estat</th>
-                </tr>
-              </thead>
-              <tbody>
-                {profile.companies.map((company) => {
-                  const relationTypes = Array.from(new Set(company.roles.map((r) => r.relation_type))).join(", ");
-                  const label = company.company_name_matched || company.company_name_borme;
-                  return (
-                    <tr
-                      key={`${company.company_name_borme}-${company.nif || "no-nif"}`}
-                      className="border-b border-gray-100 last:border-b-0"
-                    >
-                      <td className="py-3 px-4 text-gray-900">
-                        {company.nif ? (
-                          <Link
-                            href={buildCompanyHref(company.nif, label)}
-                            className="hover:underline"
-                          >
-                            {label}
-                          </Link>
-                        ) : (
-                          label
-                        )}
-                      </td>
-                      <td className="py-3 px-4 font-mono text-gray-700">{company.nif || "—"}</td>
-                      <td className="py-3 px-4 text-gray-700">{relationTypes || "—"}</td>
-                      <td className="py-3 px-4 text-gray-700">{formatDate(company.first_date_start)}</td>
-                      <td className="py-3 px-4 text-gray-700">
-                        {company.last_date_end ? formatDate(company.last_date_end) : "—"}
-                      </td>
-                      <td className="py-3 px-4 text-gray-700">
-                        {company.active_spans > 0 ? "Actiu" : "Històric"}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <h2 className="text-2xl font-bold text-gray-900 mb-1">Propietat i administració (BORME)</h2>
+        <p className="mb-3 text-sm text-gray-500">
+          Empreses on ha estat soci únic o administrador. El soci únic deixa de constar quan el BORME en publica un altre.
+        </p>
+        {controlCompanies.length > 0 ? (
+          <CompanyRoleList companies={controlCompanies} />
+        ) : (
+          <p className="rounded-lg border border-gray-200 bg-white p-4 text-sm text-gray-500">
+            No consta com a propietari ni administrador de cap empresa.
+          </p>
+        )}
+        {otherCompanies.length > 0 ? (
+          <details className="mt-4">
+            <summary className="cursor-pointer text-sm font-medium text-accent hover:underline">
+              Altres càrrecs ({formatNumber(otherCompanies.length)} empreses): apoderat, conseller, secretari…
+            </summary>
+            <div className="mt-3">
+              <CompanyRoleList companies={otherCompanies} />
+            </div>
+          </details>
+        ) : null}
       </section>
 
       <section id="contractes">
@@ -474,7 +608,8 @@ export default async function PersonDetailPage({ params }: Props) {
         >
           <PersonContractsSection
             personName={profile.person_name}
-            defaultNifs={targets.nifs}
+            defaultNifs={controlTargets.nifs}
+            defaultNifWindows={serializeNifWindows(controlTargets.windows)}
             totalContracts={contractsSummary.total}
             totalAmount={contractsSummary.totalAmount}
           />

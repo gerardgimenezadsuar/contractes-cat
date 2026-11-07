@@ -1,4 +1,6 @@
 import { createClient } from "@libsql/client";
+import { classifyControlRole, mergePeriods, PROFESSIONAL_ADMIN_THRESHOLD, type ControlRole } from "@/lib/borme-roles";
+import { isEntityName } from "@/lib/borme-format";
 
 export interface BormeAdminSpan {
   person_name:   string;
@@ -36,6 +38,13 @@ export interface BormePersonRoleSpan {
   date_start: string;
   date_end: string | null;
   source_pdf: string | null;
+  /** OWNER / ADMIN when the role means real control of the company, null otherwise. */
+  control: ControlRole | null;
+  /**
+   * Sole-shareholder spans are never closed in BORME: when another sole
+   * shareholder is registered later, this is that date (the ownership ended then).
+   */
+  superseded_at: string | null;
 }
 
 export interface BormePersonCompany {
@@ -47,6 +56,12 @@ export interface BormePersonCompany {
   first_date_start: string;
   last_date_end: string | null;
   roles: BormePersonRoleSpan[];
+  /** Owner or administrator at some point (see borme-roles.ts). */
+  control: boolean;
+  /** Currently owner or administrator. */
+  control_active: boolean;
+  /** Merged periods (YYYYMMDD) when this person owned or administered the company. */
+  control_periods: Array<{ start: string; end: string | null }>;
 }
 
 export interface BormePersonProfile {
@@ -55,6 +70,13 @@ export interface BormePersonProfile {
   num_companies_with_nif: number;
   total_spans: number;
   companies: BormePersonCompany[];
+  /** Companies this person has owned or administered. */
+  num_control_companies: number;
+  num_control_companies_with_nif: number;
+  /** Owner/administrator of more than PROFESSIONAL_ADMIN_THRESHOLD companies: likely a professional administrator. */
+  is_professional_admin: boolean;
+  /** Names with fewer than three words are likely shared by several people. */
+  ambiguous_name: boolean;
 }
 
 export interface BormePersonAwardeeTargets {
@@ -427,6 +449,9 @@ export async function loadPersonProfile(personName: string): Promise<BormePerson
     const canonicalName = await resolveCanonicalPersonName(personName);
     if (!canonicalName) return null;
 
+    // superseded_at: sole-shareholder spans are never closed in BORME, so the
+    // ownership ends when a different sole shareholder is registered later.
+    // One indexed lookup (idx_spans_company) per ownership span.
     const result = await client.execute({
       sql: `SELECT s.person_name,
                    c.company_name,
@@ -437,7 +462,14 @@ export async function loadPersonProfile(personName: string): Promise<BormePerson
                    s.role_title_code,
                    s.date_start,
                    s.date_end,
-                   s.source_pdf_start AS source_pdf
+                   s.source_pdf_start AS source_pdf,
+                   CASE WHEN s.relation_type IN ('SOCIO_UNICO','ACCIONISTA_UNICO') THEN (
+                     SELECT min(o.date_start) FROM admin_spans o
+                     WHERE o.company_id = s.company_id
+                       AND o.relation_type IN ('SOCIO_UNICO','ACCIONISTA_UNICO')
+                       AND o.date_start > s.date_start
+                       AND o.person_name <> s.person_name
+                   ) END AS superseded_at
             FROM admin_spans s
             JOIN companies c ON c.id = s.company_id
             WHERE s.person_name = ?
@@ -455,13 +487,17 @@ export async function loadPersonProfile(personName: string): Promise<BormePerson
       const nif = row.nif != null && String(row.nif).trim() !== "" ? String(row.nif) : null;
       const key = `${companyNameBorme}||${companyNameMatched || ""}||${nif || ""}`;
 
+      const supersededAt = row.superseded_at != null ? String(row.superseded_at) : null;
       const span: BormePersonRoleSpan = {
         relation_type: String(row.relation_type),
         role_title_raw: row.role_title_raw != null ? String(row.role_title_raw) : null,
         role_title_code: row.role_title_code != null ? String(row.role_title_code) : null,
         date_start: String(row.date_start),
-        date_end: row.date_end != null ? String(row.date_end) : null,
+        // A superseded sole shareholder is no longer the owner.
+        date_end: row.date_end != null ? String(row.date_end) : supersededAt,
         source_pdf: row.source_pdf != null ? String(row.source_pdf) : null,
+        control: classifyControlRole(String(row.relation_type), row.role_title_code != null ? String(row.role_title_code) : null),
+        superseded_at: supersededAt,
       };
 
       const existing = byCompany.get(key);
@@ -483,11 +519,24 @@ export async function loadPersonProfile(personName: string): Promise<BormePerson
           first_date_start: span.date_start,
           last_date_end: span.date_end,
           roles: [span],
+          control: false,
+          control_active: false,
+          control_periods: [],
         });
       }
     }
 
+    for (const company of byCompany.values()) {
+      const controlSpans = company.roles.filter((r) => r.control !== null);
+      company.control = controlSpans.length > 0;
+      company.control_active = controlSpans.some((r) => r.date_end === null);
+      company.control_periods = mergePeriods(controlSpans.map((r) => ({ start: r.date_start, end: r.date_end })));
+    }
+
+    // Companies the person controls first (currently, then historically), then other roles.
     const companies = Array.from(byCompany.values()).sort((a, b) => {
+      if (a.control_active !== b.control_active) return a.control_active ? -1 : 1;
+      if (a.control !== b.control) return a.control ? -1 : 1;
       if (b.active_spans !== a.active_spans) return b.active_spans - a.active_spans;
       return b.num_spans - a.num_spans;
     });
@@ -497,13 +546,18 @@ export async function loadPersonProfile(personName: string): Promise<BormePerson
         .map((c) => c.nif)
         .filter((v): v is string => Boolean(v))
     );
+    const controlCompanies = companies.filter((c) => c.control);
 
-    const profile = {
+    const profile: BormePersonProfile = {
       person_name: canonicalName,
       num_companies: companies.length,
       num_companies_with_nif: uniqueNifCompanies.size,
       total_spans: result.rows.length,
       companies,
+      num_control_companies: controlCompanies.length,
+      num_control_companies_with_nif: new Set(controlCompanies.flatMap((c) => (c.nif ? [c.nif] : []))).size,
+      is_professional_admin: controlCompanies.length > PROFESSIONAL_ADMIN_THRESHOLD,
+      ambiguous_name: !isEntityName(canonicalName) && canonicalName.trim().split(/\s+/).length < 3,
     };
     setCachedValue(personProfileCache, normalizedLookup, profile, PROFILE_CACHE_TTL_MS);
     return profile;
@@ -1027,6 +1081,54 @@ export async function findCompanyPath(nifA: string, nifB: string): Promise<Compa
     });
     return { found: true, steps, truncated: false };
   });
+}
+
+export interface PersonControlTargets {
+  nifs: string[];
+  /** One window per company and control period (ISO dates), for fetchContractsByAwardees*. */
+  windows: Array<{ nif: string; dateFrom?: string; dateTo?: string }>;
+  /** True when the windows had to be capped (people with very many companies). */
+  truncated: boolean;
+}
+
+/** Keeps the Socrata query URL to a safe length. */
+const MAX_CONTROL_WINDOWS = 60;
+
+function bormeDateToIso(d: string | null): string | undefined {
+  if (!d || !/^\d{8}$/.test(d)) return undefined;
+  return `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`;
+}
+
+/**
+ * Companies this person owned or administered, with the periods they did:
+ * the contracts counted as "won while in control" are those of these NIFs
+ * inside these windows. Most recent periods are kept when capping.
+ */
+export function getPersonControlTargets(profile: BormePersonProfile): PersonControlTargets {
+  const windows: Array<{ nif: string; dateFrom?: string; dateTo?: string; sortKey: string }> = [];
+  for (const company of profile.companies) {
+    if (!company.control || !company.nif) continue;
+    for (const period of company.control_periods) {
+      windows.push({
+        nif: company.nif.toUpperCase(),
+        dateFrom: bormeDateToIso(period.start),
+        dateTo: bormeDateToIso(period.end),
+        sortKey: period.end ?? "99999999",
+      });
+    }
+  }
+  windows.sort((a, b) => b.sortKey.localeCompare(a.sortKey));
+  const kept = windows.slice(0, MAX_CONTROL_WINDOWS).map(({ nif, dateFrom, dateTo }) => ({ nif, dateFrom, dateTo }));
+  return {
+    nifs: Array.from(new Set(kept.map((w) => w.nif))),
+    windows: kept,
+    truncated: windows.length > kept.length,
+  };
+}
+
+/** "nif,from,to;nif,from,to" as read by /api/persones/[name]/contractes (nif_windows). */
+export function serializeNifWindows(windows: Array<{ nif: string; dateFrom?: string; dateTo?: string }>): string {
+  return windows.map((w) => `${w.nif},${w.dateFrom || ""},${w.dateTo || ""}`).join(";");
 }
 
 export function getPersonAwardeeTargets(profile: BormePersonProfile): BormePersonAwardeeTargets {

@@ -10,6 +10,8 @@ const NIF = /^[A-Z0-9]{8,12}$/;
 interface Props {
   personName: string;
   defaultNifs: string[];
+  /** Control periods (nif_windows format) used when the URL sets no NIF scope. */
+  defaultNifWindows?: string;
   totalContracts: number;
   totalAmount: number;
 }
@@ -21,6 +23,7 @@ interface Props {
 export default function PersonContractsSection({
   personName,
   defaultNifs,
+  defaultNifWindows = "",
   totalContracts,
   totalAmount,
 }: Props) {
@@ -36,7 +39,7 @@ export default function PersonContractsSection({
     .map((nif) => nif.trim().toUpperCase())
     .filter((nif) => NIF.test(nif));
   const nifs = scopedNifs.length > 0 ? Array.from(new Set(scopedNifs)) : defaultNifs;
-  const nifWindows = (searchParams.get("nif_windows") || "").trim();
+  const nifWindows = (searchParams.get("nif_windows") || "").trim() || (scopedNifs.length === 0 ? defaultNifWindows : "");
 
   const scopeKey = [personName, nomOrgan, dateFrom, dateTo, nifWindows, nifs.join(",")].join("|");
 
@@ -64,7 +67,7 @@ export function PersonContractsSectionFallback({
   return (
     <div className="flex items-center justify-between mb-4">
       <h2 className="text-2xl font-bold text-gray-900">
-        Contractes vinculats ({formatNumber(totalContracts)})
+        Contractes durant el càrrec ({formatNumber(totalContracts)})
       </h2>
       <p className="text-sm text-gray-500">Import total: {formatCompactNumber(totalAmount)}</p>
     </div>
