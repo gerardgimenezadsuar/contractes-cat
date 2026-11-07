@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchContractsByAwardees, fetchContractsByAwardeesSummary } from "@/lib/api";
-import { getPersonAwardeeTargets, loadPersonProfile } from "@/lib/borme";
+import { getPersonControlTargets, loadPersonProfile } from "@/lib/borme";
 import {
   API_ROUTE_S_MAXAGE_SECONDS,
   API_ROUTE_STALE_WHILE_REVALIDATE_SECONDS,
@@ -57,7 +57,7 @@ export async function GET(request: NextRequest, { params }: Props) {
   const safeDateFrom = /^\d{4}-\d{2}-\d{2}$/.test(dateFrom) ? dateFrom : undefined;
   const safeDateTo = /^\d{4}-\d{2}-\d{2}$/.test(dateTo) ? dateTo : undefined;
   const nifWindowsParam = (searchParams.get("nif_windows") || "").trim();
-  const nifDateWindows = parseNifWindowsParam(nifWindowsParam);
+  let nifDateWindows: Array<{ nif: string; dateFrom?: string; dateTo?: string }> = parseNifWindowsParam(nifWindowsParam);
   const nifsParam = (searchParams.get("nifs") || "").trim();
 
   let nifs: string[] = nifsParam
@@ -71,8 +71,10 @@ export async function GET(request: NextRequest, { params }: Props) {
     if (!personProfile) {
       return NextResponse.json({ data: [], total: 0 }, { status: 404 });
     }
-    const targets = getPersonAwardeeTargets(personProfile);
+    // Default scope: companies the person owned or administered, only while they did.
+    const targets = getPersonControlTargets(personProfile);
     nifs = targets.nifs;
+    if (nifDateWindows.length === 0) nifDateWindows = targets.windows;
   }
 
   if (nifs.length === 0) {

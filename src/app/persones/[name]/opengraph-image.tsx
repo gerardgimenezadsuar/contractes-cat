@@ -1,5 +1,5 @@
 import { ImageResponse } from "next/og";
-import { loadPersonProfile, getPersonAwardeeTargets } from "@/lib/borme";
+import { loadPersonProfile, getPersonControlTargets } from "@/lib/borme";
 import { fetchContractsByAwardeesSummary } from "@/lib/api";
 import { formatCompactNumber, formatNumber } from "@/lib/utils";
 import { formatPersonDisplayName } from "@/lib/person-utils";
@@ -21,17 +21,18 @@ export default async function Image({ params }: Props) {
   const profile = await loadPersonProfile(decodedName);
 
   const displayName = formatPersonDisplayName(profile?.person_name || decodedName);
-  const numCompanies = profile?.num_companies || 0;
+  const numCompanies = profile?.num_control_companies || 0;
 
-  const targets = profile ? getPersonAwardeeTargets(profile) : { nifs: [], companyNames: [] };
+  // Same scope as the page headline: companies owned or administered, while they were.
+  const targets = profile ? getPersonControlTargets(profile) : { nifs: [], windows: [], truncated: false };
   const contractsSummary =
     targets.nifs.length > 0
-      ? await fetchContractsByAwardeesSummary({ nifs: targets.nifs })
+      ? await fetchContractsByAwardeesSummary({ nifs: targets.nifs, nifDateWindows: targets.windows })
       : { total: 0, totalAmount: 0 };
 
   const stats = [
-    { value: formatNumber(numCompanies), label: "Empreses vinculades" },
-    { value: formatNumber(contractsSummary.total), label: "Contractes vinculats" },
+    { value: formatNumber(numCompanies), label: "Empreses (propietat o administració)" },
+    { value: formatNumber(contractsSummary.total), label: "Contractes durant el càrrec" },
     { value: formatCompactNumber(contractsSummary.totalAmount), label: "Import total" },
   ];
 

@@ -148,7 +148,7 @@ export default function PersonContractsExplorer({
     <div>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold text-gray-900">
-          Contractes vinculats ({formatNumber(total)})
+          Contractes durant el càrrec ({formatNumber(total)})
         </h2>
         <p className="text-sm text-gray-500">Import total: {formatCompactNumber(totalAmount)}</p>
       </div>
