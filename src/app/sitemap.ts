@@ -16,6 +16,7 @@ const STATIC_ROUTES = [
   "/contractes",
   "/empreses",
   "/grups",
+  "/connexions",
   "/organismes",
   "/persones",
   "/legal",
