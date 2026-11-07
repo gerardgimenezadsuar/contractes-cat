@@ -10,6 +10,7 @@ import {
   fetchCompanyContractsCount,
   fetchCompanyLastAwardDate,
   fetchCompanyTopOrgans,
+  resolveMaskedAwardee,
 } from "@/lib/api";
 import { withFallback } from "@/lib/socrata";
 import { buildCompanyIndicators, formatCompactEuros, lastCompleteYear, toYearlyRows } from "@/lib/indicators";
@@ -30,7 +31,8 @@ import EntityHeader, { type HeaderChip, type KeyFigure } from "@/components/enti
 import SectionTabs from "@/components/entity/SectionTabs";
 import { IndicatorGrid } from "@/components/entity/IndicatorCard";
 import { loadAdminHistory } from "@/lib/borme";
-import { isAmbiguousCompanyId } from "@/lib/company-identity";
+import { buildCompanyHref, isAmbiguousCompanyId } from "@/lib/company-identity";
+import MaskedIdentityNotice from "@/components/company/MaskedIdentityNotice";
 
 export const revalidate = 21600;
 
@@ -54,12 +56,12 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     ? `${formatCompactNumber(totalAmount)} adjudicats en ${formatNumber(totalContracts)} contractes públics a ${companyName}.`
     : `Detall dels contractes públics adjudicats a ${companyName}.`;
 
-  const entityPath = `/empreses/${encodeURIComponent(canonicalCompanyId)}`;
+  const entityPath = buildCompanyHref(canonicalCompanyId, companyName);
   return buildEntityMetadata({
     title: companyName,
     description,
     path: entityPath,
-    imagePath: `${entityPath}/opengraph-image`,
+    imagePath: `/empreses/${encodeURIComponent(canonicalCompanyId)}/opengraph-image`,
     imageAlt: `Resum de contractació pública de ${companyName}`,
     keywords: [companyName, decodedId, `${companyName} contractes`, "contractació pública Catalunya"],
     openGraphType: "article",
@@ -99,6 +101,9 @@ export default async function CompanyDetailPage({ params, searchParams }: Props)
       : Promise.resolve(null),
     loadAdminHistory(decodedId),
   ]);
+  const maskedIdentity = isAmbiguousCompanyId(nif)
+    ? await withFallback(resolveMaskedAwardee(decodedId, name), null, "resolveMaskedAwardee")
+    : null;
   const hasBormeData = Boolean(adminHistory && adminHistory.spans.length > 0);
 
   const totalAmount = parseFloat(company.total);
@@ -126,7 +131,7 @@ export default async function CompanyDetailPage({ params, searchParams }: Props)
   if (lastAwardDate) chips.push({ label: "Darrera adjudicació", value: formatDate(lastAwardDate) });
   if (hasBormeData && adminHistory?.matched_name) chips.push({ label: "BORME", value: adminHistory.matched_name });
 
-  const entityPath = `/empreses/${encodeURIComponent(nif)}`;
+  const entityPath = buildCompanyHref(nif, company.denominacio_adjudicatari);
   const companyDescription = `${formatCompactNumber(totalAmount)} adjudicats en ${formatNumber(numContracts)} contractes públics a ${company.denominacio_adjudicatari}.`;
   const jsonLd = buildEntityJsonLdGraph(
     buildEntityPrimaryJsonLd({
@@ -163,6 +168,9 @@ export default async function CompanyDetailPage({ params, searchParams }: Props)
         figures={figures}
         actions={<SharePageButton className="shrink-0" />}
       />
+      {maskedIdentity ? (
+        <MaskedIdentityNotice cluster={maskedIdentity.cluster} others={maskedIdentity.others} />
+      ) : null}
       <SectionTabs tabs={tabs} />
 
       <section id="resum" className="scroll-mt-32 pt-8">
