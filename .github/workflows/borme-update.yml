@@ -1,0 +1,45 @@
+name: BORME incremental update
+
+# Fetches new BORME Section A days for the Catalan provinces and applies them to
+# the Turso admin-history DB. Progress is stored in Turso (borme_meta), so a
+# failed or skipped run is simply caught up by the next one.
+on:
+  schedule:
+    # BORME is published Mon-Fri in the morning (Madrid); run in the evening.
+    - cron: "0 18 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      start_date:
+        description: "Optional YYYY-MM-DD to (re)process from; defaults to the day after borme_meta.last_processed_date"
+        required: false
+        default: ""
+
+concurrency:
+  group: borme-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: scripts/requirements-borme.txt
+
+      - name: Install dependencies
+        run: pip install -r scripts/requirements-borme.txt
+
+      - name: Apply new BORME days to Turso
+        env:
+          TURSO_URL: ${{ secrets.TURSO_URL }}
+          TURSO_WRITE_TOKEN: ${{ secrets.TURSO_WRITE_TOKEN }}
+          START_DATE: ${{ inputs.start_date }}
+        run: |
+          args=(--archive-dir "" --workers 6)
+          if [ -n "$START_DATE" ]; then args+=(--start-date "$START_DATE"); fi
+          python3 scripts/borme_incremental_update.py "${args[@]}"
