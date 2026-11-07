@@ -33,17 +33,10 @@ function sortIndicator(
   return direction === "desc" ? "↓" : "↑";
 }
 
-function detectPersonKind(name: string): "Física" | "Jurídica" {
-  const normalized = name.toUpperCase().replace(/\s+/g, " ").trim();
-  const legalPattern =
-    /\b(SA|S\.A\.|SL|S\.L\.|SLU|S\.L\.U\.|SCP|SLP|SAS|SCCL|COOPERATIVA|FUNDACIO|FUNDACIÓN|ASOCIACION|ASSOCIACIO|SOCIEDAD|LTD|LIMITED|INC|LLC|GMBH|BV|CORP|CORPORATION|UTE|AIE)\b/;
-  return legalPattern.test(normalized) ? "Jurídica" : "Física";
-}
-
 export default function PersonesTopVinculacioTable({ rows }: Props) {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [positionFilter, setPositionFilter] = useState<"all" | "Administrador" | "Òrgan de govern">("all");
+  const [positionFilter, setPositionFilter] = useState<"all" | "Propietat" | "Administració">("all");
   const [sortField, setSortField] = useState<SortField>("import");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
@@ -104,10 +97,11 @@ export default function PersonesTopVinculacioTable({ rows }: Props) {
   return (
     <section className="mt-8 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
       <h2 className="text-lg font-semibold text-gray-900">
-        Top persones amb vinculació: administradors o formant part de l&apos;òrgan de govern (segons BORME)
+        Top persones per contractes de les empreses que controlaven (segons BORME)
       </h2>
       <p className="mt-1 text-sm text-gray-600">
-        Rànquing ordenat per import d&apos;operacions vinculades durant períodes actius.
+        Propietaris (soci únic) i administradors, ordenats per l&apos;import dels contractes que van guanyar les seves
+        empreses mentre en tenien el càrrec.
       </p>
       <div className="mt-4 flex flex-col gap-2 rounded-lg border border-gray-100 bg-gray-50 p-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-1 flex-wrap items-center gap-2">
@@ -124,15 +118,15 @@ export default function PersonesTopVinculacioTable({ rows }: Props) {
             value={positionFilter}
             onChange={(e) => {
               setPositionFilter(
-                e.target.value as "all" | "Administrador" | "Òrgan de govern"
+                e.target.value as "all" | "Propietat" | "Administració"
               );
               setPage(1);
             }}
             className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-gray-500 focus:outline-none"
           >
             <option value="all">Totes les posicions</option>
-            <option value="Administrador">Administrador</option>
-            <option value="Òrgan de govern">Òrgan de govern</option>
+            <option value="Administració">Administració</option>
+            <option value="Propietat">Propietat (soci únic)</option>
           </select>
         </div>
       </div>
@@ -142,7 +136,7 @@ export default function PersonesTopVinculacioTable({ rows }: Props) {
           <thead>
             <tr className="text-left text-xs uppercase tracking-wide text-gray-500">
               <th className="border-b border-gray-200 px-2 py-2 font-medium">#</th>
-              <th className="border-b border-gray-200 px-2 py-2 font-medium">Persona (física o jurídica)</th>
+              <th className="border-b border-gray-200 px-2 py-2 font-medium">Persona</th>
               <th className="border-b border-gray-200 px-2 py-2 font-medium">
                 <button
                   type="button"
@@ -177,7 +171,6 @@ export default function PersonesTopVinculacioTable({ rows }: Props) {
             {pageRows.map((row, idx) => {
               const visibleCompanies = row.companiesSample.slice(0, 3);
               const remaining = Math.max(0, row.companiesSample.length - visibleCompanies.length);
-              const personKind = detectPersonKind(row.personName);
               const absoluteRank = (safePage - 1) * PAGE_SIZE + idx + 1;
 
               return (
@@ -192,9 +185,6 @@ export default function PersonesTopVinculacioTable({ rows }: Props) {
                     >
                       {row.personName}
                     </Link>
-                    <span className="ml-2 inline-flex rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] text-indigo-700">
-                      {personKind}
-                    </span>
                     <div className="mt-1 flex flex-wrap gap-1">
                       {visibleCompanies.map((company) => (
                         <span
@@ -213,6 +203,7 @@ export default function PersonesTopVinculacioTable({ rows }: Props) {
                   </td>
                   <td className="border-b border-gray-100 px-2 py-3 text-sm text-gray-900">
                     {formatCurrency(row.totalAmountActivePeriod)}
+                    <span className="block text-[11px] text-gray-500">sense IVA</span>
                   </td>
                   <td className="border-b border-gray-100 px-2 py-3 text-sm text-gray-700">
                     {formatInt(row.totalContractsActivePeriod)}
@@ -269,10 +260,11 @@ export default function PersonesTopVinculacioTable({ rows }: Props) {
       <div className="mt-3 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
         <p className="text-xs font-medium text-gray-700">Metodologia</p>
         <p className="mt-1 text-xs text-gray-600">
-          El rànquing mostra les 250 persones amb més operacions vinculades, comptant només els períodes
-          en què constaven amb càrrec actiu com a administrador o com a membre de l&apos;òrgan de govern.
-          Per a cada operació, s&apos;atribueix l&apos;import únicament si la data d&apos;adjudicació cau dins
-          del tram actiu del càrrec; després s&apos;agrega per persona i s&apos;ordena per import total.
+          Compten només la propietat (soci únic) i l&apos;administració: administradors, presidència i conseller
+          delegat. No hi compten apoderats, consellers, secretaris ni liquidadors. Cada contracte (import sense IVA)
+          s&apos;atribueix a una persona si el mes d&apos;adjudicació cau dins del període en què tenia el càrrec. S&apos;exclouen
+          les societats i els administradors professionals (més de 20 empreses). Es recalcula cada dia amb les
+          dades del BORME.
         </p>
       </div>
     </section>

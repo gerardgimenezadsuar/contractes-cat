@@ -21,6 +21,8 @@ interface PersonSearchResult {
   num_companies: number;
   num_companies_with_nif: number;
   active_spans: number;
+  num_control_companies?: number;
+  active_control_companies?: number;
 }
 
 interface SectionState<T> {
@@ -290,10 +292,18 @@ export default function CompanySearch() {
                 >
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-gray-900 truncate">{formatPersonDisplayName(r.person_name)}</p>
-                    <p className="text-xs text-gray-500">{formatNumber(r.num_companies)} empreses vinculades</p>
+                    <p className="text-xs text-gray-500">
+                      {r.num_control_companies != null
+                        ? `${formatNumber(r.num_control_companies)} empreses (propietat o administració)`
+                        : `${formatNumber(r.num_companies)} empreses vinculades`}
+                    </p>
                   </div>
                   <div className="ml-4 text-right shrink-0">
-                    <p className="text-xs text-gray-500">{formatNumber(r.active_spans)} càrrecs actius</p>
+                    <p className="text-xs text-gray-500">
+                      {r.active_control_companies != null
+                        ? `${formatNumber(r.active_control_companies)} amb control actual`
+                        : `${formatNumber(r.active_spans)} càrrecs actius`}
+                    </p>
                   </div>
                 </Link>
               ))}

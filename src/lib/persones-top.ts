@@ -1,97 +1,47 @@
-import { promises as fs } from "node:fs";
-import path from "node:path";
-import { parseCsv } from "@/lib/csv";
-import { isJunkPersonName } from "@/lib/borme";
+import { unstable_cache } from "next/cache";
+import { loadPersonRanking } from "@/lib/borme";
+
+export type TopVinculacioPosition = "Propietat" | "Administració";
 
 export interface TopVinculacioRow {
   rank: number;
   personName: string;
+  /** Contracts (amount without VAT) won while the person owned or administered the company. */
   totalAmountActivePeriod: number;
   totalContractsActivePeriod: number;
   activeCompaniesWithOps: number;
-  activeOperationDays: number;
-  mainPosition: string;
+  mainPosition: TopVinculacioPosition;
   mainPositionAmount: number;
   companiesSample: string[];
 }
 
-const TOP_CSV_PATH = path.join(
-  process.cwd(),
-  "data",
-  "persones_network",
-  "top250_active_operacions.csv"
+/**
+ * Person ranking built daily by scripts/borme_build_company_graph.py
+ * (person_ranking table): ownership and administration only, contracts
+ * attributed by month to the periods each person held the role, professional
+ * administrators (>20 companies) and legal entities excluded.
+ */
+const loadCachedRanking = unstable_cache(
+  async () => {
+    const rows = await loadPersonRanking();
+    // Do not cache an empty result (Turso unavailable): throw and retry next time.
+    if (rows.length === 0) throw new Error("person ranking unavailable");
+    return rows;
+  },
+  ["person-ranking-v1"],
+  { revalidate: 21600 }
 );
 
-function toNumber(value: string): number {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function mapMainPosition(raw: string): string {
-  if (raw === "ADMINISTRADOR") return "Administrador";
-  if (raw === "ORGANO_GOBIERNO") return "Òrgan de govern";
-  return raw || "—";
-}
-
-// BORME lists companies acting as administrators alongside people; this
-// table ranks people, so leave those out.
-const LEGAL_ENTITY_SUFFIX =
-  /\b(S\.?\s?L\.?(\s?U\.?|\s?P\.?)?|S\.?\s?A\.?(\s?U\.?)?|S\.?\s?C\.?\s?C\.?\s?L\.?|S\s?COOP|SARL|SAS|SRL|SPA|LLC|INC|PLC|GMBH|AG|N\.?V\.?|B\.?V\.?|LTD|AIE|UTE)\.?$/i;
-
-const LEGAL_ENTITY_PREFIX = /^(GRUPO|GRUP|GROUP)\s/i;
-
-function isLegalEntityName(name: string): boolean {
-  const trimmed = name.trim();
-  return LEGAL_ENTITY_SUFFIX.test(trimmed) || LEGAL_ENTITY_PREFIX.test(trimmed);
-}
-
 export async function loadTopVinculacions(): Promise<TopVinculacioRow[]> {
-  let csv: string;
-  try {
-    csv = await fs.readFile(TOP_CSV_PATH, "utf-8");
-  } catch {
-    return [];
-  }
-
-  const parsed = parseCsv(csv);
-  if (parsed.length < 2) return [];
-
-  const [header, ...dataRows] = parsed;
-  const idx = new Map<string, number>();
-  header.forEach((key, i) => idx.set(key, i));
-
-  const get = (row: string[], key: string) => {
-    const i = idx.get(key);
-    if (i === undefined) return "";
-    return row[i] ?? "";
-  };
-
-  return dataRows
-    .filter((row) => row.some((cell) => cell.trim().length > 0))
-    .map((row) => {
-      const companiesSample = get(row, "companies_sample")
-        .split("|")
-        .map((v) => v.trim())
-        .filter(Boolean);
-
-      return {
-        rank: toNumber(get(row, "rank")),
-        personName: get(row, "person_name"),
-        totalAmountActivePeriod: toNumber(get(row, "total_amount_active_period")),
-        totalContractsActivePeriod: toNumber(get(row, "total_contracts_active_period")),
-        activeCompaniesWithOps: toNumber(get(row, "active_companies_with_ops")),
-        activeOperationDays: toNumber(get(row, "active_operation_days")),
-        mainPosition: mapMainPosition(get(row, "main_position")),
-        mainPositionAmount: toNumber(get(row, "main_position_amount")),
-        companiesSample,
-      };
-    })
-    .filter(
-      (row) =>
-        row.rank > 0 &&
-        row.personName.trim().length > 0 &&
-        !isJunkPersonName(row.personName) &&
-        !isLegalEntityName(row.personName)
-    )
-    .sort((a, b) => a.rank - b.rank);
+  const rows = await loadCachedRanking().catch(() => []);
+  return rows.map((row) => ({
+    rank: row.rank,
+    personName: row.personName,
+    totalAmountActivePeriod: row.totalAmount,
+    totalContractsActivePeriod: row.numContracts,
+    activeCompaniesWithOps: row.numCompanies,
+    mainPosition: row.mainRole === "OWNER" ? "Propietat" : "Administració",
+    mainPositionAmount: row.mainRoleAmount,
+    companiesSample: row.companies,
+  }));
 }
