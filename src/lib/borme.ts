@@ -24,6 +24,10 @@ export interface BormePersonSearchResult {
   num_companies_with_nif: number;
   active_spans: number;
   total_spans: number;
+  /** Companies owned or administered (see borme-roles.ts); computed by the BORME pipeline. */
+  num_control_companies: number;
+  num_control_companies_with_nif: number;
+  active_control_companies: number;
 }
 
 export interface BormePersonSearchPage {
@@ -291,6 +295,11 @@ function buildPersonSearchWhere(query: string): { sql: string; args: string[]; o
 // next role label ("...Presidente: ..."). Hide them from listings.
 const VALID_PERSON_SQL = "person_name NOT LIKE '%REGISTRO MERCANTIL%' AND person_name NOT LIKE '%:%'";
 
+// Search ranks people who own or administer companies with public contracts first;
+// the all-roles counts only break ties.
+const PERSON_CONTROL_ORDER =
+  "num_control_companies_with_nif DESC, num_control_companies DESC, active_control_companies DESC, num_companies_with_nif DESC, num_companies DESC, total_spans DESC";
+
 export function isJunkPersonName(name: string): boolean {
   return /REGISTRO MERCANTIL|:/i.test(name);
 }
@@ -332,6 +341,9 @@ export async function searchPersonsWithTotal(
                        p.num_companies_with_nif,
                        p.active_spans,
                        p.total_spans,
+                       p.num_control_companies,
+                       p.num_control_companies_with_nif,
+                       p.active_control_companies,
                        CASE WHEN upper(p.person_name) LIKE upper(?) THEN 1 ELSE 0 END AS ordered_match
                 FROM person_summary p
                 JOIN person_summary_fts f ON f.rowid = p.rowid
@@ -342,10 +354,13 @@ export async function searchPersonsWithTotal(
                      num_companies_with_nif,
                      active_spans,
                      total_spans,
+                     num_control_companies,
+                     num_control_companies_with_nif,
+                     active_control_companies,
                      count(*) OVER() AS total_matches,
                      ordered_match
               FROM matched
-              ORDER BY ordered_match DESC, num_companies_with_nif DESC, num_companies DESC, active_spans DESC, total_spans DESC
+              ORDER BY ordered_match DESC, ${PERSON_CONTROL_ORDER}
               LIMIT ? OFFSET ?`,
         args: [fts.orderedPattern, fts.match, limit, offset],
       });
@@ -358,11 +373,14 @@ export async function searchPersonsWithTotal(
                      num_companies_with_nif,
                      active_spans,
                      total_spans,
+                     num_control_companies,
+                     num_control_companies_with_nif,
+                     active_control_companies,
                      count(*) OVER() AS total_matches,
                      CASE WHEN upper(person_name) LIKE upper(?) THEN 1 ELSE 0 END AS ordered_match
               FROM person_summary
               WHERE ${searchWhere.sql} AND ${VALID_PERSON_SQL}
-              ORDER BY ordered_match DESC, num_companies_with_nif DESC, num_companies DESC, active_spans DESC, total_spans DESC
+              ORDER BY ordered_match DESC, ${PERSON_CONTROL_ORDER}
               LIMIT ? OFFSET ?`,
         args: [searchWhere.orderedPattern, ...searchWhere.args, limit, offset],
       });
@@ -375,6 +393,9 @@ export async function searchPersonsWithTotal(
       num_companies_with_nif: Number(r.num_companies_with_nif || 0),
       active_spans: Number(r.active_spans || 0),
       total_spans: Number(r.total_spans || 0),
+      num_control_companies: Number(r.num_control_companies || 0),
+      num_control_companies_with_nif: Number(r.num_control_companies_with_nif || 0),
+      active_control_companies: Number(r.active_control_companies || 0),
     }));
     const total = Number(result.rows[0]?.total_matches || 0);
     const page = { data, total };
@@ -1129,6 +1150,44 @@ export function getPersonControlTargets(profile: BormePersonProfile): PersonCont
 /** "nif,from,to;nif,from,to" as read by /api/persones/[name]/contractes (nif_windows). */
 export function serializeNifWindows(windows: Array<{ nif: string; dateFrom?: string; dateTo?: string }>): string {
   return windows.map((w) => `${w.nif},${w.dateFrom || ""},${w.dateTo || ""}`).join(";");
+}
+
+export interface PersonRankingRow {
+  rank: number;
+  personName: string;
+  totalAmount: number;
+  numContracts: number;
+  numCompanies: number;
+  mainRole: "OWNER" | "ADMIN";
+  mainRoleAmount: number;
+  companies: string[];
+}
+
+/** Top people by contracts won while they owned or administered the company (person_ranking). */
+export async function loadPersonRanking(): Promise<PersonRankingRow[]> {
+  return runGroupQuery("person ranking", [], async (client) => {
+    const result = await client.execute(
+      "SELECT rank, person_name, total_amount, num_contracts, num_companies, main_role, main_role_amount, companies FROM person_ranking ORDER BY rank"
+    );
+    return result.rows.map((r) => {
+      let companies: string[] = [];
+      try {
+        companies = JSON.parse(String(r.companies ?? "[]")) as string[];
+      } catch {
+        companies = [];
+      }
+      return {
+        rank: Number(r.rank),
+        personName: String(r.person_name),
+        totalAmount: Number(r.total_amount) || 0,
+        numContracts: Number(r.num_contracts) || 0,
+        numCompanies: Number(r.num_companies) || 0,
+        mainRole: String(r.main_role) === "OWNER" ? "OWNER" : "ADMIN",
+        mainRoleAmount: Number(r.main_role_amount) || 0,
+        companies,
+      };
+    });
+  });
 }
 
 export function getPersonAwardeeTargets(profile: BormePersonProfile): BormePersonAwardeeTargets {

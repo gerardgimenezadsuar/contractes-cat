@@ -96,6 +96,31 @@ def is_entity(name: str) -> bool:
   return bool(ENTITY_SUFFIX.search(name.strip().upper()))
 
 
+# Broader check used for people rankings: also foreign legal forms, group prefixes
+# and legal forms cut off by the PDF parser ("FALCK EMERGENCY SPAIN S").
+# Mirrors LEGAL_ENTITY_SUFFIX / PREFIX that src/lib/persones-top.ts used.
+FOREIGN_ENTITY_SUFFIX = re.compile(
+  r"\b(S\.?\s?L\.?(\s?U\.?|\s?P\.?)?|S\.?\s?A\.?(\s?U\.?)?|S\.?\s?C\.?\s?C\.?\s?L\.?|S\s?COOP|SARL|SAS|SRL|SPA|LLC|INC|"
+  r"PLC|GMBH|AG|N\.?V\.?|B\.?V\.?|LTD|LIMITED|AIE|UTE|SE|S)\.?$",
+  re.IGNORECASE,
+)
+ENTITY_PREFIX = re.compile(r"^(GRUPO|GRUP|GROUP)\s", re.IGNORECASE)
+# Words that only appear in company names (no legal-form suffix, e.g. "HISUSA HOLDING DE INFRAESTRUCTURAS").
+ENTITY_WORDS = re.compile(
+  r"\b(HOLDING|HOLDINGS|INVERSIONES|INVERSIONS|CORPORACION|CORPORACIÓN|CORPORACIO|CORPORACIÓ|PARTICIPACIONES|"
+  r"SOCIEDAD|SOCIETAT|FUNDACION|FUNDACIÓN|FUNDACIO|FUNDACIÓ|ASOCIACION|ASSOCIACIO|COOPERATIVA|AYUNTAMIENTO|"
+  r"AJUNTAMENT|DIPUTACION|DIPUTACIO|CONSORCIO|CONSORCI|INVESTMENTS|CAPITAL|PARTNERS|GESTION|GESTIÓN|GESTIO|GESTIÓ|"
+  r"ACTIVOS|ACTIUS|SERVICIOS|SERVEIS|PROMOCIONES|PROMOCIONS|INMOBILIARIA|IMMOBILIARIA)\b",
+  re.IGNORECASE,
+)
+
+
+def is_legal_entity_name(name: str) -> bool:
+  n = name.strip()
+  return (is_entity(n) or bool(FOREIGN_ENTITY_SUFFIX.search(n)) or bool(ENTITY_PREFIX.search(n))
+          or bool(ENTITY_WORDS.search(n)))
+
+
 def span_days(start: str, end: str | None) -> int:
   if not end:
     return 1 << 30
@@ -121,7 +146,7 @@ def load(db) -> tuple[dict[int, dict], list[dict]]:
   max_c = db.query("SELECT max(id) AS m FROM companies")[0]["m"] or 0
   companies = {
     r["id"]: r for r in load_paged(
-      db, "SELECT id, company_name, nif FROM companies WHERE id > ? AND id <= ?", "id", max_c)
+      db, "SELECT id, company_name, matched_name, nif FROM companies WHERE id > ? AND id <= ?", "id", max_c)
   }
   max_s = db.query("SELECT max(id) AS m FROM admin_spans")[0]["m"] or 0
   spans = load_paged(
@@ -512,6 +537,224 @@ def sync_groups(db, groups: dict[int, dict], members: dict[int, dict], dry_run: 
 
 
 # ---------------------------------------------------------------------------
+# People: control-only counts (person_summary) and the person ranking
+# ---------------------------------------------------------------------------
+# Same definition of control as src/lib/borme-roles.ts (person pages): no
+# short-span filter here, so counts match what a person page shows.
+PROFESSIONAL_ADMIN_THRESHOLD = 20
+RANKING_SIZE = 250
+CLEAN_AMOUNT_SENSE_FILTER = "import_adjudicacio_sense not like '%||%'"
+BEST_DATE_EXPR = "coalesce(data_adjudicacio_contracte, data_formalitzacio_contracte, data_publicacio_anunci)"
+MISSING_TEXT_VALUES_SQL = ("('', '-', '--', '*', '/', 'NULL', 'N/A', 'NA', 'S/D', 'N.D.', 'ND', 'SENSE ADJUDICAR', "
+                           "'PENDENT D''ADJUDICACIO', 'PENDENT D''ADJUDICACIÓ', 'PENDENT')")
+AWARDED_CONTRACT_WHERE = (
+  f"upper(coalesce(denominacio_adjudicatari,'')) not in {MISSING_TEXT_VALUES_SQL} AND "
+  f"upper(coalesce(identificacio_adjudicatari,'')) not in {MISSING_TEXT_VALUES_SQL} AND "
+  f"{CLEAN_AMOUNT_SENSE_FILTER} AND import_adjudicacio_sense IS NOT NULL AND import_adjudicacio_sense::number > 0"
+)
+
+PERSON_COLUMNS = ("num_control_companies", "num_control_companies_with_nif", "active_control_companies")
+RANKING_SCHEMA = [
+  """CREATE TABLE IF NOT EXISTS person_ranking (
+    rank            INTEGER PRIMARY KEY,
+    person_name     TEXT NOT NULL,
+    total_amount    REAL NOT NULL,
+    num_contracts   INTEGER NOT NULL,
+    num_companies   INTEGER NOT NULL,
+    main_role       TEXT NOT NULL,
+    main_role_amount REAL NOT NULL,
+    companies       TEXT NOT NULL
+  )""",
+]
+
+
+def person_control(companies: dict[int, dict], spans: list[dict]) -> dict[str, dict]:
+  """Per person (not legal entities): control spans with the period they really lasted."""
+  owner_starts: dict[int, list[tuple[str, str]]] = defaultdict(list)
+  for s in spans:
+    if s["relation_type"] == "SOCIO_UNICO":
+      owner_starts[s["company_id"]].append((s["date_start"], (s["person_name"] or "").strip()))
+  for v in owner_starts.values():
+    v.sort()
+
+  def superseded(cid: int, start: str, name: str) -> str | None:
+    for d, n in owner_starts.get(cid, []):
+      if d > start and n != name:
+        return d
+    return None
+
+  people: dict[str, dict] = {}
+  for s in spans:
+    name = (s["person_name"] or "").strip()
+    if not name or is_junk(name) or is_legal_entity_name(name):
+      continue
+    cls = role_class(s["relation_type"], s["role_title_code"])
+    if cls is None:
+      continue
+    end = s["date_end"]
+    if cls == "OWNER" and end is None:
+      end = superseded(s["company_id"], s["date_start"], name)
+    p = people.setdefault(name, {"spans": []})
+    p["spans"].append({"cid": s["company_id"], "cls": cls, "start": s["date_start"], "end": end})
+
+  for name, p in people.items():
+    cids = {x["cid"] for x in p["spans"]}
+    p["num_control_companies"] = len(cids)
+    p["num_control_companies_with_nif"] = len({companies[c]["nif"].upper() for c in cids if companies[c]["nif"]})
+    p["active_control_companies"] = len({x["cid"] for x in p["spans"] if x["end"] is None})
+  return people
+
+
+def fetch_monthly_totals(nifs: list[str]) -> dict[str, list[tuple[str, float, int]]]:
+  """NIF -> [(YYYYMM, amount without VAT, contracts)], same filters as the person pages."""
+  import requests
+  out: dict[str, list[tuple[str, float, int]]] = defaultdict(list)
+  for i in range(0, len(nifs), 100):
+    part = nifs[i:i + 100]
+    in_list = ",".join("'" + n.replace("'", "''") + "'" for n in part)
+    offset = 0
+    while True:
+      params = {
+        "$select": f"identificacio_adjudicatari, date_trunc_ym({BEST_DATE_EXPR}) AS ym, "
+                   "sum(import_adjudicacio_sense::number) AS total, count(*) AS n",
+        "$where": f"identificacio_adjudicatari IN ({in_list}) AND ({BEST_DATE_EXPR}) IS NOT NULL "
+                  f"AND {AWARDED_CONTRACT_WHERE}",
+        "$group": "identificacio_adjudicatari, ym",
+        "$order": "identificacio_adjudicatari, ym",
+        "$limit": "50000",
+        "$offset": str(offset),
+      }
+      for attempt in range(5):
+        try:
+          r = requests.get(SOCRATA_URL, params=params, timeout=180)
+          r.raise_for_status()
+          break
+        except requests.RequestException:
+          if attempt == 4:
+            raise
+          time.sleep(2 ** attempt * 3)
+      rows = r.json()
+      for row in rows:
+        ym = (row.get("ym") or "")[:7].replace("-", "")
+        if len(ym) == 6:
+          out[row["identificacio_adjudicatari"].upper()].append((ym, float(row.get("total") or 0), int(row.get("n") or 0)))
+      if len(rows) < 50000:
+        break
+      offset += 50000
+  return out
+
+
+def build_ranking(companies: dict[int, dict], people: dict[str, dict]) -> list[dict]:
+  """Top people by contracts won by the companies they controlled, while they did (month granularity)."""
+  candidates = {n: p for n, p in people.items()
+                if 0 < p["num_control_companies"] <= PROFESSIONAL_ADMIN_THRESHOLD and p["num_control_companies_with_nif"] > 0}
+  nifs = sorted({companies[x["cid"]]["nif"].upper() for p in candidates.values() for x in p["spans"] if companies[x["cid"]]["nif"]})
+  log(f"  ranking: {len(candidates):,} candidate people, fetching monthly contract totals for {len(nifs):,} NIFs …")
+  monthly = fetch_monthly_totals(nifs)
+
+  rows: list[dict] = []
+  for name, p in candidates.items():
+    # Merge periods per NIF and role class so overlapping roles are not double counted.
+    periods: dict[str, list[tuple[str, str]]] = defaultdict(list)
+    role_of: dict[str, set[str]] = defaultdict(set)
+    for x in p["spans"]:
+      nif = companies[x["cid"]]["nif"]
+      if not nif:
+        continue
+      nif = nif.upper()
+      periods[nif].append((x["start"][:6], (x["end"] or "999999")[:6]))
+      role_of[nif].add(x["cls"])
+    total, contracts, by_company, by_role = 0.0, 0, {}, defaultdict(float)
+    for nif, ps in periods.items():
+      amount, n = 0.0, 0
+      for ym, a, c in monthly.get(nif, []):
+        if any(s <= ym <= e for s, e in ps):
+          amount += a
+          n += c
+      if n:
+        total += amount
+        contracts += n
+        by_company[nif] = amount
+        by_role["OWNER" if "OWNER" in role_of[nif] else "ADMIN"] += amount
+    if contracts:
+      top = sorted(by_company, key=lambda k: -by_company[k])[:5]
+      names = {}
+      for cid in {x["cid"] for x in p["spans"]}:
+        c = companies[cid]
+        if c["nif"] and c["nif"].upper() in top:
+          names[c["nif"].upper()] = c.get("matched_name") or c["company_name"]
+      main = max(by_role, key=by_role.get)
+      rows.append({
+        "person_name": name,
+        "total_amount": round(total, 2),
+        "num_contracts": contracts,
+        "num_companies": len(by_company),
+        "main_role": main,
+        "main_role_amount": round(by_role[main], 2),
+        "companies": json.dumps([f"{names.get(n, n)} ({n})" for n in top], ensure_ascii=False),
+      })
+  rows.sort(key=lambda r: -r["total_amount"])
+  return rows[:RANKING_SIZE]
+
+
+def sync_people(db, companies: dict[int, dict], spans: list[dict], dry_run: bool, with_ranking: bool) -> None:
+  people = person_control(companies, spans)
+  log(f"  people with ownership/administration: {len(people):,}")
+
+  # 1. control counts on person_summary (ALTER keeps rowids, so the FTS join stays aligned)
+  cols = {r["name"] for r in db.query("SELECT name FROM pragma_table_info('person_summary')")}
+  if not dry_run:
+    db.transaction([(f"ALTER TABLE person_summary ADD COLUMN {c} INTEGER NOT NULL DEFAULT 0", [])
+                    for c in PERSON_COLUMNS if c not in cols])
+    db.transaction([(
+      "CREATE INDEX IF NOT EXISTS idx_person_summary_control_rank ON person_summary("
+      "num_control_companies_with_nif, num_control_companies, active_control_companies)", [])])
+  existing: dict[str, tuple] = {}
+  if all(c in cols for c in PERSON_COLUMNS) or not dry_run:
+    last = 0
+    while True:
+      page = db.query(
+        f"SELECT rowid AS r, person_name, {', '.join(PERSON_COLUMNS)} FROM person_summary "
+        "WHERE rowid > ? ORDER BY rowid LIMIT ?", [last, PAGE])
+      for r in page:
+        existing[r["person_name"]] = tuple(r[c] for c in PERSON_COLUMNS)
+      if len(page) < PAGE:
+        break
+      last = page[-1]["r"]
+  updates = []
+  for name, current in existing.items():
+    p = people.get(name)
+    target = tuple(p[c] for c in PERSON_COLUMNS) if p else (0, 0, 0)
+    if current != target:
+      updates.append((name, target))
+  log(f"  person_summary control counts: {len(updates):,} updates")
+  if not dry_run:
+    stmts = [(f"UPDATE person_summary SET {', '.join(f'{c} = ?' for c in PERSON_COLUMNS)} WHERE person_name = ?",
+              [*target, name]) for name, target in updates]
+    for i in range(0, len(stmts), WRITE_BATCH):
+      db.transaction(stmts[i:i + WRITE_BATCH])
+      if (i // WRITE_BATCH) % 100 == 0 and i:
+        log(f"  updated {i:,}/{len(stmts):,}")
+
+  # 2. ranking (replaced as a whole: 250 rows)
+  if not with_ranking:
+    return
+  ranking = build_ranking(companies, people)
+  log(f"  ranking rows: {len(ranking)}; #1 {ranking[0]['person_name'] if ranking else '-'}")
+  if dry_run:
+    return
+  stmts = [(sql, []) for sql in RANKING_SCHEMA] + [("DELETE FROM person_ranking", [])]
+  for i, r in enumerate(ranking, start=1):
+    stmts.append((
+      "INSERT INTO person_ranking (rank, person_name, total_amount, num_contracts, num_companies, main_role, "
+      "main_role_amount, companies) VALUES (?,?,?,?,?,?,?,?)",
+      [i, r["person_name"], r["total_amount"], r["num_contracts"], r["num_companies"], r["main_role"],
+       r["main_role_amount"], r["companies"]],
+    ))
+  db.transaction(stmts)
+
+
+# ---------------------------------------------------------------------------
 # Sync (diff by hash)
 # ---------------------------------------------------------------------------
 def load_existing(db) -> dict[tuple[str, str, int], str]:
@@ -562,6 +805,7 @@ def main() -> int:
   p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
   p.add_argument("--sqlite", help="Use a local SQLite file instead of Turso.")
   p.add_argument("--dry-run", action="store_true")
+  p.add_argument("--skip-ranking", action="store_true", help="Do not rebuild person_ranking (skips the Socrata fetch).")
   args = p.parse_args()
   if args.sqlite:
     db = LocalDB(args.sqlite)
@@ -574,16 +818,18 @@ def main() -> int:
     db = TursoDB(url, token)
 
   t0 = time.time()
-  log("[1/4] loading companies and spans …")
+  log("[1/5] loading companies and spans …")
   companies, spans = load(db)
   log(f"  {len(companies):,} companies, {len(spans):,} spans ({time.time() - t0:.0f}s)")
-  log("[2/4] building links …")
+  log("[2/5] building links …")
   final = build_links(companies, spans)
-  log("[3/4] syncing company_links …")
+  log("[3/5] syncing company_links …")
   sync(db, final, args.dry_run)
-  log("[4/4] building and syncing business groups …")
+  log("[4/5] building and syncing business groups …")
   groups, members = build_groups(companies, spans)
   sync_groups(db, groups, members, args.dry_run)
+  log("[5/5] people: control counts and ranking …")
+  sync_people(db, companies, spans, args.dry_run, with_ranking=not args.skip_ranking)
   log(f"[DONE] {time.time() - t0:.0f}s")
   return 0
 

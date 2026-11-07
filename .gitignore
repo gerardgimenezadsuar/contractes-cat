@@ -48,9 +48,6 @@ next-env.d.ts
 # local project data
 /skills/
 /data/*
-!/data/persones_network/
-/data/persones_network/*
-!/data/persones_network/top250_active_operacions.csv
 
 # BORME extraction and local processing (keep local-only)
 /borme-dataset/
