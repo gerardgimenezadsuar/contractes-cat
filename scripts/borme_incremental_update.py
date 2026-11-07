@@ -473,8 +473,10 @@ def build_day_statements(db, day: str, rows: list[dict], matcher: NifMatcher) ->
   rel_ph = ",".join("?" for _ in PERSON_RELATIONS)
   for person in persons:
     norm = bsql.normalize_person_name(person)
+    # UPSERT, never REPLACE: person search joins person_summary_fts ON
+    # f.rowid = p.rowid, and REPLACE would give the row a new rowid.
     stmts.append((
-      f"""INSERT OR REPLACE INTO person_summary
+      f"""INSERT INTO person_summary
             (person_name, person_name_norm, num_companies, num_companies_with_nif, active_spans, total_spans)
           SELECT s.person_name, ?,
                  count(DISTINCT s.company_id),
@@ -483,13 +485,19 @@ def build_day_statements(db, day: str, rows: list[dict], matcher: NifMatcher) ->
                  count(*)
           FROM admin_spans s JOIN companies c ON c.id = s.company_id
           WHERE s.person_name = ? AND s.relation_type IN ({rel_ph})
-          GROUP BY s.person_name""",
+          GROUP BY s.person_name
+          ON CONFLICT(person_name) DO UPDATE SET
+            num_companies = excluded.num_companies,
+            num_companies_with_nif = excluded.num_companies_with_nif,
+            active_spans = excluded.active_spans,
+            total_spans = excluded.total_spans""",
       [norm, person, *PERSON_RELATIONS],
     ))
     if person not in known:
       stmts.append((
-        "INSERT INTO person_summary_fts (person_name, person_name_norm) VALUES (?, ?)",
-        [person, norm],
+        "INSERT INTO person_summary_fts (rowid, person_name, person_name_norm) "
+        "SELECT rowid, person_name, person_name_norm FROM person_summary WHERE person_name = ?",
+        [person],
       ))
       stats["persons_new"] += 1
   stats["persons"] = len(persons)
