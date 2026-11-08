@@ -40,6 +40,18 @@ TURSO_TOKEN=<db-token>
 
 També es suporta `TURSO_AUTH_TOKEN` com a alternativa a `TURSO_TOKEN`.
 
+### "Més consultats aquesta setmana" (opcional)
+
+La portada mostra les 3 empreses i els 3 organismes més visitats des d'Espanya els darrers 7 dies,
+llegits de Vercel Web Analytics (sense xifres de visites, sense persones). Cal un token de Vercel
+només al servidor; sense el token el bloc no es mostra:
+
+```bash
+VERCEL_ANALYTICS_TOKEN=<token de Vercel amb accés al team>
+```
+
+La consulta es desa a la memòria cau un dia (unes 2 crides a l'API de Vercel al dia).
+
 ### Índex de cerca (Supabase)
 
 La cerca d'empreses i organismes per nom llegeix un índex propi a Supabase (Postgres amb

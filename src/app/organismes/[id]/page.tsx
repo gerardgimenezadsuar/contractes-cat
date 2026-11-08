@@ -9,6 +9,7 @@ import {
   fetchOrganIneCode,
   fetchOrganRecentContracts,
   fetchOrganTopCompanies,
+  fetchThresholdDistribution,
 } from "@/lib/api";
 import { withFallback } from "@/lib/socrata";
 import { fetchCurrentEnsOfficeHolders } from "@/lib/electes";
@@ -32,14 +33,18 @@ import {
 } from "@/lib/seo/entity-seo";
 import { YearlyTrendChartLazy } from "@/components/charts/LazyCharts";
 import SharePageButton from "@/components/ui/SharePageButton";
+import FollowFeedLink from "@/components/ui/FollowFeedLink";
+import { organFeedPath } from "@/lib/feeds";
 import EntityHeader, { type HeaderChip, type KeyFigure } from "@/components/entity/EntityHeader";
 import SectionTabs from "@/components/entity/SectionTabs";
+import TrackedLinks from "@/components/entity/TrackedLinks";
 import { IndicatorGrid } from "@/components/entity/IndicatorCard";
 import ContextBand from "@/components/entity/ContextBand";
 import OrganContractsExplorer from "@/components/organ/OrganContractsExplorer";
 import OrganTopCompaniesTable from "@/components/organ/OrganTopCompaniesTable";
 import OrganRecentContracts from "@/components/organ/OrganRecentContracts";
 import OrganElectesCard from "@/components/organ/OrganElectesCard";
+import OrganThresholdBlock, { MIN_MINOR_CONTRACTS, organThresholdTotal } from "@/components/organ/OrganThresholdBlock";
 
 export const revalidate = 21600;
 const ELECTES_PAGE_SIZE = 10;
@@ -81,7 +86,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     : `Detall dels contractes públics de ${organName}.`;
 
   const entityPath = `/organismes/${encodeURIComponent(canonicalOrganId)}`;
-  return buildEntityMetadata({
+  const metadata = buildEntityMetadata({
     title: organName,
     description,
     path: entityPath,
@@ -90,6 +95,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     keywords: [organName, `${organName} contractes`, "organisme contractant", "contractació pública Catalunya"],
     openGraphType: "article",
   });
+  if (!organ) return metadata;
+  return {
+    ...metadata,
+    alternates: { ...metadata.alternates, types: { "application/rss+xml": organFeedPath(organ.nom_organ) } },
+  };
 }
 
 export default async function OrganDetailPage({ params, searchParams }: Props) {
@@ -113,7 +123,7 @@ export default async function OrganDetailPage({ params, searchParams }: Props) {
   }
 
   const organName = organ.nom_organ;
-  const [recentContracts, topCompanies, topSince, ineCode, competition, baseline, electes] = await Promise.all([
+  const [recentContracts, topCompanies, topSince, ineCode, competition, baseline, electes, thresholdOrgan, thresholdCatalonia] = await Promise.all([
     withFallback(fetchOrganRecentContracts(organName, 10), [], "fetchOrganRecentContracts"),
     withFallback(fetchOrganTopCompanies(organName, 10), [], "fetchOrganTopCompanies"),
     withFallback(fetchOrganTopCompanies(organName, 5, CONCENTRATION_SINCE_YEAR), [], "fetchOrganTopCompaniesSince"),
@@ -133,7 +143,10 @@ export default async function OrganDetailPage({ params, searchParams }: Props) {
       },
       "fetchCurrentEnsOfficeHolders"
     ),
+    withFallback(fetchThresholdDistribution(organName), [], "fetchThresholdDistributionOrgan"),
+    withFallback(fetchThresholdDistribution(), [], "fetchThresholdDistribution"),
   ]);
+  const hasThreshold = organThresholdTotal(thresholdOrgan) >= MIN_MINOR_CONTRACTS && thresholdCatalonia.length > 0;
 
   const totalAmount = parseFloat(organ.total);
   const numContracts = parseInt(organ.num_contracts, 10);
@@ -238,11 +251,16 @@ export default async function OrganDetailPage({ params, searchParams }: Props) {
         title={organName}
         chips={chips}
         figures={figures}
-        actions={<SharePageButton className="shrink-0" />}
+        actions={
+          <div className="flex gap-2">
+            <FollowFeedLink href={organFeedPath(organName)} page="organisme" />
+            <SharePageButton className="shrink-0" />
+          </div>
+        }
       />
       <SectionTabs tabs={tabs} />
 
-      <section id="resum" className="scroll-mt-32 pt-8">
+      <TrackedLinks as="section" from="organisme/resum" id="resum" className="scroll-mt-32 pt-8">
         <div className="mb-3 flex items-baseline justify-between gap-3">
           <h2 className="font-display text-xl font-semibold text-gray-900">Com contracta</h2>
           <Link href="/metodologia" className="text-sm text-accent hover:underline">
@@ -278,20 +296,20 @@ export default async function OrganDetailPage({ params, searchParams }: Props) {
             <OrganRecentContracts contracts={recentContracts} />
           </div>
         </div>
-      </section>
+      </TrackedLinks>
 
       {hasTopCompanies ? (
-        <section id="empreses" className="scroll-mt-32 pt-10">
+        <TrackedLinks as="section" from="organisme/empreses" id="empreses" className="scroll-mt-32 pt-10">
           <div className="mb-3 flex items-baseline justify-between gap-3">
             <h2 className="font-display text-xl font-semibold text-gray-900">Empreses adjudicatàries principals</h2>
             <span className="text-sm text-gray-500">tots els anys</span>
           </div>
           <OrganTopCompaniesTable rows={topCompanies} organTotalAmount={totalAmount} />
-        </section>
+        </TrackedLinks>
       ) : null}
 
       {hasElectes ? (
-        <section id="carrecs" className="scroll-mt-32 pt-10">
+        <TrackedLinks as="section" from="organisme/carrecs" id="carrecs" className="scroll-mt-32 pt-10">
           <h2 className="mb-3 font-display text-xl font-semibold text-gray-900">Càrrecs electes actuals</h2>
           <div className="xl:max-w-3xl">
             <OrganElectesCard
@@ -302,12 +320,18 @@ export default async function OrganDetailPage({ params, searchParams }: Props) {
               buildPageHref={buildElectesPageHref}
             />
           </div>
-        </section>
+        </TrackedLinks>
       ) : null}
 
-      <section id="contractes" className="scroll-mt-32 pt-10">
+      {hasThreshold ? (
+        <div className="pt-10">
+          <OrganThresholdBlock organ={thresholdOrgan} catalonia={thresholdCatalonia} />
+        </div>
+      ) : null}
+
+      <TrackedLinks as="section" from="organisme/contractes" id="contractes" className="scroll-mt-32 pt-10">
         <OrganContractsExplorer organName={organName} />
-      </section>
+      </TrackedLinks>
     </div>
   );
 }

@@ -695,6 +695,27 @@ export async function fetchAwardeeTotalsByNifs(nifs: string[]): Promise<Map<stri
   return out;
 }
 
+/** Most frequent awardee name for each of a list of real NIFs, in one Socrata query. */
+export async function fetchAwardeeNamesByNifs(nifs: string[]): Promise<Map<string, string>> {
+  const unique = Array.from(new Set(nifs.map((n) => n.trim().toUpperCase()).filter((n) => n && !isAmbiguousCompanyId(n))));
+  const out = new Map<string, string>();
+  if (unique.length === 0) return out;
+  const rows = await soqlFetch<{ identificacio_adjudicatari: string; denominacio_adjudicatari: string; n: string }>({
+    $select: "identificacio_adjudicatari, denominacio_adjudicatari, count(*) as n",
+    $where: `denominacio_adjudicatari IS NOT NULL AND identificacio_adjudicatari IN (${unique
+      .map((n) => `'${escapeSoql(n)}'`)
+      .join(", ")})`,
+    $group: "identificacio_adjudicatari, denominacio_adjudicatari",
+    $order: "n DESC",
+    $limit: String(unique.length * 10),
+  });
+  for (const row of rows) {
+    const nif = row.identificacio_adjudicatari.toUpperCase();
+    if (!out.has(nif)) out.set(nif, row.denominacio_adjudicatari);
+  }
+  return out;
+}
+
 export async function fetchCompanyIdsCount(): Promise<number> {
   const data = await soqlFetch<{ total: string }>({
     $select: "count(distinct identificacio_adjudicatari) as total",
@@ -1487,14 +1508,14 @@ export async function fetchContractsCount(
 }
 
 // Analysis: threshold distribution
-export async function fetchThresholdDistribution(): Promise<ThresholdBucket[]> {
+export async function fetchThresholdDistribution(organName?: string): Promise<ThresholdBucket[]> {
   // Counts in 500 EUR buckets from 500 to 15000 for minor contracts, in a
   // single grouped query. signed_magnitude_linear(x, 500) returns
   // floor(x / 500) + 1 for positive x, so bucket n starts at (n - 1) * 500.
   const bucketSize = 500;
   const rows = await soqlFetch<{ bucket: string; total: string }>({
     $select: `signed_magnitude_linear(import_adjudicacio_sense::number, ${bucketSize}) as bucket, count(*) as total`,
-    $where: MINOR_15K_BASE_WHERE,
+    $where: organName ? `${MINOR_15K_BASE_WHERE} AND nom_organ='${organName.replace(/'/g, "''")}'` : MINOR_15K_BASE_WHERE,
     $group: "bucket",
     $limit: "100",
   });

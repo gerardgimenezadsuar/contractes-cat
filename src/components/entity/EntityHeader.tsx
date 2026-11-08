@@ -31,14 +31,14 @@ interface Props {
  */
 export default function EntityHeader({ backHref, backLabel, eyebrow, title, chips = [], figures, actions }: Props) {
   return (
-    <header className="grid gap-4 pt-6 pb-2">
+    <header className="grid grid-cols-[minmax(0,1fr)] gap-4 pt-6 pb-2">
       <Link href={backHref} className="text-sm text-gray-500 hover:text-gray-900 w-fit">
         &larr; {backLabel}
       </Link>
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <p className="text-xs font-medium uppercase tracking-wider text-gray-500">{eyebrow}</p>
-          <h1 className="font-display text-3xl font-semibold leading-tight text-gray-900 md:text-4xl [text-wrap:balance]">
+          <h1 className="font-display text-3xl font-semibold leading-tight text-gray-900 md:text-4xl [overflow-wrap:anywhere] [text-wrap:balance]">
             {title}
           </h1>
         </div>
