@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SITE_NAME, GITHUB_URL, CREATOR_NAME, CREATOR_URL } from "@/config/constants";
+import PageHeader from "@/components/layout/PageHeader";
 
 export const metadata: Metadata = {
   title: "Avís legal i privacitat",
@@ -11,9 +12,7 @@ export const metadata: Metadata = {
 export default function LegalPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">
-        Avís legal i privacitat
-      </h1>
+      <PageHeader title="Avís legal i privacitat" eyebrow="El projecte" className="mb-6" />
 
       <section className="mb-8 rounded-lg border border-amber-200 bg-amber-50 p-5">
         <h2 className="text-lg font-semibold text-amber-900 mb-2">Resum curt</h2>
@@ -25,7 +24,7 @@ export default function LegalPage() {
       </section>
 
       <section className="mb-8">
-        <h2 className="text-xl font-bold text-gray-900 mb-3">Responsable del web</h2>
+        <h2 className="font-display text-xl font-semibold text-gray-900 mb-3">Responsable del web</h2>
         <p className="text-gray-700 mb-3">
           Aquest web és un projecte independent i no oficial. El seu objectiu és
           facilitar la transparència sobre la contractació pública a Catalunya a
@@ -37,7 +36,7 @@ export default function LegalPage() {
             href={CREATOR_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-blue-600 hover:underline"
+            className="text-accent hover:underline"
           >
             {CREATOR_NAME}
           </a>
@@ -46,7 +45,7 @@ export default function LegalPage() {
       </section>
 
       <section className="mb-8">
-        <h2 className="text-xl font-bold text-gray-900 mb-3">Quines dades tractem</h2>
+        <h2 className="font-display text-xl font-semibold text-gray-900 mb-3">Quines dades tractem</h2>
         <p className="text-gray-700 mb-3">
           No demanem registre, no recollim noms, correus electrònics ni altres
           dades identificatives mitjançant formularis propis.
@@ -59,7 +58,7 @@ export default function LegalPage() {
       </section>
 
       <section className="mb-8">
-        <h2 className="text-xl font-bold text-gray-900 mb-3">
+        <h2 className="font-display text-xl font-semibold text-gray-900 mb-3">
           Finalitats i base jurídica
         </h2>
         <p className="text-gray-700 mb-3">
@@ -81,7 +80,7 @@ export default function LegalPage() {
       </section>
 
       <section className="mb-8">
-        <h2 className="text-xl font-bold text-gray-900 mb-3">
+        <h2 className="font-display text-xl font-semibold text-gray-900 mb-3">
           Analítica d&apos;ús (Vercel Analytics)
         </h2>
         <p className="text-gray-700 mb-3">
@@ -101,7 +100,7 @@ export default function LegalPage() {
       </section>
 
       <section className="mb-8">
-        <h2 className="text-xl font-bold text-gray-900 mb-3">
+        <h2 className="font-display text-xl font-semibold text-gray-900 mb-3">
           Encarregats del tractament i transferències internacionals
         </h2>
         <p className="text-gray-700 mb-3">
@@ -117,14 +116,14 @@ export default function LegalPage() {
           href="https://vercel.com/legal/privacy-policy"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-blue-600 hover:underline"
+          className="text-accent hover:underline"
         >
           Política de privacitat de Vercel
         </a>
       </section>
 
       <section className="mb-8">
-        <h2 className="text-xl font-bold text-gray-900 mb-3">
+        <h2 className="font-display text-xl font-semibold text-gray-900 mb-3">
           Conservació de dades
         </h2>
         <p className="text-gray-700">
@@ -135,7 +134,7 @@ export default function LegalPage() {
       </section>
 
       <section className="mb-8">
-        <h2 className="text-xl font-bold text-gray-900 mb-3">
+        <h2 className="font-display text-xl font-semibold text-gray-900 mb-3">
           Drets de les persones usuàries
         </h2>
         <p className="text-gray-700 mb-3">
@@ -149,7 +148,7 @@ export default function LegalPage() {
       </section>
 
       <section className="mb-8">
-        <h2 className="text-xl font-bold text-gray-900 mb-3">Canvis en aquesta política</h2>
+        <h2 className="font-display text-xl font-semibold text-gray-900 mb-3">Canvis en aquesta política</h2>
         <p className="text-gray-700">
           Aquesta pàgina es revisarà si canvia el funcionament del web, els
           proveïdors o la normativa aplicable. Data d&apos;última actualització:
@@ -158,14 +157,14 @@ export default function LegalPage() {
       </section>
 
       <section>
-        <h2 className="text-xl font-bold text-gray-900 mb-3">Contacte i incidències</h2>
+        <h2 className="font-display text-xl font-semibold text-gray-900 mb-3">Contacte i incidències</h2>
         <p className="text-gray-700 mb-3">
           Si detectes algun problema legal o de privacitat, obre una issue a{" "}
           <a
             href={`${GITHUB_URL}/issues`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-blue-600 hover:underline"
+            className="text-accent hover:underline"
           >
             GitHub
           </a>
@@ -173,7 +172,7 @@ export default function LegalPage() {
         </p>
         <p className="text-gray-700">
           Pots ampliar context sobre el projecte a{" "}
-          <Link href="/about" className="text-blue-600 hover:underline">
+          <Link href="/about" className="text-accent hover:underline">
             la pàgina Sobre
           </Link>
           .

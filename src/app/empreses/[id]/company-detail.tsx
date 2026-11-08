@@ -46,6 +46,7 @@ import {
 import CompanySummary from "@/components/company/CompanySummary";
 import RelatedCompaniesSection from "@/components/company/RelatedCompaniesSection";
 import { buildCompanyHref, isAmbiguousCompanyId } from "@/lib/company-identity";
+import { displayCompanyName } from "@/lib/company-names";
 import MaskedIdentityNotice from "@/components/company/MaskedIdentityNotice";
 
 /**
@@ -183,6 +184,9 @@ export async function CompanyDetail({ decodedId, name }: { decodedId: string; na
   const chips: HeaderChip[] = [{ label: "NIF", value: nif, mono: true }];
   if (lastAwardDate) chips.push({ label: "Darrera adjudicació", value: formatDate(lastAwardDate) });
   if (hasBormeData && adminHistory?.matched_name) chips.push({ label: "BORME", value: adminHistory.matched_name });
+  if (companyGroup && companyGroup.size > 1) {
+    chips.push({ label: "Grup", value: displayCompanyName(companyGroup.rootName, false), href: `/grups/${companyGroup.groupId}` });
+  }
 
   const entityPath = buildCompanyHref(nif, company.denominacio_adjudicatari);
   const publicNif = canMeasureCompetition ? nif : null;

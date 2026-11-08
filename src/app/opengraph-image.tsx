@@ -1,10 +1,12 @@
 import { ImageResponse } from "next/og";
+import { formatCompactEuros } from "@/lib/indicators";
+import { LogoMark } from "@/components/brand/Logo";
 import {
   fetchTotalContracts,
   fetchTotalAmount,
   fetchUniqueCompanies,
 } from "@/lib/api";
-import { formatCompactNumber, formatNumber } from "@/lib/utils";
+import { formatNumber } from "@/lib/utils";
 
 export const size = {
   width: 1200,
@@ -21,9 +23,9 @@ export default async function Image() {
   ]);
 
   const stats = [
-    { value: formatNumber(totalContracts), label: "Contractes totals", color: "#16A34A" },
-    { value: formatCompactNumber(totalAmount), label: "Import adjudicat", color: "#7C3AED" },
-    { value: formatNumber(uniqueCompanies), label: "Empreses úniques", color: "#DB2777" },
+    { value: formatNumber(totalContracts), label: "Contractes totals", color: "#0F5E63" },
+    { value: formatCompactEuros(Number(totalAmount) || 0), label: "Import adjudicat", color: "#0F5E63" },
+    { value: formatNumber(uniqueCompanies), label: "Empreses úniques", color: "#0F5E63" },
   ];
 
   return new ImageResponse(
@@ -33,7 +35,7 @@ export default async function Image() {
           width: "100%",
           height: "100%",
           display: "flex",
-          background: "linear-gradient(135deg, #EEF2FF 0%, #FFFFFF 50%, #F0F9FF 100%)",
+          background: "linear-gradient(135deg, #E2EFEE 0%, #FFFFFF 55%, #EEF5F4 100%)",
           padding: "32px",
           fontFamily:
             "ui-sans-serif, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial",
@@ -57,11 +59,14 @@ export default async function Image() {
             <div
               style={{
                 display: "flex",
+                alignItems: "center",
+                gap: 18,
                 fontSize: 52,
                 fontWeight: 700,
                 color: "#111827",
               }}
             >
+              <LogoMark size={64} />
               contractes.cat
             </div>
             <div
@@ -126,7 +131,7 @@ export default async function Image() {
                 width: 12,
                 height: 12,
                 borderRadius: "50%",
-                background: "#22C55E",
+                background: "#0F5E63",
               }}
             />
             <div style={{ display: "flex", fontSize: 16, color: "#6B7280" }}>

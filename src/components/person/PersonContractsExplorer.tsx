@@ -147,13 +147,13 @@ export default function PersonContractsExplorer({
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-bold text-gray-900">
+        <h2 className="font-display text-xl font-semibold text-gray-900">
           Contractes durant el càrrec ({formatNumber(total)})
         </h2>
         <p className="text-sm text-gray-500">Import total: {formatCompactNumber(totalAmount)}</p>
       </div>
       <div
-        className={`bg-white rounded-lg border border-gray-100 shadow-sm ${
+        className={`bg-white rounded-lg border border-gray-200 ${
           loading ? "opacity-50" : ""
         }`}
       >

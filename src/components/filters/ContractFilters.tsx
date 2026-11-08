@@ -54,7 +54,7 @@ export default function ContractFilters({
   const fieldId = (name: string) => (embedded ? `sheet-${name}` : name);
 
   return (
-    <div className={embedded ? "space-y-4" : "bg-white rounded-lg border border-gray-100 shadow-sm p-4 space-y-4"}>
+    <div className={embedded ? "space-y-4" : "bg-white rounded-lg border border-gray-200 p-4 space-y-4"}>
       <div className="flex items-center justify-between">
         {embedded ? <span /> : <h3 className="font-semibold text-gray-900">Filtres</h3>}
         {hasFilters && (
@@ -87,7 +87,7 @@ export default function ContractFilters({
             className={`${INPUT_CLASS} ${loading ? "pr-10" : ""}`}
           />
           {loading && (
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600" />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin rounded-full border-2 border-accent/25 border-t-accent" />
           )}
         </div>
       </div>
@@ -232,7 +232,7 @@ export default function ContractFilters({
             className={`${INPUT_CLASS} ${loading ? "pr-10" : ""}`}
           />
           {loading && (
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600" />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin rounded-full border-2 border-accent/25 border-t-accent" />
           )}
         </div>
       </div>

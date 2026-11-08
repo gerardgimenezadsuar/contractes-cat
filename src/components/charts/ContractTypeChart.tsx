@@ -157,7 +157,7 @@ export default function ContractTypeChart({ data }: Props) {
           />
           <Bar
             dataKey="value"
-            fill="#1e3a5f"
+            fill="#0f5e63"
             radius={[0, 4, 4, 0]}
           />
         </BarChart>

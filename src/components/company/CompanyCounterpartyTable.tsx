@@ -32,7 +32,7 @@ export default function CompanyCounterpartyTable({
   return (
     <section className="mb-12">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-2xl font-bold text-gray-900">
+        <h2 className="font-display text-xl font-semibold text-gray-900">
           Principals òrgans contractants (a aquesta empresa)
         </h2>
         <div className="text-xs text-gray-500">
@@ -51,7 +51,7 @@ export default function CompanyCounterpartyTable({
         />
       </div>
 
-      <div className="hidden md:block bg-white rounded-lg border border-gray-100 shadow-sm overflow-x-auto">
+      <div className="hidden md:block bg-white rounded-lg border border-gray-200 overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-200 bg-gray-50">

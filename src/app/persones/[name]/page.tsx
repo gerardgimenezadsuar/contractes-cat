@@ -22,7 +22,7 @@ import {
   buildEntityMetadata,
   buildEntityPrimaryJsonLd,
 } from "@/lib/seo/entity-seo";
-import StatCard from "@/components/ui/StatCard";
+import EntityHeader from "@/components/entity/EntityHeader";
 import SharePageButton from "@/components/ui/SharePageButton";
 import PersonContractsSection, {
   PersonContractsSectionFallback,
@@ -226,7 +226,7 @@ export default async function PersonDetailPage({ params }: Props) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-8">
         <p className="text-gray-500">No s&apos;ha trobat la persona.</p>
-        <Link href="/" className="text-blue-600 hover:underline mt-4 inline-block">
+        <Link href="/" className="text-accent hover:underline mt-4 inline-block">
           Tornar a inici
         </Link>
       </div>
@@ -449,25 +449,40 @@ export default async function PersonDetailPage({ params }: Props) {
   );
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="max-w-7xl mx-auto px-4 pb-8">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
       />
 
-      <Link href="/" className="text-sm text-gray-500 hover:text-gray-900 mb-4 inline-block">
-        &larr; Tornar a inici
-      </Link>
-
-      <div className="mb-1 flex items-start justify-between gap-3">
-        <h1 className="text-3xl font-bold text-gray-900">{displayName}</h1>
-        <SharePageButton className="shrink-0" />
-      </div>
-      <p className="text-sm text-gray-500 mb-1">
-        Nom al registre: <span className="font-medium text-gray-700">{profile.person_name}</span>
-      </p>
+      <EntityHeader
+        backHref="/persones"
+        backLabel="Tornar a persones"
+        eyebrow="Persona vinculada a empreses · BORME"
+        title={displayName}
+        chips={[{ label: "Nom al registre", value: profile.person_name }]}
+        actions={<SharePageButton className="shrink-0" />}
+        figures={[
+          {
+            label: "Empreses",
+            value: formatNumber(profile.num_control_companies),
+            note: `en propietat o administració · ${formatNumber(profile.num_control_companies_with_nif)} amb contractes`,
+          },
+          { label: "Control actual", value: formatNumber(activeControlCompanies), note: "propietat o administració vigent" },
+          {
+            label: "Contractes en el càrrec",
+            value: formatNumber(contractsSummary.total),
+            note: `${formatCompactEuros(contractsSummary.totalAmount)} sense IVA${
+              allCompaniesSummary.total > contractsSummary.total
+                ? ` · ${formatNumber(allCompaniesSummary.total)} sense filtrar`
+                : ""
+            }`,
+          },
+          { label: "Altres càrrecs", value: formatNumber(otherCompanies.length), note: "apoderat, conseller, secretari…" },
+        ]}
+      />
       {profile.num_control_companies > 0 ? (
-        <p className="mb-3 max-w-4xl text-[15px] leading-relaxed text-gray-700">
+        <p className="mb-2 mt-4 max-w-3xl text-[15px] leading-relaxed text-gray-700">
           Segons el BORME, <strong className="font-semibold text-gray-900">{displayName}</strong> té o ha tingut la
           propietat o l&apos;administració de{" "}
           {profile.num_control_companies === 1 ? "1 empresa" : `${formatNumber(profile.num_control_companies)} empreses`}
@@ -482,7 +497,7 @@ export default async function PersonDetailPage({ params }: Props) {
             : ""}
         </p>
       ) : null}
-      <p className="text-gray-600 mb-6">
+      <p className="mb-6 max-w-3xl text-sm text-gray-500">
         Càrrecs societaris extrets del BORME. Comptem com a vinculació la propietat (soci únic) i
         l&apos;administració (administradors, presidència i conseller delegat), i només els contractes que les
         empreses van guanyar mentre aquesta persona en tenia el càrrec.
@@ -501,58 +516,25 @@ export default async function PersonDetailPage({ params }: Props) {
         </p>
       ) : null}
 
-      <section className="mb-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard
-          title="Empreses que controla o ha controlat"
-          titleTooltip="Empreses on ha estat soci únic o administrador (inclosa presidència i conseller delegat)."
-          value={formatNumber(profile.num_control_companies)}
-          subtitle={`${formatNumber(profile.num_control_companies_with_nif)} amb contractes públics`}
-          compact
-        />
-        <StatCard
-          title="Amb control actual"
-          value={formatNumber(activeControlCompanies)}
-          subtitle="propietat o administració vigent"
-          compact
-        />
-        <StatCard
-          title="Contractes durant el càrrec"
-          titleTooltip="Contractes adjudicats a les empreses que controlava, només dins del període en què n'era soci únic o administrador."
-          value={formatNumber(contractsSummary.total)}
-          subtitle={`Import: ${formatCompactNumber(contractsSummary.totalAmount)}${
-            allCompaniesSummary.total > contractsSummary.total
-              ? ` · ${formatNumber(allCompaniesSummary.total)} sense filtrar`
-              : ""
-          }`}
-          compact
-        />
-        <StatCard
-          title="Altres càrrecs"
-          titleTooltip="Empreses on només consta com a apoderat, conseller, secretari, liquidador o administrador concursal. No compten com a vinculació."
-          value={formatNumber(otherCompanies.length)}
-          subtitle="apoderat, conseller, secretari…"
-          compact
-        />
-      </section>
       {controlTargets.truncated ? (
-        <p className="-mt-6 mb-8 text-xs text-gray-500">
+        <p className="-mt-4 mb-8 text-xs text-gray-500">
           Per a perfils amb moltes empreses, el recompte de contractes considera els períodes de càrrec més recents.
         </p>
       ) : null}
 
       {publicOffice.periods.length > 0 ? (
         <section className="mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-1">Càrrecs públics</h2>
+          <h2 className="mb-1 font-display text-xl font-semibold text-gray-900">Càrrecs públics</h2>
           <p className="mb-1 text-sm text-gray-500">Font: Transparència Catalunya</p>
           <p className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
             Avís: aquesta secció vincula càrrecs públics per coincidència de nom. La persona mostrada pot tenir un nom
             similar al d&apos;un càrrec electe i no haver ocupat necessàriament aquest càrrec.
           </p>
-          <div className="bg-white rounded-lg border border-gray-100 shadow-sm overflow-hidden mb-8">
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden mb-8">
             {singleRangeSummary ? (
               <div className="border-b border-gray-100 bg-gray-50 px-4 py-3 text-sm text-gray-700">
                 Aquesta persona té <span className="font-medium">{formatNumber(singleRangeSummary.total)} contractes</span> adjudicats a empreses vinculades mentre ocupava càrrec públic en aquest període. La taula mostra quants provenen de cada ens.{" "}
-                <Link href={singleRangeSummary.href} className="text-blue-600 hover:underline">
+                <Link href={singleRangeSummary.href} className="text-accent hover:underline">
                   Veure tots els contractes del període
                 </Link>
                 .
@@ -607,7 +589,7 @@ export default async function PersonDetailPage({ params }: Props) {
                         <td className="py-2.5 px-3 text-gray-700">
                           <div>{formatNumber(overlapByOrgan.total)} contractes</div>
                           <div className="text-xs text-gray-500 mt-1">{formatCompactNumber(overlapByOrgan.totalAmount)}</div>
-                          <Link href={scrutinyHrefEns} className="mt-1 inline-block text-sm text-blue-600 hover:underline">
+                          <Link href={scrutinyHrefEns} className="mt-1 inline-block text-sm text-accent hover:underline">
                             Veure contractes d&apos;aquest ens
                           </Link>
                         </td>
@@ -625,7 +607,7 @@ export default async function PersonDetailPage({ params }: Props) {
       ) : null}
 
       <section className="mb-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-1">Propietat i administració (BORME)</h2>
+        <h2 className="mb-1 font-display text-xl font-semibold text-gray-900">Propietat i administració (BORME)</h2>
         <p className="mb-3 text-sm text-gray-500">
           Empreses on ha estat soci únic o administrador. El soci únic deixa de constar quan el BORME en publica un altre.
         </p>

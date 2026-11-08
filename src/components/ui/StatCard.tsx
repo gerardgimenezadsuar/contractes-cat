@@ -18,8 +18,8 @@ export default function StatCard({
   compact = false,
 }: StatCardProps) {
   return (
-    <div className={`bg-white rounded-lg border border-gray-100 shadow-sm ${compact ? "p-4" : "p-6"}`}>
-      <p className="flex items-center gap-1 text-sm font-medium text-gray-500">
+    <div className={`bg-white rounded-lg border border-gray-200 ${compact ? "p-4" : "p-6"}`}>
+      <p className="flex items-center gap-1 text-xs font-medium uppercase tracking-wider text-gray-500">
         <span>{title}</span>
         {titleTooltip && (
           <span
@@ -31,9 +31,9 @@ export default function StatCard({
           </span>
         )}
       </p>
-      <p className={`mt-1 font-bold text-gray-900 ${compact ? "text-2xl" : "text-3xl"}`}>{value}</p>
+      <p className={`mt-1 font-display font-semibold leading-tight text-gray-900 tabular-nums ${compact ? "text-2xl" : "text-3xl"}`}>{value}</p>
       {trend != null && (
-        <p className={`mt-1 text-sm font-medium ${trend >= 0 ? "text-green-600" : "text-red-600"}`}>
+        <p className={`mt-1 text-sm font-medium ${trend >= 0 ? "text-good" : "text-bad"}`}>
           {trend >= 0 ? "▲" : "▼"} {Math.abs(trend).toFixed(1)}%
           {trendLabel && (
             <span className="ml-1 font-normal text-gray-400 text-xs">{trendLabel}</span>

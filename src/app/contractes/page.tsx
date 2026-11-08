@@ -3,6 +3,7 @@ import ContractExplorer from "./ContractExplorer";
 import SharePageButton from "@/components/ui/SharePageButton";
 import { fetchContracts, fetchContractsCount } from "@/lib/api";
 import { CONTRACT_SORT_OPTIONS, isContractSortKey } from "@/lib/contract-sort";
+import PageHeader from "@/components/layout/PageHeader";
 
 export const metadata: Metadata = {
   title: "Explorador de contractes",
@@ -66,16 +67,9 @@ export default async function ContractesPage({ searchParams }: Props) {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <div className="mb-2 flex items-start justify-between gap-3">
-        <h1 className="text-3xl font-bold text-gray-900">
-          Explorador de contractes
-        </h1>
-        <SharePageButton className="shrink-0" />
-      </div>
-      <p className="text-gray-600 mb-8">
-        Cerca i filtra tots els contractes públics publicats a la plataforma de
-        contractació pública de Catalunya.
-      </p>
+      <PageHeader title="Explorador de contractes" eyebrow="Contractes" actions={<SharePageButton className="shrink-0" />}>
+        <p>Cerca i filtra tots els contractes públics publicats a la plataforma de contractació pública de Catalunya.</p>
+      </PageHeader>
       <ContractExplorer
         initialFilters={initialFilters}
         initialSort={initialSort}

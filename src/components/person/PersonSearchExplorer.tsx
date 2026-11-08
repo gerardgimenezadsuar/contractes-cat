@@ -160,7 +160,7 @@ export default function PersonSearchExplorer({
 
   return (
     <div>
-      <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/70 via-white to-sky-50/70 p-4 sm:p-5 mb-5">
+      <div className="rounded-2xl border border-accent/25 bg-gradient-to-br from-accent-soft/70 via-white to-white p-4 sm:p-5 mb-5">
         <div className="relative">
           <svg
             className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400"
@@ -205,7 +205,7 @@ export default function PersonSearchExplorer({
         ) : null
       )}
       {canSearch && loading && (
-        <div className="mb-3 rounded-lg border border-indigo-100 bg-indigo-50/60 px-3 py-2 text-xs text-indigo-700">
+        <div className="mb-3 rounded-lg border border-accent/25 bg-accent-soft/60 px-3 py-2 text-xs text-accent">
           Cercant resultats per a <span className="font-semibold">{trimmed}</span>. La primera cerca pot trigar uns segons.
         </div>
       )}
@@ -221,14 +221,14 @@ export default function PersonSearchExplorer({
               <Link
                 key={row.person_name}
                 href={`/persones/${encodeURIComponent(row.person_name)}`}
-                className="group rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow"
+                className="group rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-accent/50 hover:shadow"
               >
                 <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-700">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent-soft text-xs font-semibold text-accent">
                     {getInitials(formatPersonDisplayName(row.person_name))}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-base font-semibold text-gray-900 group-hover:text-indigo-700">
+                    <p className="truncate text-base font-semibold text-gray-900 group-hover:text-accent">
                       {formatPersonDisplayName(row.person_name)}
                     </p>
                     <p className="mt-1 text-xs text-gray-500">
@@ -241,7 +241,7 @@ export default function PersonSearchExplorer({
                   <span className="rounded-full bg-gray-100 px-2.5 py-1 text-gray-700">
                     {formatNumber(row.num_control_companies ?? row.num_companies)} empreses (propietat o administració)
                   </span>
-                  <span className="rounded-full bg-indigo-100 px-2.5 py-1 text-indigo-700">
+                  <span className="rounded-full bg-accent-soft px-2.5 py-1 text-accent">
                     {formatNumber(row.num_control_companies_with_nif ?? row.num_companies_with_nif)} amb contractes públics
                   </span>
                   <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-emerald-700">

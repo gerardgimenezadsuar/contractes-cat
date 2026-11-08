@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { SITE_NAME } from "@/config/constants";
+import PageHeader from "@/components/layout/PageHeader";
 
 export const metadata: Metadata = {
   title: "CLI oficial",
@@ -10,15 +11,12 @@ export const metadata: Metadata = {
 export default function CliPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-gray-900 mb-3">
-        CLI de {SITE_NAME}
-      </h1>
-      <p className="text-gray-700 mb-6">
-        Interfície de línia d&apos;ordres per consultar dades públiques de contractació.
-      </p>
+      <PageHeader title={`CLI de ${SITE_NAME}`} eyebrow="Per a desenvolupadors" className="mb-6">
+        <p>Interfície de línia d&apos;ordres per consultar dades públiques de contractació.</p>
+      </PageHeader>
 
       <section className="mb-8">
-        <h2 className="text-xl font-bold text-gray-900 mb-3">Instal·lació</h2>
+        <h2 className="font-display text-xl font-semibold text-gray-900 mb-3">Instal·lació</h2>
         <pre className="bg-gray-900 text-gray-100 rounded-lg p-4 overflow-x-auto text-sm">
           <code>npm install -g @gerardgimenezadsuar/contractes-cli</code>
         </pre>
@@ -31,7 +29,7 @@ export default function CliPage() {
       </section>
 
       <section className="mb-8">
-        <h2 className="text-xl font-bold text-gray-900 mb-3">Comandes principals</h2>
+        <h2 className="font-display text-xl font-semibold text-gray-900 mb-3">Comandes principals</h2>
         <pre className="bg-gray-900 text-gray-100 rounded-lg p-4 overflow-x-auto text-sm">
           <code>{`contractes search-contracts --search "neteja" --year 2025
 contractes search-companies --search "ferrovial"
@@ -43,7 +41,7 @@ contractes attribution`}</code>
       </section>
 
       <section className="mb-8">
-        <h2 className="text-xl font-bold text-gray-900 mb-3">Configuració</h2>
+        <h2 className="font-display text-xl font-semibold text-gray-900 mb-3">Configuració</h2>
         <p className="text-gray-700 mb-3">
           Per apuntar a una altra instància API:
         </p>
@@ -53,7 +51,7 @@ contractes attribution`}</code>
       </section>
 
       <section>
-        <h2 className="text-xl font-bold text-gray-900 mb-3">Atribució de dades</h2>
+        <h2 className="font-display text-xl font-semibold text-gray-900 mb-3">Atribució de dades</h2>
         <p className="text-gray-700">
           Font original: Departament d&apos;Economia i Hisenda (dataset `ybgg-dgi6`)
           a Transparència Catalunya. Consulta llicències i condicions d&apos;ús a:
@@ -62,7 +60,7 @@ contractes attribution`}</code>
             href="https://administraciodigital.gencat.cat/ca/dades/dades-obertes/informacio-practica/llicencies/"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-blue-600 hover:underline"
+            className="text-accent hover:underline"
           >
             administraciodigital.gencat.cat
           </a>

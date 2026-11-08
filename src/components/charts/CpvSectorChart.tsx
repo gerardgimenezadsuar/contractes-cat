@@ -78,7 +78,7 @@ export default function CpvSectorChart({ data }: Props) {
           }}
           contentStyle={{ borderRadius: "8px", border: "1px solid #e5e7eb", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.07)" }}
         />
-        <Bar dataKey="total" fill="#2563eb" radius={[0, 4, 4, 0]} />
+        <Bar dataKey="total" fill="#0f5e63" radius={[0, 4, 4, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );

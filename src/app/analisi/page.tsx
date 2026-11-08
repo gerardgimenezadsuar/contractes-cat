@@ -15,6 +15,7 @@ import {
 } from "@/components/charts/LazyCharts";
 import StatCard from "@/components/ui/StatCard";
 import SharePageButton from "@/components/ui/SharePageButton";
+import PageHeader from "@/components/layout/PageHeader";
 
 export const metadata: Metadata = {
   title: "Anàlisi",
@@ -119,15 +120,12 @@ export default async function AnalisiPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <div className="mb-2 flex items-start justify-between gap-3">
-        <h1 className="text-3xl font-bold text-gray-900">Anàlisi ciutadana</h1>
-        <SharePageButton className="shrink-0" />
-      </div>
-      <p className="text-gray-600 mb-4">
-        Aquesta pàgina prioritza dues preguntes: si hi ha concentració de
-        contractes menors just per sota de 15.000 EUR i quin pes tenen els
-        contractes menors dins del conjunt de la contractació pública.
-      </p>
+      <PageHeader title="Anàlisi ciutadana" eyebrow="Anàlisi" actions={<SharePageButton className="shrink-0" />} className="mb-4">
+        <p>
+          Aquesta pàgina prioritza dues preguntes: si hi ha concentració de contractes menors just per sota de 15.000 EUR
+          i quin pes tenen els contractes menors dins del conjunt de la contractació pública.
+        </p>
+      </PageHeader>
       <div className="mb-10 rounded-lg border border-amber-200 bg-amber-50 p-4">
         <p className="text-sm text-amber-900">
           Metodologia: per coherència estadística, tots els indicadors d&apos;aquesta
@@ -136,7 +134,7 @@ export default async function AnalisiPage() {
       </div>
 
       <section className="mb-12">
-        <h2 className="text-2xl font-bold text-gray-900 mb-3">
+        <h2 className="font-display text-xl font-semibold text-gray-900 mb-3">
           1) Senyal de risc al llindar dels 15.000 EUR
         </h2>
         <p className="text-gray-600 mb-5">
@@ -177,7 +175,7 @@ export default async function AnalisiPage() {
           />
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
           <ThresholdChartLazy data={thresholdData} />
         </div>
         <p className="text-xs text-gray-500 mt-2">
@@ -200,7 +198,7 @@ export default async function AnalisiPage() {
       </section>
 
       <section className="mb-12">
-        <h2 className="text-2xl font-bold text-gray-900 mb-3">
+        <h2 className="font-display text-xl font-semibold text-gray-900 mb-3">
           Organismes i empreses més presents en la franja 14.900-14.999,99
         </h2>
         <p className="text-gray-600 mb-5">
@@ -209,7 +207,7 @@ export default async function AnalisiPage() {
         </p>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white rounded-lg border border-gray-100 shadow-sm overflow-x-auto">
+          <div className="bg-white rounded-lg border border-gray-200 overflow-x-auto">
             <div className="px-4 py-3 border-b border-gray-200">
               <h3 className="font-semibold text-gray-900">Top organismes</h3>
             </div>
@@ -264,7 +262,7 @@ export default async function AnalisiPage() {
             </table>
           </div>
 
-          <div className="bg-white rounded-lg border border-gray-100 shadow-sm overflow-x-auto">
+          <div className="bg-white rounded-lg border border-gray-200 overflow-x-auto">
             <div className="px-4 py-3 border-b border-gray-200">
               <h3 className="font-semibold text-gray-900">Top empreses</h3>
             </div>
@@ -323,7 +321,7 @@ export default async function AnalisiPage() {
       </section>
 
       <section className="mb-12">
-        <h2 className="text-2xl font-bold text-gray-900 mb-3">
+        <h2 className="font-display text-xl font-semibold text-gray-900 mb-3">
           2) Pes dels contractes menors sobre el total
         </h2>
         <p className="text-gray-600 mb-5">
@@ -373,7 +371,7 @@ export default async function AnalisiPage() {
           />
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
           <MinorShareTrendChartLazy data={minorShareYearlyComplete} />
         </div>
 

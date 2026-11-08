@@ -34,7 +34,7 @@ export default function OrganTopCompaniesTable({ rows, organTotalAmount }: Props
 
   return (
     <>
-      <div className="hidden md:block bg-white rounded-lg border border-gray-100 shadow-sm overflow-x-auto">
+      <div className="hidden md:block bg-white rounded-lg border border-gray-200 overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-200 bg-gray-50">
@@ -76,7 +76,7 @@ export default function OrganTopCompaniesTable({ rows, organTotalAmount }: Props
                     {isUte && !isExpanded && (
                       <button
                         onClick={() => setExpandedRows((prev) => new Set(prev).add(rowKey))}
-                        className="ml-2 inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 hover:bg-blue-100 transition-colors cursor-pointer align-middle"
+                        className="ml-2 inline-flex items-center rounded-md bg-accent-soft px-2 py-0.5 text-[11px] font-medium text-accent hover:bg-accent/15 transition-colors cursor-pointer align-middle"
                         title={`UTE amb ${Math.max(names.length, nifs.length)} empreses — clic per expandir`}
                       >
                         UTE · +{Math.max(names.length, nifs.length) - 1}
@@ -91,7 +91,7 @@ export default function OrganTopCompaniesTable({ rows, organTotalAmount }: Props
                             return next;
                           })
                         }
-                        className="ml-2 inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 hover:bg-blue-100 transition-colors cursor-pointer align-middle"
+                        className="ml-2 inline-flex items-center rounded-md bg-accent-soft px-2 py-0.5 text-[11px] font-medium text-accent hover:bg-accent/15 transition-colors cursor-pointer align-middle"
                       >
                         Redueix
                       </button>
@@ -155,7 +155,7 @@ export default function OrganTopCompaniesTable({ rows, organTotalAmount }: Props
                   {nifs[0]}
                 </span>
                 {isUte && (
-                  <span className="inline-flex rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">
+                  <span className="inline-flex rounded-md bg-accent-soft px-2 py-0.5 text-[11px] font-medium text-accent">
                     UTE · {Math.max(names.length, nifs.length)} empreses
                   </span>
                 )}

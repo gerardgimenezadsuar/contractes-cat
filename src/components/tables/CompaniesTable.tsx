@@ -406,7 +406,7 @@ export default function CompaniesTable({
                     {isUte && !isExpanded && (
                       <button
                         onClick={() => setExpandedNifs((prev) => new Set(prev).add(rank))}
-                        className="ml-2 inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 hover:bg-blue-100 transition-colors cursor-pointer align-middle"
+                        className="ml-2 inline-flex items-center rounded-md bg-accent-soft px-2 py-0.5 text-[11px] font-medium text-accent hover:bg-accent/15 transition-colors cursor-pointer align-middle"
                         title={`UTE amb ${names.length} empreses — clic per expandir`}
                       >
                         UTE · +{names.length - 1}
@@ -419,7 +419,7 @@ export default function CompaniesTable({
                           next.delete(rank);
                           return next;
                         })}
-                        className="ml-2 inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 hover:bg-blue-100 transition-colors cursor-pointer align-middle"
+                        className="ml-2 inline-flex items-center rounded-md bg-accent-soft px-2 py-0.5 text-[11px] font-medium text-accent hover:bg-accent/15 transition-colors cursor-pointer align-middle"
                       >
                         Redueix
                       </button>
@@ -493,7 +493,7 @@ export default function CompaniesTable({
                     {names[0]}
                   </Link>
                   {isUte && (
-                    <span className="ml-2 inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 align-middle">
+                    <span className="ml-2 inline-flex items-center rounded-md bg-accent-soft px-2 py-0.5 text-[11px] font-medium text-accent align-middle">
                       UTE · {names.length} empreses
                     </span>
                   )}

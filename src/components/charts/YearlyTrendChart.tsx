@@ -10,7 +10,7 @@ import {
   CartesianGrid,
 } from "recharts";
 import type { YearlyAggregation } from "@/lib/types";
-import { formatCompactNumber } from "@/lib/utils";
+import { formatCompactNumber, formatCompactShort } from "@/lib/utils";
 import { useIsMobile } from "@/lib/use-is-mobile";
 
 interface Props {
@@ -24,7 +24,7 @@ export default function YearlyTrendChart({
   data,
   dataKey = "total",
   label = "Import total",
-  color = "#1e3a5f",
+  color = "#0f5e63",
 }: Props) {
   const isMobile = useIsMobile();
   const currentYear = new Date().getFullYear();
@@ -45,7 +45,7 @@ export default function YearlyTrendChart({
         <CartesianGrid strokeDasharray="3 3" vertical={false} />
         <XAxis dataKey="year" fontSize={isMobile ? 10 : 12} interval={isMobile ? 1 : 0} />
         <YAxis
-          tickFormatter={(v) => formatCompactNumber(v)}
+          tickFormatter={(v) => `${formatCompactShort(v)} €`}
           fontSize={isMobile ? 10 : 12}
           width={isMobile ? 48 : 60}
         />

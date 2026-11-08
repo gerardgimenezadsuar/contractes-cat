@@ -46,15 +46,15 @@ export default function ThresholdChart({ data }: Props) {
         />
         <ReferenceLine
           x="14.5k-15.0k"
-          stroke="#dc2626"
+          stroke="#9a2f2f"
           strokeDasharray="3 3"
-          label={{ value: "Tram final <15k", position: "top", fill: "#dc2626", fontSize: 11 }}
+          label={{ value: "Tram final <15k", position: "top", fill: "#9a2f2f", fontSize: 11 }}
         />
         <Bar dataKey="count" radius={[4, 4, 0, 0]}>
           {data.map((entry) => (
             <Cell
               key={`${entry.range_start}-${entry.range_end}`}
-              fill={entry.range_start >= 14500 ? "#dc2626" : "#1e3a5f"}
+              fill={entry.range_start >= 14500 ? "#9a2f2f" : "#0f5e63"}
               fillOpacity={entry.range_start >= 14500 ? 1 : 0.8}
             />
           ))}

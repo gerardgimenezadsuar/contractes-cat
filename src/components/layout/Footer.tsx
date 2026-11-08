@@ -37,6 +37,11 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
+                <Link href="/grups" prefetch className="text-gray-600 hover:text-gray-900">
+                  Grups empresarials
+                </Link>
+              </li>
+              <li>
                 <Link href="/analisi" prefetch className="text-gray-600 hover:text-gray-900">
                   Anàlisi
                 </Link>

@@ -34,7 +34,7 @@ export const metadata: Metadata = {
   // Google Search Console ownership (URL-prefix property https://www.contractes.cat/). Keep it, or the property loses verification.
   verification: { google: "yMtPiuYoL50YLYCzNKyntpAPvz36g6ugSGf0A535rwc" },
   icons: {
-    icon: [{ url: "/favicon.ico" }],
+    icon: [{ url: "/favicon.ico", sizes: "48x48" }, { url: "/icon.svg", type: "image/svg+xml" }],
     shortcut: [{ url: "/favicon.ico" }],
     apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },

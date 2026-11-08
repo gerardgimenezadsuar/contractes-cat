@@ -4,6 +4,7 @@ import { fetchCompanies, fetchCompaniesCount } from "@/lib/api";
 import CompaniesTable from "@/components/tables/CompaniesTable";
 import { DEFAULT_PAGE_SIZE } from "@/config/constants";
 import SharePageButton from "@/components/ui/SharePageButton";
+import PageHeader from "@/components/layout/PageHeader";
 
 export const metadata: Metadata = {
   title: "Empreses adjudicatàries",
@@ -41,13 +42,8 @@ export default async function EmpresePage({ searchParams }: Props) {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <div className="mb-2 flex items-start justify-between gap-3">
-        <h1 className="text-3xl font-bold text-gray-900">
-          Empreses adjudicatàries
-        </h1>
-        <SharePageButton className="shrink-0" />
-      </div>
-      <p className="text-gray-600 mb-8">
+      <PageHeader title="Empreses adjudicatàries" eyebrow="Empreses" actions={<SharePageButton className="shrink-0" />}>
+      <p>
         Rànquing d&apos;empreses per import total de contractes públics
         adjudicats. Pots filtrar per empresa i també per sector CPV (codi o
         descripció) per veure qui concentra més activitat en cada àmbit. També
@@ -57,6 +53,7 @@ export default async function EmpresePage({ searchParams }: Props) {
         </Link>{" "}
         (empreses i les seves filials segons el BORME).
       </p>
+      </PageHeader>
 
       <CompaniesTable
         initialData={companies}

@@ -1,6 +1,8 @@
 import { ImageResponse } from "next/og";
+import { formatCompactEuros } from "@/lib/indicators";
+import { LogoMark } from "@/components/brand/Logo";
 import { fetchOrganDetail } from "@/lib/api";
-import { formatCompactNumber, formatCompactShort, formatNumber, niceAxisTicks } from "@/lib/utils";
+import { formatCompactShort, formatNumber, niceAxisTicks } from "@/lib/utils";
 
 export const size = {
   width: 1200,
@@ -42,7 +44,7 @@ export default async function Image({ params }: Props) {
           width: "100%",
           height: "100%",
           display: "flex",
-          background: "linear-gradient(135deg, #EEF2FF 0%, #FFFFFF 50%, #F0F9FF 100%)",
+          background: "linear-gradient(135deg, #E2EFEE 0%, #FFFFFF 55%, #EEF5F4 100%)",
           padding: "32px",
           fontFamily:
             "ui-sans-serif, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial",
@@ -67,7 +69,7 @@ export default async function Image({ params }: Props) {
               style={{
                 display: "flex",
                 fontSize: 18,
-                color: "#7C3AED",
+                color: "#0F5E63",
                 fontWeight: 600,
                 letterSpacing: "0.05em",
                 textTransform: "uppercase",
@@ -104,11 +106,11 @@ export default async function Image({ params }: Props) {
                   justifyContent: "center",
                 }}
               >
-                <div style={{ display: "flex", fontSize: 14, color: "#16A34A", fontWeight: 600 }}>
+                <div style={{ display: "flex", fontSize: 14, color: "#0F5E63", fontWeight: 600 }}>
                   Import total
                 </div>
                 <div style={{ display: "flex", fontSize: 34, fontWeight: 700, color: "#111827" }}>
-                  {formatCompactNumber(totalAmount)}
+                  {formatCompactEuros(Number(totalAmount) || 0)}
                 </div>
               </div>
               <div
@@ -124,7 +126,7 @@ export default async function Image({ params }: Props) {
                   justifyContent: "center",
                 }}
               >
-                <div style={{ display: "flex", fontSize: 14, color: "#7C3AED", fontWeight: 600 }}>
+                <div style={{ display: "flex", fontSize: 14, color: "#0F5E63", fontWeight: 600 }}>
                   Contractes
                 </div>
                 <div style={{ display: "flex", fontSize: 34, fontWeight: 700, color: "#111827" }}>
@@ -193,7 +195,7 @@ export default async function Image({ params }: Props) {
                               display: "flex",
                               width: numYears <= 3 ? 44 : 32,
                               height: barHeight,
-                              background: "#7C3AED",
+                              background: "#0F5E63",
                               borderRadius: 4,
                             }}
                           />
@@ -238,14 +240,15 @@ export default async function Image({ params }: Props) {
                   width: 12,
                   height: 12,
                   borderRadius: "50%",
-                  background: "#22C55E",
+                  background: "#0F5E63",
                 }}
               />
               <div style={{ display: "flex", fontSize: 16, color: "#6B7280" }}>
                 Dades obertes · Contractació pública de Catalunya
               </div>
             </div>
-            <div style={{ display: "flex", fontSize: 30, fontWeight: 700, color: "#111827" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 30, fontWeight: 700, color: "#111827" }}>
+              <LogoMark size={40} />
               contractes.cat
             </div>
           </div>
