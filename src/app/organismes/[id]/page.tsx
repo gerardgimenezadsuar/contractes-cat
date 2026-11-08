@@ -296,12 +296,6 @@ export default async function OrganDetailPage({ params, searchParams }: Props) {
             <OrganRecentContracts contracts={recentContracts} />
           </div>
         </div>
-
-        {hasThreshold ? (
-          <div className="mt-8">
-            <OrganThresholdBlock organ={thresholdOrgan} catalonia={thresholdCatalonia} />
-          </div>
-        ) : null}
       </TrackedLinks>
 
       {hasTopCompanies ? (
@@ -327,6 +321,12 @@ export default async function OrganDetailPage({ params, searchParams }: Props) {
             />
           </div>
         </TrackedLinks>
+      ) : null}
+
+      {hasThreshold ? (
+        <div className="pt-10">
+          <OrganThresholdBlock organ={thresholdOrgan} catalonia={thresholdCatalonia} />
+        </div>
       ) : null}
 
       <TrackedLinks as="section" from="organisme/contractes" id="contractes" className="scroll-mt-32 pt-10">

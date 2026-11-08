@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ThresholdBucket } from "@/lib/types";
-import { ThresholdChartLazy } from "@/components/charts/LazyCharts";
+import ThresholdChartToggle from "@/components/organ/ThresholdChartToggle";
 import { formatNumber } from "@/lib/utils";
 
 /** Below this many minor contracts the histogram is noise. */
@@ -41,28 +41,20 @@ export default function OrganThresholdBlock({ organ, catalonia }: Props) {
   const above = ratio !== null && ratio >= 1.5;
 
   return (
-    <div>
-      <div className="mb-3 flex items-baseline justify-between gap-3">
-        <h2 className="font-display text-xl font-semibold text-gray-900">Contractes menors a prop del límit</h2>
-        <Link href="/analisi" className="shrink-0 text-sm text-accent hover:underline">
+    <div className="rounded-lg border border-gray-200 bg-white px-4 py-3">
+      <h3 className="text-sm font-semibold text-gray-900">Contractes menors a prop del límit de 15.000 €</h3>
+      <p className="mt-1 max-w-4xl text-sm text-gray-600">
+        El <strong className="font-semibold text-gray-900">{pct(own.share)}</strong> dels contractes menors d&apos;aquest
+        organisme ({formatNumber(own.inBand)} de {formatNumber(own.total)}) són d&apos;entre 14.500 i 15.000 € sense IVA, davant
+        del {pct(base.share)} a tot Catalunya
+        {ratio !== null && above ? ` (${ratio.toLocaleString("ca-ES", { maximumFractionDigits: 1 })} vegades més)` : ""}. Una
+        acumulació just per sota del límit pot indicar contractes fraccionats, però també té explicacions habituals, com
+        tarifes o pressupostos ajustats al màxim permès.{" "}
+        <Link href="/analisi" className="text-accent hover:underline">
           Anàlisi a Catalunya
         </Link>
-      </div>
-      <p className="mb-3 max-w-4xl text-sm text-gray-600">
-        {formatNumber(own.inBand)} dels {formatNumber(own.total)} contractes menors de menys de 15.000 € (sense IVA) d&apos;aquest
-        organisme, el <strong className="font-semibold text-gray-900">{pct(own.share)}</strong>, són entre 14.500 i 15.000 €. A
-        tot Catalunya és el {pct(base.share)}
-        {ratio !== null && above ? (
-          <>
-            : <strong className="font-semibold text-gray-900">{ratio.toLocaleString("ca-ES", { maximumFractionDigits: 1 })} vegades més</strong>
-          </>
-        ) : null}
-        . Una acumulació just per sota del límit pot indicar contractes fraccionats per evitar una licitació, però també té
-        explicacions habituals, com tarifes o pressupostos ajustats al màxim permès.
       </p>
-      <div className="rounded-lg border border-gray-200 bg-white p-4">
-        <ThresholdChartLazy data={organ} />
-      </div>
+      <ThresholdChartToggle data={organ} />
     </div>
   );
 }
