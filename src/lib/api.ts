@@ -1487,14 +1487,14 @@ export async function fetchContractsCount(
 }
 
 // Analysis: threshold distribution
-export async function fetchThresholdDistribution(): Promise<ThresholdBucket[]> {
+export async function fetchThresholdDistribution(organName?: string): Promise<ThresholdBucket[]> {
   // Counts in 500 EUR buckets from 500 to 15000 for minor contracts, in a
   // single grouped query. signed_magnitude_linear(x, 500) returns
   // floor(x / 500) + 1 for positive x, so bucket n starts at (n - 1) * 500.
   const bucketSize = 500;
   const rows = await soqlFetch<{ bucket: string; total: string }>({
     $select: `signed_magnitude_linear(import_adjudicacio_sense::number, ${bucketSize}) as bucket, count(*) as total`,
-    $where: MINOR_15K_BASE_WHERE,
+    $where: organName ? `${MINOR_15K_BASE_WHERE} AND nom_organ='${organName.replace(/'/g, "''")}'` : MINOR_15K_BASE_WHERE,
     $group: "bucket",
     $limit: "100",
   });

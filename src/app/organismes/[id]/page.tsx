@@ -9,6 +9,7 @@ import {
   fetchOrganIneCode,
   fetchOrganRecentContracts,
   fetchOrganTopCompanies,
+  fetchThresholdDistribution,
 } from "@/lib/api";
 import { withFallback } from "@/lib/socrata";
 import { fetchCurrentEnsOfficeHolders } from "@/lib/electes";
@@ -41,6 +42,7 @@ import OrganContractsExplorer from "@/components/organ/OrganContractsExplorer";
 import OrganTopCompaniesTable from "@/components/organ/OrganTopCompaniesTable";
 import OrganRecentContracts from "@/components/organ/OrganRecentContracts";
 import OrganElectesCard from "@/components/organ/OrganElectesCard";
+import OrganThresholdBlock, { MIN_MINOR_CONTRACTS, organThresholdTotal } from "@/components/organ/OrganThresholdBlock";
 
 export const revalidate = 21600;
 const ELECTES_PAGE_SIZE = 10;
@@ -114,7 +116,7 @@ export default async function OrganDetailPage({ params, searchParams }: Props) {
   }
 
   const organName = organ.nom_organ;
-  const [recentContracts, topCompanies, topSince, ineCode, competition, baseline, electes] = await Promise.all([
+  const [recentContracts, topCompanies, topSince, ineCode, competition, baseline, electes, thresholdOrgan, thresholdCatalonia] = await Promise.all([
     withFallback(fetchOrganRecentContracts(organName, 10), [], "fetchOrganRecentContracts"),
     withFallback(fetchOrganTopCompanies(organName, 10), [], "fetchOrganTopCompanies"),
     withFallback(fetchOrganTopCompanies(organName, 5, CONCENTRATION_SINCE_YEAR), [], "fetchOrganTopCompaniesSince"),
@@ -134,7 +136,10 @@ export default async function OrganDetailPage({ params, searchParams }: Props) {
       },
       "fetchCurrentEnsOfficeHolders"
     ),
+    withFallback(fetchThresholdDistribution(organName), [], "fetchThresholdDistributionOrgan"),
+    withFallback(fetchThresholdDistribution(), [], "fetchThresholdDistribution"),
   ]);
+  const hasThreshold = organThresholdTotal(thresholdOrgan) >= MIN_MINOR_CONTRACTS && thresholdCatalonia.length > 0;
 
   const totalAmount = parseFloat(organ.total);
   const numContracts = parseInt(organ.num_contracts, 10);
@@ -279,6 +284,12 @@ export default async function OrganDetailPage({ params, searchParams }: Props) {
             <OrganRecentContracts contracts={recentContracts} />
           </div>
         </div>
+
+        {hasThreshold ? (
+          <div className="mt-8">
+            <OrganThresholdBlock organ={thresholdOrgan} catalonia={thresholdCatalonia} />
+          </div>
+        ) : null}
       </TrackedLinks>
 
       {hasTopCompanies ? (
