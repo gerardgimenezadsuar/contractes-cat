@@ -26,6 +26,8 @@ import {
 import { YearlyTrendChartLazy } from "@/components/charts/LazyCharts";
 import CompanyContractsExplorer from "@/components/company/CompanyContractsExplorer";
 import SharePageButton from "@/components/ui/SharePageButton";
+import FollowFeedLink from "@/components/ui/FollowFeedLink";
+import { companyFeedPath } from "@/lib/feeds";
 import CompanyCounterpartyTable from "@/components/company/CompanyCounterpartyTable";
 import BormeSummaryCard from "@/components/company/BormeSummaryCard";
 import ControlTimeline, { hasRelevantTimeline } from "@/components/company/ControlTimeline";
@@ -97,7 +99,7 @@ export async function buildCompanyMetadata(decodedId: string, name?: string): Pr
     : `Detall dels contractes públics adjudicats a ${cleanEntityName(companyName)}.`;
 
   const entityPath = buildCompanyHref(canonicalCompanyId, companyName);
-  return buildEntityMetadata({
+  const metadata = buildEntityMetadata({
     title,
     absoluteTitle: true,
     description,
@@ -114,6 +116,11 @@ export async function buildCompanyMetadata(decodedId: string, name?: string): Pr
     ],
     openGraphType: "article",
   });
+  if (!publicNif || !company) return metadata;
+  return {
+    ...metadata,
+    alternates: { ...metadata.alternates, types: { "application/rss+xml": companyFeedPath(publicNif) } },
+  };
 }
 
 export async function CompanyDetail({ decodedId, name }: { decodedId: string; name?: string }) {
@@ -240,7 +247,12 @@ export async function CompanyDetail({ decodedId, name }: { decodedId: string; na
         title={company.denominacio_adjudicatari}
         chips={chips}
         figures={figures}
-        actions={<SharePageButton className="shrink-0" />}
+        actions={
+          <div className="flex gap-2">
+            {canMeasureCompetition ? <FollowFeedLink href={companyFeedPath(nif)} page="empresa" /> : null}
+            <SharePageButton className="shrink-0" />
+          </div>
+        }
       />
       {maskedIdentity ? (
         <MaskedIdentityNotice cluster={maskedIdentity.cluster} others={maskedIdentity.others} />

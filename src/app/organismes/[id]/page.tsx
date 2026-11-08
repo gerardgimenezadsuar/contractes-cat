@@ -33,6 +33,8 @@ import {
 } from "@/lib/seo/entity-seo";
 import { YearlyTrendChartLazy } from "@/components/charts/LazyCharts";
 import SharePageButton from "@/components/ui/SharePageButton";
+import FollowFeedLink from "@/components/ui/FollowFeedLink";
+import { organFeedPath } from "@/lib/feeds";
 import EntityHeader, { type HeaderChip, type KeyFigure } from "@/components/entity/EntityHeader";
 import SectionTabs from "@/components/entity/SectionTabs";
 import TrackedLinks from "@/components/entity/TrackedLinks";
@@ -84,7 +86,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     : `Detall dels contractes públics de ${organName}.`;
 
   const entityPath = `/organismes/${encodeURIComponent(canonicalOrganId)}`;
-  return buildEntityMetadata({
+  const metadata = buildEntityMetadata({
     title: organName,
     description,
     path: entityPath,
@@ -93,6 +95,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     keywords: [organName, `${organName} contractes`, "organisme contractant", "contractació pública Catalunya"],
     openGraphType: "article",
   });
+  if (!organ) return metadata;
+  return {
+    ...metadata,
+    alternates: { ...metadata.alternates, types: { "application/rss+xml": organFeedPath(organ.nom_organ) } },
+  };
 }
 
 export default async function OrganDetailPage({ params, searchParams }: Props) {
@@ -244,7 +251,12 @@ export default async function OrganDetailPage({ params, searchParams }: Props) {
         title={organName}
         chips={chips}
         figures={figures}
-        actions={<SharePageButton className="shrink-0" />}
+        actions={
+          <div className="flex gap-2">
+            <FollowFeedLink href={organFeedPath(organName)} page="organisme" />
+            <SharePageButton className="shrink-0" />
+          </div>
+        }
       />
       <SectionTabs tabs={tabs} />
 
