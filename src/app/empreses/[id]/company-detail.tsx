@@ -28,6 +28,7 @@ import CompanyContractsExplorer from "@/components/company/CompanyContractsExplo
 import SharePageButton from "@/components/ui/SharePageButton";
 import CompanyCounterpartyTable from "@/components/company/CompanyCounterpartyTable";
 import BormeSummaryCard from "@/components/company/BormeSummaryCard";
+import ControlTimeline, { hasRelevantTimeline } from "@/components/company/ControlTimeline";
 import EntityHeader, { type HeaderChip, type KeyFigure } from "@/components/entity/EntityHeader";
 import SectionTabs from "@/components/entity/SectionTabs";
 import TrackedLinks from "@/components/entity/TrackedLinks";
@@ -217,8 +218,11 @@ export async function CompanyDetail({ decodedId, name }: { decodedId: string; na
     ])
   );
 
+  const hasTimeline = hasRelevantTimeline(yearlyRows, adminHistory?.spans ?? []);
+
   const tabs = [
     { id: "resum", label: "Resum" },
+    ...(hasTimeline ? [{ id: "cronologia", label: "Cronologia" }] : []),
     ...(topOrgans.length > 0 ? [{ id: "organismes", label: "Organismes" }] : []),
     ...(hasBormeData ? [{ id: "administradors", label: "Administradors" }] : []),
     ...(hasNetwork ? [{ id: "relacionades", label: "Empreses relacionades" }] : []),
@@ -290,6 +294,12 @@ export async function CompanyDetail({ decodedId, name }: { decodedId: string; na
           ) : null}
         </div>
       </TrackedLinks>
+
+      {hasTimeline ? (
+        <TrackedLinks as="section" from="empresa/cronologia" id="cronologia" className="scroll-mt-32 pt-10">
+          <ControlTimeline yearly={yearlyRows} spans={adminHistory?.spans ?? []} currentYear={currentYear} />
+        </TrackedLinks>
+      ) : null}
 
       {topOrgans.length > 0 ? (
         <TrackedLinks as="section" from="empresa/organismes" id="organismes" className="scroll-mt-32 pt-10">
