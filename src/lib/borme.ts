@@ -591,21 +591,31 @@ export async function loadPersonProfile(personName: string): Promise<BormePerson
 }
 
 /**
- * Size of the person sitemap key space: the highest person_summary rowid.
- *
- * Person sitemaps are paged by rowid ranges (see listPersonNamesPage), so the
- * number of chunks is ceil(maxRowid / chunkSize). This reads a single row,
- * whereas COUNT(*) with the junk-name filter scanned all ~750k rows on every
- * sitemap regeneration and was ~50% of all Turso reads.
+ * Person pages worth indexing: people who own or administer at least one
+ * company that won public contracts. The other ~94% only appear in BORME
+ * filings; their pages stay reachable but are noindexed and left out of the
+ * sitemap, so crawlers spend their budget on procurement-relevant profiles.
  */
-export async function countAllPersonNames(): Promise<number> {
+export function isIndexablePerson(profile: Pick<BormePersonProfile, "num_control_companies_with_nif"> | null): boolean {
+  return (profile?.num_control_companies_with_nif ?? 0) > 0;
+}
+
+// Both sitemap queries walk idx_person_summary_control_rank, so they read
+// ~45k index entries instead of scanning all ~770k person_summary rows.
+const INDEXABLE_PERSON_ORDER =
+  "num_control_companies_with_nif DESC, num_control_companies DESC, active_control_companies DESC, rowid DESC";
+
+/** Number of indexable people (see isIndexablePerson): sizes the person sitemaps. */
+export async function countIndexablePersons(): Promise<number> {
   try {
     const client = getDb();
     if (!client) return 0;
     if (!canReadTurso()) return 0;
 
     const result = await client.execute({
-      sql: `SELECT max(rowid) AS total FROM person_summary`,
+      sql: `SELECT count(*) AS total
+            FROM person_summary INDEXED BY idx_person_summary_control_rank
+            WHERE num_control_companies_with_nif > 0`,
       args: [],
     });
 
@@ -613,52 +623,46 @@ export async function countAllPersonNames(): Promise<number> {
   } catch (error) {
     markBlockedRead(error);
     if (isBlockedReadError(error)) return 0;
-    console.error("Failed to count person names from Turso:", error);
+    console.error("Failed to count indexable persons from Turso:", error);
     return 0;
   }
 }
 
 /**
- * List person names for sitemap generation: the people whose person_summary
- * rowid is in (offset, offset + limit].
+ * One page of indexable person names for a sitemap chunk.
  *
- * Paging by rowid range is a primary-key range scan that reads ~limit rows.
- * LIMIT/OFFSET read offset + limit rows per chunk (up to ~750k for the last
- * chunks), and the old importance ORDER BY sorted the whole table. Chunks can
- * hold fewer than `limit` names (rowid gaps, junk names filtered out), which
- * is fine for sitemaps. Rowids are stable: scripts/borme_incremental_update.py
- * upserts person_summary and never REPLACEs rows.
+ * OFFSET is applied to rowids from the covering index; only the selected page
+ * is looked up in the table (a plain OFFSET over person_name took ~20s at the
+ * last chunk). Junk names are dropped after paging, so a chunk can hold
+ * slightly fewer than `limit` names, which is fine for sitemaps.
  */
-export async function listPersonNamesPage(offset = 0, limit = 1000): Promise<string[]> {
+export async function listIndexablePersonNamesPage(offset = 0, limit = 1000): Promise<string[]> {
   try {
     const client = getDb();
     if (!client) return [];
     if (!canReadTurso()) return [];
 
-    const safeOffset = Math.max(0, Math.floor(offset));
-    const safeLimit = Math.max(1, Math.floor(limit));
     const result = await client.execute({
       sql: `SELECT person_name
             FROM person_summary
-            WHERE rowid > ? AND rowid <= ? AND ${VALID_PERSON_SQL}
+            WHERE rowid IN (
+              SELECT rowid
+              FROM person_summary INDEXED BY idx_person_summary_control_rank
+              WHERE num_control_companies_with_nif > 0
+              ORDER BY ${INDEXABLE_PERSON_ORDER}
+              LIMIT ? OFFSET ?
+            ) AND ${VALID_PERSON_SQL}
             ORDER BY rowid`,
-      args: [safeOffset, safeOffset + safeLimit],
+      args: [Math.max(1, Math.floor(limit)), Math.max(0, Math.floor(offset))],
     });
 
     return result.rows.map((r) => String(r.person_name));
   } catch (error) {
     markBlockedRead(error);
     if (isBlockedReadError(error)) return [];
-    console.error("Failed to list person names from Turso:", error);
+    console.error("Failed to list indexable person names from Turso:", error);
     return [];
   }
-}
-
-/** List all person names for sitemap generation. */
-export async function listAllPersonNames(): Promise<string[]> {
-  const total = await countAllPersonNames();
-  if (total <= 0) return [];
-  return listPersonNamesPage(0, total);
 }
 
 // ---------------------------------------------------------------------------

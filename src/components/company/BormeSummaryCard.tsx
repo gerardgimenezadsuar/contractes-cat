@@ -1,4 +1,5 @@
-import type { BormeAdminSpan } from "@/lib/borme";
+import Link from "next/link";
+import { isJunkPersonName, type BormeAdminSpan } from "@/lib/borme";
 import { toTitleCase } from "@/lib/person-utils";
 
 const ACTIVE_POSITION_ROLES = new Set([
@@ -26,6 +27,8 @@ interface Props {
 
 interface ActiveEntry {
   name: string;
+  /** Person page path, or null when the BORME name is a parsing artefact without a page. */
+  personHref: string | null;
   title: string;
   isApoderado: boolean;
   dateStart: string;
@@ -76,6 +79,7 @@ function pickCurrentByRole(spans: BormeAdminSpan[], roleSet: Set<string>): Activ
     if (!current || span.date_start > current.dateStart) {
       byPersonAndTitle.set(key, {
         name: toTitleCase(parsed.cleanedName),
+        personHref: isJunkPersonName(span.person_name) ? null : `/persones/${encodeURIComponent(span.person_name)}`,
         title: effectiveTitle,
         isApoderado: span.relation_type === "APODERADO",
         dateStart: span.date_start,
@@ -99,6 +103,37 @@ function getLatestStartDate(spans: BormeAdminSpan[]): string {
   return formatBormeDate(latest);
 }
 
+function ActiveAppointmentRow({ person }: { person: ActiveEntry }) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <div>
+        {person.personHref ? (
+          <Link href={person.personHref} className="text-gray-900 hover:underline">
+            {person.name}
+          </Link>
+        ) : (
+          <span className="text-gray-900">{person.name}</span>
+        )}
+        <p className="text-xs text-gray-500">
+          {person.title}
+          {person.sourcePdf && (
+            <>
+              {" · "}
+              <a href={person.sourcePdf} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                BORME
+              </a>
+            </>
+          )}
+        </p>
+      </div>
+      <span className="shrink-0 text-xs tabular-nums text-gray-500">
+        {formatBormeDate(person.dateStart)}
+        {person.dateEnd ? ` → ${formatBormeDate(person.dateEnd)}` : " → actual"}
+      </span>
+    </div>
+  );
+}
+
 function ActiveAppointmentsList({
   people,
   defaultLimit,
@@ -112,27 +147,7 @@ function ActiveAppointmentsList({
   return (
     <div className="space-y-2">
       {visiblePeople.map((person) => (
-        <div key={`${person.name}-${person.title}-${person.dateStart}`} className="flex items-start justify-between gap-3">
-          <div>
-            {person.sourcePdf ? (
-              <a
-                href={person.sourcePdf}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-gray-900 hover:underline"
-              >
-                {person.name}
-              </a>
-            ) : (
-              <span className="text-gray-900">{person.name}</span>
-            )}
-            <p className="text-xs text-gray-500">{person.title}</p>
-          </div>
-          <span className="shrink-0 text-xs tabular-nums text-gray-500">
-            {formatBormeDate(person.dateStart)}
-            {person.dateEnd ? ` → ${formatBormeDate(person.dateEnd)}` : " → actual"}
-          </span>
-        </div>
+        <ActiveAppointmentRow key={`${person.name}-${person.title}-${person.dateStart}`} person={person} />
       ))}
       {hiddenPeople.length > 0 && (
         <details className="pt-1">
@@ -141,27 +156,7 @@ function ActiveAppointmentsList({
           </summary>
           <div className="mt-2 space-y-2">
             {hiddenPeople.map((person) => (
-              <div key={`${person.name}-${person.title}-${person.dateStart}`} className="flex items-start justify-between gap-3">
-                <div>
-                  {person.sourcePdf ? (
-                    <a
-                      href={person.sourcePdf}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-gray-900 hover:underline"
-                    >
-                      {person.name}
-                    </a>
-                  ) : (
-                    <span className="text-gray-900">{person.name}</span>
-                  )}
-                  <p className="text-xs text-gray-500">{person.title}</p>
-                </div>
-                <span className="shrink-0 text-xs tabular-nums text-gray-500">
-                  {formatBormeDate(person.dateStart)}
-                  {person.dateEnd ? ` → ${formatBormeDate(person.dateEnd)}` : " → actual"}
-                </span>
-              </div>
+              <ActiveAppointmentRow key={`${person.name}-${person.title}-${person.dateStart}`} person={person} />
             ))}
           </div>
         </details>
