@@ -8,7 +8,14 @@ interface Props {
   rows: TopVinculacioRow[];
 }
 
-const PAGE_SIZE = 25;
+// 50 rows server-rendered: the first page is what crawlers see and follow.
+const PAGE_SIZE = 50;
+
+/** Ranking samples are stored as "Company name (NIF)". */
+function parseCompanySample(sample: string): { name: string; nif: string | null } {
+  const match = sample.match(/^(.*)\s\(([^()]+)\)$/);
+  return match ? { name: match[1], nif: match[2] } : { name: sample, nif: null };
+}
 type SortField = "import" | "operacions" | "empreses";
 type SortDirection = "asc" | "desc";
 
@@ -186,14 +193,23 @@ export default function PersonesTopVinculacioTable({ rows }: Props) {
                       {row.personName}
                     </Link>
                     <div className="mt-1 flex flex-wrap gap-1">
-                      {visibleCompanies.map((company) => (
-                        <span
-                          key={company}
-                          className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-700"
-                        >
-                          {company}
-                        </span>
-                      ))}
+                      {visibleCompanies.map((sample) => {
+                        const company = parseCompanySample(sample);
+                        const chipClass = "inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-700";
+                        return company.nif ? (
+                          <Link
+                            key={sample}
+                            href={`/empreses/${encodeURIComponent(company.nif)}`}
+                            className={`${chipClass} hover:bg-gray-200 hover:text-gray-900`}
+                          >
+                            {company.name}
+                          </Link>
+                        ) : (
+                          <span key={sample} className={chipClass}>
+                            {company.name}
+                          </span>
+                        );
+                      })}
                       {remaining > 0 && (
                         <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-700">
                           +{remaining} més

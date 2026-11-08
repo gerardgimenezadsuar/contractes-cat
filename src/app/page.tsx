@@ -30,14 +30,16 @@ import { SITE_NAME, SITE_URL } from "@/config/constants";
 import { buildCompanyHref } from "@/lib/company-identity";
 
 export const metadata: Metadata = {
-  title: "Contractació pública a Catalunya | contractes.cat",
+  title: "Contractes públics a Catalunya: qui els guanya i qui controla les empreses | contractes.cat",
   description:
-    "Consulta contractes públics i adjudicacions de la contractació pública a Catalunya per empresa, organisme i persona.",
+    "Cerca qualsevol empresa, organisme o persona: contractes públics adjudicats a Catalunya i qui controla les empreses que els guanyen (propietaris i administradors segons el BORME). Contratos públicos en Cataluña.",
   keywords: [
     "contractes públics Catalunya",
     "contractació pública Catalunya",
     "adjudicacions públiques Catalunya",
     "licitacions Catalunya",
+    "administradors empreses BORME",
+    "contratos públicos Cataluña",
     "empreses adjudicatàries Catalunya",
     "organismes contractants Catalunya",
   ],
