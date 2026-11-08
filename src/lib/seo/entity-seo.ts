@@ -6,6 +6,8 @@ type OgType = "website" | "article" | "profile";
 
 interface EntityMetadataConfig {
   title: string;
+  /** Use the title as-is, without the "| contractes.cat" template (Google shows the site name separately). */
+  absoluteTitle?: boolean;
   description: string;
   path: string;
   imagePath: string;
@@ -39,7 +41,7 @@ export function buildEntityMetadata(config: EntityMetadataConfig): Metadata {
   const imageUrl = toAbsoluteUrl(config.imagePath);
 
   return {
-    title: config.title,
+    title: config.absoluteTitle ? { absolute: config.title } : config.title,
     description: config.description,
     keywords: config.keywords,
     alternates: {

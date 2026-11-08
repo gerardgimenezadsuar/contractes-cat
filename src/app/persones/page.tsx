@@ -5,9 +5,10 @@ import PersonesTopVinculacioTable from "@/components/person/PersonesTopVinculaci
 import { loadTopVinculacions } from "@/lib/persones-top";
 
 export const metadata: Metadata = {
-  title: "Persones vinculades (BORME)",
+  title: { absolute: "Qui controla les empreses que guanyen contractes públics a Catalunya" },
   description:
-    "Cerca de persones amb càrrecs societaris en empreses vinculades a contractació pública a Catalunya.",
+    "Rànquing de propietaris i administradors (BORME) per l'import dels contractes públics que van guanyar les seves empreses mentre en tenien el càrrec. Cerca qualsevol persona i les empreses que controla.",
+  alternates: { canonical: "/persones" },
 };
 
 interface Props {
@@ -24,11 +25,16 @@ export default async function PersonesPage({ searchParams }: Props) {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <div className="mb-2 flex items-start justify-between gap-3">
-        <h1 className="text-3xl font-bold text-gray-900">Persones vinculades (BORME)</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Qui controla les empreses que guanyen contractes públics</h1>
         <SharePageButton className="shrink-0" />
       </div>
-      <p className="text-gray-600 mb-6">
-        Cerca per nom de persona per veure les seves vinculacions societàries i els contractes públics de les empreses on participa.
+      <p className="mb-2 max-w-4xl text-gray-600">
+        Creuem el Registre Mercantil (BORME) amb els contractes públics de Catalunya: per a cada persona sabem de quines
+        empreses és o ha estat propietària (soci únic) o administradora, i quants contractes van guanyar aquestes empreses
+        mentre en tenia el càrrec.
+      </p>
+      <p className="mb-6 max-w-4xl text-gray-600">
+        Cerca per nom per veure les empreses que controla una persona, o consulta el rànquing de més avall.
       </p>
 
       <PersonSearchExplorer initialQuery={rawSearch} initialPage={page} />

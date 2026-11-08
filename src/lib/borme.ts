@@ -300,9 +300,7 @@ const VALID_PERSON_SQL = "person_name NOT LIKE '%REGISTRO MERCANTIL%' AND person
 const PERSON_CONTROL_ORDER =
   "num_control_companies_with_nif DESC, num_control_companies DESC, active_control_companies DESC, num_companies_with_nif DESC, num_companies DESC, total_spans DESC";
 
-export function isJunkPersonName(name: string): boolean {
-  return /REGISTRO MERCANTIL|:/i.test(name);
-}
+export { isJunkPersonName } from "@/lib/seo/entity-summary";
 
 function buildPersonSearchFts(query: string): { match: string; orderedPattern: string } | null {
   const raw = query.trim();

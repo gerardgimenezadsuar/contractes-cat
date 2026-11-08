@@ -16,6 +16,7 @@ import {
 import { buildCompanyIndicators, formatCompactEuros, lastCompleteYear, toYearlyRows } from "@/lib/indicators";
 import { formatNumber, formatCompactNumber, formatDate } from "@/lib/utils";
 import { safeJsonLd } from "@/lib/seo/jsonld";
+import { SITE_URL } from "@/config/constants";
 import {
   buildEntityBreadcrumbJsonLd,
   buildEntityJsonLdGraph,
@@ -31,6 +32,14 @@ import EntityHeader, { type HeaderChip, type KeyFigure } from "@/components/enti
 import SectionTabs from "@/components/entity/SectionTabs";
 import { IndicatorGrid } from "@/components/entity/IndicatorCard";
 import { loadAdminHistory, loadCompanyGroupByNif, loadRelatedCompanies } from "@/lib/borme";
+import { classifyControlRole } from "@/lib/borme-roles";
+import {
+  buildCompanySeoDescription,
+  buildCompanySeoTitle,
+  cleanEntityName,
+  currentControllers,
+} from "@/lib/seo/entity-summary";
+import CompanySummary from "@/components/company/CompanySummary";
 import RelatedCompaniesSection from "@/components/company/RelatedCompaniesSection";
 import { buildCompanyHref, isAmbiguousCompanyId } from "@/lib/company-identity";
 import MaskedIdentityNotice from "@/components/company/MaskedIdentityNotice";
@@ -47,25 +56,60 @@ import MaskedIdentityNotice from "@/components/company/MaskedIdentityNotice";
  */
 
 const getCompanyDetail = cache(async (id: string, companyName?: string) => fetchCompanyDetail(id, companyName));
+// Shared by generateMetadata and the page, so each is fetched once per render.
+const getTopOrgans = cache(async (id: string, companyName?: string) => fetchCompanyTopOrgans(id, companyName, 10));
+const getAdminHistory = cache(async (id: string) => loadAdminHistory(id));
+
+function contractYears(yearly: { year: string; num_contracts: string }[]): { firstYear: number | null; lastYear: number | null } {
+  const years = yearly
+    .filter((row) => (parseInt(row.num_contracts, 10) || 0) > 0)
+    .map((row) => parseInt(row.year, 10))
+    .filter(Number.isFinite);
+  return years.length > 0 ? { firstYear: Math.min(...years), lastYear: Math.max(...years) } : { firstYear: null, lastYear: null };
+}
 
 export async function buildCompanyMetadata(decodedId: string, name?: string): Promise<Metadata> {
-  const { company } = await getCompanyDetail(decodedId, name);
+  const [{ company, yearly }, topOrgans, adminHistory] = await Promise.all([
+    getCompanyDetail(decodedId, name),
+    getTopOrgans(decodedId, name),
+    getAdminHistory(decodedId),
+  ]);
   const companyName = company?.denominacio_adjudicatari || decodedId;
   const canonicalCompanyId = company?.identificacio_adjudicatari || decodedId;
   const totalAmount = parseFloat(company?.total || "0");
   const totalContracts = parseInt(company?.num_contracts || "0", 10);
+  const publicNif = isAmbiguousCompanyId(canonicalCompanyId) ? null : canonicalCompanyId;
+  const hasBorme = Boolean(adminHistory && adminHistory.spans.length > 0);
+  const title = buildCompanySeoTitle({ name: companyName, nif: publicNif, hasBorme });
   const description = company
-    ? `${formatCompactNumber(totalAmount)} adjudicats en ${formatNumber(totalContracts)} contractes públics a ${companyName}.`
-    : `Detall dels contractes públics adjudicats a ${companyName}.`;
+    ? buildCompanySeoDescription({
+        name: companyName,
+        nif: publicNif,
+        numContracts: totalContracts,
+        numContractsLabel: formatNumber(totalContracts),
+        amountLabel: formatCompactEuros(totalAmount),
+        ...contractYears(yearly),
+        topClients: topOrgans.map((organ) => organ.nom_organ),
+        hasBorme,
+      })
+    : `Detall dels contractes públics adjudicats a ${cleanEntityName(companyName)}.`;
 
   const entityPath = buildCompanyHref(canonicalCompanyId, companyName);
   return buildEntityMetadata({
-    title: companyName,
+    title,
+    absoluteTitle: true,
     description,
     path: entityPath,
     imagePath: `/empreses/${encodeURIComponent(canonicalCompanyId)}/opengraph-image`,
     imageAlt: `Resum de contractació pública de ${companyName}`,
-    keywords: [companyName, decodedId, `${companyName} contractes`, "contractació pública Catalunya"],
+    keywords: [
+      companyName,
+      decodedId,
+      `${companyName} contractes`,
+      `${companyName} administradors`,
+      "contractació pública Catalunya",
+      "contratos públicos Cataluña",
+    ],
     openGraphType: "article",
   });
 }
@@ -90,11 +134,11 @@ export async function CompanyDetail({ decodedId, name }: { decodedId: string; na
   const [contracts, contractsCount, topOrgans, lastAwardDate, competition, baseline, adminHistory, relatedCompanies, companyGroup] = await Promise.all([
     fetchCompanyContracts(decodedId, name, 0, 50),
     fetchCompanyContractsCount(decodedId, name),
-    fetchCompanyTopOrgans(decodedId, name, 10),
+    getTopOrgans(decodedId, name),
     fetchCompanyLastAwardDate(decodedId, name),
     canMeasureCompetition ? fetchCompanyCompetition(nif) : Promise.resolve(null),
     canMeasureCompetition ? fetchCataloniaCompetition() : Promise.resolve(null),
-    loadAdminHistory(decodedId),
+    getAdminHistory(decodedId),
     canMeasureCompetition ? loadRelatedCompanies(nif) : Promise.resolve([]),
     canMeasureCompetition ? loadCompanyGroupByNif(nif) : Promise.resolve(null),
   ]);
@@ -132,14 +176,38 @@ export async function CompanyDetail({ decodedId, name }: { decodedId: string; na
   if (hasBormeData && adminHistory?.matched_name) chips.push({ label: "BORME", value: adminHistory.matched_name });
 
   const entityPath = buildCompanyHref(nif, company.denominacio_adjudicatari);
-  const companyDescription = `${formatCompactNumber(totalAmount)} adjudicats en ${formatNumber(numContracts)} contractes públics a ${company.denominacio_adjudicatari}.`;
+  const publicNif = canMeasureCompetition ? nif : null;
+  const { firstYear, lastYear: lastContractYear } = contractYears(yearly);
+  const controllers = currentControllers(
+    (adminHistory?.spans ?? []).map((span) => ({
+      person_name: span.person_name,
+      date_end: span.date_end,
+      control: classifyControlRole(span.relation_type, span.role_title_code),
+    }))
+  );
+  const companyDescription = `${formatCompactNumber(totalAmount)} adjudicats en ${formatNumber(numContracts)} contractes públics a ${cleanEntityName(company.denominacio_adjudicatari)}.`;
+  const bormeName = adminHistory?.matched_name;
   const jsonLd = buildEntityJsonLdGraph(
     buildEntityPrimaryJsonLd({
       schemaType: "Organization",
       name: company.denominacio_adjudicatari,
       path: entityPath,
       description: companyDescription,
-      extraFields: { identifier: nif },
+      ...(bormeName && bormeName !== company.denominacio_adjudicatari ? { alternateName: bormeName } : {}),
+      extraFields: {
+        identifier: nif,
+        ...(publicNif ? { taxID: publicNif } : {}),
+        // Current owners and administrators per BORME, linked to their person pages.
+        ...(controllers.owners.length + controllers.admins.length > 0
+          ? {
+              member: [...controllers.owners, ...controllers.admins].slice(0, 10).map((person) => ({
+                "@type": "Person",
+                name: person.personName,
+                url: `${SITE_URL}/persones/${encodeURIComponent(person.personName)}`,
+              })),
+            }
+          : {}),
+      },
     }),
     buildEntityBreadcrumbJsonLd([
       { name: "Inici", path: "/" },
@@ -172,6 +240,19 @@ export async function CompanyDetail({ decodedId, name }: { decodedId: string; na
       {maskedIdentity ? (
         <MaskedIdentityNotice cluster={maskedIdentity.cluster} others={maskedIdentity.others} />
       ) : null}
+      <CompanySummary
+        name={company.denominacio_adjudicatari}
+        nif={publicNif}
+        numContracts={numContracts}
+        amountLabel={formatCompactEuros(totalAmount)}
+        firstYear={firstYear}
+        lastYear={lastContractYear}
+        topOrgans={topOrgans.slice(0, 3).map((organ) => organ.nom_organ)}
+        lastAwardDate={lastAwardDate ? formatDate(lastAwardDate) : null}
+        owners={controllers.owners}
+        admins={controllers.admins}
+        relatedCount={relatedCompanies.length}
+      />
       <SectionTabs tabs={tabs} />
 
       <section id="resum" className="scroll-mt-32 pt-8">

@@ -28,6 +28,9 @@ import PersonContractsSection, {
   PersonContractsSectionFallback,
 } from "@/components/person/PersonContractsSection";
 import { buildCompanyHref } from "@/lib/company-identity";
+import { formatCompactEuros } from "@/lib/indicators";
+import { buildPersonSeoDescription, buildPersonSeoTitle, cleanEntityName } from "@/lib/seo/entity-summary";
+import { SITE_URL } from "@/config/constants";
 
 export const revalidate = 21600;
 
@@ -133,13 +136,22 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const contractsSummary = await getControlSummary(decodedName);
 
+  const seoInput = {
+    displayName,
+    numControlCompanies: profile?.num_control_companies ?? 0,
+    numControlCompaniesWithContracts: profile?.num_control_companies_with_nif ?? 0,
+    numContracts: contractsSummary.total,
+    numContractsLabel: formatNumber(contractsSummary.total),
+    amountLabel: formatCompactEuros(contractsSummary.totalAmount),
+  };
   const description = profile
-    ? `${displayName}: propietat o administració de ${formatNumber(profile.num_control_companies)} empreses, ${formatNumber(contractsSummary.total)} contractes públics durant el càrrec (${formatCompactNumber(contractsSummary.totalAmount)}). Informació societària del BORME i contractes públics a Catalunya.`
+    ? buildPersonSeoDescription(seoInput)
     : `Informació societària de ${displayName} segons BORME.`;
 
   const entityPath = `/persones/${encodeURIComponent(bormeName)}`;
   const metadata = buildEntityMetadata({
-    title: displayName,
+    title: buildPersonSeoTitle(seoInput),
+    absoluteTitle: true,
     description,
     path: entityPath,
     imagePath: `${entityPath}/opengraph-image`,
@@ -149,6 +161,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       bormeName,
       `${displayName} contractes`,
       `${displayName} empreses`,
+      `${displayName} administrador`,
       "BORME",
       "contractació pública Catalunya",
     ],
@@ -401,7 +414,24 @@ export default async function PersonDetailPage({ params }: Props) {
       : null;
 
   const personPath = `/persones/${encodeURIComponent(profile.person_name)}`;
-  const personDescription = `${displayName}: vinculacions societàries i contractes públics a Catalunya.`;
+  const personDescription = buildPersonSeoDescription({
+    displayName,
+    numControlCompanies: profile.num_control_companies,
+    numControlCompaniesWithContracts: profile.num_control_companies_with_nif,
+    numContracts: contractsSummary.total,
+    numContractsLabel: formatNumber(contractsSummary.total),
+    amountLabel: formatCompactEuros(contractsSummary.totalAmount),
+  });
+  // Companies they currently own or administer that have public contracts.
+  const affiliations = controlCompanies
+    .filter((c) => c.control_active && c.nif)
+    .slice(0, 10)
+    .map((c) => ({
+      "@type": "Organization",
+      name: cleanEntityName(c.company_name_matched || c.company_name_borme),
+      url: `${SITE_URL}${buildCompanyHref(c.nif!, c.company_name_matched || c.company_name_borme)}`,
+      taxID: c.nif,
+    }));
   const jsonLd = buildEntityJsonLdGraph(
     buildEntityPrimaryJsonLd({
       schemaType: "Person",
@@ -409,6 +439,7 @@ export default async function PersonDetailPage({ params }: Props) {
       alternateName: profile.person_name,
       path: personPath,
       description: personDescription,
+      ...(affiliations.length > 0 ? { extraFields: { affiliation: affiliations } } : {}),
     }),
     buildEntityBreadcrumbJsonLd([
       { name: "Inici", path: "/" },
@@ -435,6 +466,22 @@ export default async function PersonDetailPage({ params }: Props) {
       <p className="text-sm text-gray-500 mb-1">
         Nom al registre: <span className="font-medium text-gray-700">{profile.person_name}</span>
       </p>
+      {profile.num_control_companies > 0 ? (
+        <p className="mb-3 max-w-4xl text-[15px] leading-relaxed text-gray-700">
+          Segons el BORME, <strong className="font-semibold text-gray-900">{displayName}</strong> té o ha tingut la
+          propietat o l&apos;administració de{" "}
+          {profile.num_control_companies === 1 ? "1 empresa" : `${formatNumber(profile.num_control_companies)} empreses`}
+          {profile.num_control_companies_with_nif > 0
+            ? `, ${formatNumber(profile.num_control_companies_with_nif)} de les quals han guanyat contractes públics a Catalunya`
+            : ""}
+          .
+          {contractsSummary.total > 0
+            ? ` Mentre en tenia el càrrec, aquestes empreses van guanyar ${
+                contractsSummary.total === 1 ? "1 contracte públic" : `${formatNumber(contractsSummary.total)} contractes públics`
+              } per un import de ${formatCompactEuros(contractsSummary.totalAmount)} (sense IVA).`
+            : ""}
+        </p>
+      ) : null}
       <p className="text-gray-600 mb-6">
         Càrrecs societaris extrets del BORME. Comptem com a vinculació la propietat (soci únic) i
         l&apos;administració (administradors, presidència i conseller delegat), i només els contractes que les
