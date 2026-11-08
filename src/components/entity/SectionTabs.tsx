@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { trackEvent } from "@/lib/analytics";
 
 export interface SectionTab {
   id: string;
@@ -51,7 +52,10 @@ export default function SectionTabs({ tabs }: Props) {
               <a
                 href={`#${tab.id}`}
                 aria-current={isActive ? "location" : undefined}
-                onClick={() => setActive(tab.id)}
+                onClick={() => {
+                  setActive(tab.id);
+                  trackEvent("section_tab", { page: window.location.pathname.split("/")[1] || "home", tab: tab.id });
+                }}
                 className={`-mb-px inline-block whitespace-nowrap border-b-2 px-3 py-3 text-sm font-medium ${
                   isActive ? "border-accent text-gray-900" : "border-transparent text-gray-500 hover:text-gray-900"
                 }`}

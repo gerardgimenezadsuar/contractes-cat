@@ -137,12 +137,20 @@ export default function ContractExplorer({
       setFilters(newFilters);
       setPage(1);
       updateUrl(newFilters, sort, 1);
-      if (value) trackEvent("filter_change", { page: "contractes", filter: key });
+      // Typed filters are tracked once the user pauses, like the fetch, not
+      // on every keystroke.
+      const track = () => {
+        if (value) trackEvent("filter_change", { page: "contractes", filter: key });
+      };
 
       if (DEBOUNCED_KEYS.has(key)) {
         if (debounceRef.current) clearTimeout(debounceRef.current);
-        debounceRef.current = setTimeout(() => fetchData(newFilters, sort, 1), 400);
+        debounceRef.current = setTimeout(() => {
+          track();
+          fetchData(newFilters, sort, 1);
+        }, 400);
       } else {
+        track();
         fetchData(newFilters, sort, 1);
       }
     },

@@ -30,6 +30,7 @@ import CompanyCounterpartyTable from "@/components/company/CompanyCounterpartyTa
 import BormeSummaryCard from "@/components/company/BormeSummaryCard";
 import EntityHeader, { type HeaderChip, type KeyFigure } from "@/components/entity/EntityHeader";
 import SectionTabs from "@/components/entity/SectionTabs";
+import TrackedLinks from "@/components/entity/TrackedLinks";
 import { IndicatorGrid } from "@/components/entity/IndicatorCard";
 import { loadAdminHistory, loadCompanyGroupByNif, loadRelatedCompanies } from "@/lib/borme";
 import { classifyControlRole } from "@/lib/borme-roles";
@@ -240,7 +241,8 @@ export async function CompanyDetail({ decodedId, name }: { decodedId: string; na
       {maskedIdentity ? (
         <MaskedIdentityNotice cluster={maskedIdentity.cluster} others={maskedIdentity.others} />
       ) : null}
-      <CompanySummary
+      <TrackedLinks from="empresa/summary">
+        <CompanySummary
         name={company.denominacio_adjudicatari}
         nif={publicNif}
         numContracts={numContracts}
@@ -251,11 +253,12 @@ export async function CompanyDetail({ decodedId, name }: { decodedId: string; na
         lastAwardDate={lastAwardDate ? formatDate(lastAwardDate) : null}
         owners={controllers.owners}
         admins={controllers.admins}
-        relatedCount={relatedCompanies.length}
-      />
+          relatedCount={relatedCompanies.length}
+        />
+      </TrackedLinks>
       <SectionTabs tabs={tabs} />
 
-      <section id="resum" className="scroll-mt-32 pt-8">
+      <TrackedLinks as="section" from="empresa/resum" id="resum" className="scroll-mt-32 pt-8">
         {indicators.length > 0 ? (
           <>
             <div className="mb-3 flex items-baseline justify-between gap-3">
@@ -280,39 +283,39 @@ export async function CompanyDetail({ decodedId, name }: { decodedId: string; na
             </div>
           </div>
           {hasBormeData ? (
-            <div id="administradors" className="min-w-0 scroll-mt-32 xl:col-span-2">
+            <TrackedLinks from="empresa/administradors" id="administradors" className="min-w-0 scroll-mt-32 xl:col-span-2">
               <h2 className="mb-3 font-display text-xl font-semibold text-gray-900">Administradors (BORME)</h2>
               <BormeSummaryCard spans={adminHistory?.spans || []} matchedName={adminHistory?.matched_name || ""} compact />
-            </div>
+            </TrackedLinks>
           ) : null}
         </div>
-      </section>
+      </TrackedLinks>
 
       {topOrgans.length > 0 ? (
-        <section id="organismes" className="scroll-mt-32 pt-10">
+        <TrackedLinks as="section" from="empresa/organismes" id="organismes" className="scroll-mt-32 pt-10">
           <CompanyCounterpartyTable rows={topOrgans} companyTotalAmount={totalAmount} lastAwardDate={lastAwardDate} />
-        </section>
+        </TrackedLinks>
       ) : null}
 
       {hasNetwork ? (
-        <section id="relacionades" className="scroll-mt-32 pt-10">
+        <TrackedLinks as="section" from="empresa/relacionades" id="relacionades" className="scroll-mt-32 pt-10">
           <RelatedCompaniesSection
             companyName={company.denominacio_adjudicatari}
             related={relatedCompanies}
             totals={relatedTotals}
             group={companyGroup}
           />
-        </section>
+        </TrackedLinks>
       ) : null}
 
-      <section id="contractes" className="scroll-mt-32 pt-10">
+      <TrackedLinks as="section" from="empresa/contractes" id="contractes" className="scroll-mt-32 pt-10">
         <CompanyContractsExplorer
           nif={nif}
           awardeeName={company.denominacio_adjudicatari}
           initialContracts={contracts}
           totalContracts={contractsCount}
         />
-      </section>
+      </TrackedLinks>
     </div>
   );
 }

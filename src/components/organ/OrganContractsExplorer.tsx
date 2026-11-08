@@ -6,6 +6,7 @@ import ContractsTable from "@/components/tables/ContractsTable";
 import Pagination from "@/components/ui/Pagination";
 import { DEFAULT_PAGE_SIZE } from "@/config/constants";
 import { formatNumber } from "@/lib/utils";
+import { trackEvent } from "@/lib/analytics";
 
 const EMPTY_CONTRACTS: Contract[] = [];
 
@@ -73,6 +74,7 @@ export default function OrganContractsExplorer({
   const handlePageChange = useCallback(
     (p: number) => {
       setPage(p);
+      trackEvent("paginate", { page: "organisme", to: p });
       fetchData(p, sort, companyFilter);
     },
     [fetchData, sort, companyFilter]
@@ -81,6 +83,7 @@ export default function OrganContractsExplorer({
   const handleSortChange = useCallback(
     (newSort: SortKey) => {
       setSort(newSort);
+      trackEvent("sort_change", { page: "organisme", sort: newSort });
       setPage(1);
       fetchData(1, newSort, companyFilter);
     },
@@ -92,7 +95,10 @@ export default function OrganContractsExplorer({
       setCompanyFilter(value);
       setPage(1);
       if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => fetchData(1, sort, value), 400);
+      debounceRef.current = setTimeout(() => {
+        if (value.trim()) trackEvent("filter_change", { page: "organisme", filter: "search" });
+        fetchData(1, sort, value);
+      }, 400);
     },
     [fetchData, sort]
   );

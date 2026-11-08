@@ -34,6 +34,7 @@ import { YearlyTrendChartLazy } from "@/components/charts/LazyCharts";
 import SharePageButton from "@/components/ui/SharePageButton";
 import EntityHeader, { type HeaderChip, type KeyFigure } from "@/components/entity/EntityHeader";
 import SectionTabs from "@/components/entity/SectionTabs";
+import TrackedLinks from "@/components/entity/TrackedLinks";
 import { IndicatorGrid } from "@/components/entity/IndicatorCard";
 import ContextBand from "@/components/entity/ContextBand";
 import OrganContractsExplorer from "@/components/organ/OrganContractsExplorer";
@@ -242,7 +243,7 @@ export default async function OrganDetailPage({ params, searchParams }: Props) {
       />
       <SectionTabs tabs={tabs} />
 
-      <section id="resum" className="scroll-mt-32 pt-8">
+      <TrackedLinks as="section" from="organisme/resum" id="resum" className="scroll-mt-32 pt-8">
         <div className="mb-3 flex items-baseline justify-between gap-3">
           <h2 className="font-display text-xl font-semibold text-gray-900">Com contracta</h2>
           <Link href="/metodologia" className="text-sm text-accent hover:underline">
@@ -278,20 +279,20 @@ export default async function OrganDetailPage({ params, searchParams }: Props) {
             <OrganRecentContracts contracts={recentContracts} />
           </div>
         </div>
-      </section>
+      </TrackedLinks>
 
       {hasTopCompanies ? (
-        <section id="empreses" className="scroll-mt-32 pt-10">
+        <TrackedLinks as="section" from="organisme/empreses" id="empreses" className="scroll-mt-32 pt-10">
           <div className="mb-3 flex items-baseline justify-between gap-3">
             <h2 className="font-display text-xl font-semibold text-gray-900">Empreses adjudicatàries principals</h2>
             <span className="text-sm text-gray-500">tots els anys</span>
           </div>
           <OrganTopCompaniesTable rows={topCompanies} organTotalAmount={totalAmount} />
-        </section>
+        </TrackedLinks>
       ) : null}
 
       {hasElectes ? (
-        <section id="carrecs" className="scroll-mt-32 pt-10">
+        <TrackedLinks as="section" from="organisme/carrecs" id="carrecs" className="scroll-mt-32 pt-10">
           <h2 className="mb-3 font-display text-xl font-semibold text-gray-900">Càrrecs electes actuals</h2>
           <div className="xl:max-w-3xl">
             <OrganElectesCard
@@ -302,12 +303,12 @@ export default async function OrganDetailPage({ params, searchParams }: Props) {
               buildPageHref={buildElectesPageHref}
             />
           </div>
-        </section>
+        </TrackedLinks>
       ) : null}
 
-      <section id="contractes" className="scroll-mt-32 pt-10">
+      <TrackedLinks as="section" from="organisme/contractes" id="contractes" className="scroll-mt-32 pt-10">
         <OrganContractsExplorer organName={organName} />
-      </section>
+      </TrackedLinks>
     </div>
   );
 }

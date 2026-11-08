@@ -6,6 +6,7 @@ import ContractsTable from "@/components/tables/ContractsTable";
 import Pagination from "@/components/ui/Pagination";
 import { DEFAULT_PAGE_SIZE } from "@/config/constants";
 import { formatNumber } from "@/lib/utils";
+import { trackEvent } from "@/lib/analytics";
 
 interface Props {
   nif: string;
@@ -70,6 +71,7 @@ export default function CompanyContractsExplorer({
   const handlePageChange = useCallback(
     (p: number) => {
       setPage(p);
+      trackEvent("paginate", { page: "empresa", to: p });
       fetchData(p, sort, organFilter);
     },
     [fetchData, sort, organFilter]
@@ -78,6 +80,7 @@ export default function CompanyContractsExplorer({
   const handleSortChange = useCallback(
     (newSort: SortKey) => {
       setSort(newSort);
+      trackEvent("sort_change", { page: "empresa", sort: newSort });
       setPage(1);
       hasFetched.current = true;
       fetchData(1, newSort, organFilter);
@@ -91,7 +94,10 @@ export default function CompanyContractsExplorer({
       setPage(1);
       hasFetched.current = true;
       if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => fetchData(1, sort, value), 400);
+      debounceRef.current = setTimeout(() => {
+        if (value.trim()) trackEvent("filter_change", { page: "empresa", filter: "nom_organ" });
+        fetchData(1, sort, value);
+      }, 400);
     },
     [fetchData, sort]
   );
