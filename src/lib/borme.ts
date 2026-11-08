@@ -1213,3 +1213,71 @@ export function getPersonAwardeeTargets(profile: BormePersonProfile): BormePerso
     companyNames: Array.from(names),
   };
 }
+
+// ---------------------------------------------------------------------------
+// Coverage figures for the home page
+// ---------------------------------------------------------------------------
+
+export interface BormeCoverage {
+  /** BORME companies matched to a NIF that has public contracts. */
+  companies: number;
+  /** Business groups whose companies have won public contracts. */
+  groups: number;
+}
+
+/** Both counts go through an index (companies.nif, company_groups.total_amount). */
+export function loadBormeCoverage(): Promise<BormeCoverage | null> {
+  return runGroupQuery("BORME coverage", null, async (client) => {
+    const [companies, groups] = await Promise.all([
+      client.execute("SELECT COUNT(nif) AS n FROM companies WHERE nif IS NOT NULL"),
+      client.execute("SELECT COUNT(*) AS n FROM company_groups WHERE total_amount > 0"),
+    ]);
+    return {
+      companies: Number(companies.rows[0]?.n ?? 0),
+      groups: Number(groups.rows[0]?.n ?? 0),
+    };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Group search: the groups whose companies won contracts, with member names
+// ---------------------------------------------------------------------------
+
+export interface GroupSearchEntry {
+  groupId: number;
+  rootName: string;
+  size: number;
+  totalAmount: number;
+  /** BORME names of the member companies, and their NIFs where matched. */
+  members: { name: string; nif: string | null }[];
+}
+
+/** One query over the ~800 contracting groups and their members; callers cache it. */
+export function loadContractingGroups(): Promise<GroupSearchEntry[]> {
+  return runGroupQuery("contracting groups", [], async (client) => {
+    const result = await client.execute(
+      `SELECT g.group_id, g.root_name, g.size, g.total_amount, c.company_name, c.nif
+         FROM company_groups g
+         JOIN company_group_members m ON m.group_id = g.group_id
+         JOIN companies c ON c.id = m.company_id
+        WHERE g.total_amount > 0`
+    );
+    const groups = new Map<number, GroupSearchEntry>();
+    for (const row of result.rows as Record<string, unknown>[]) {
+      const groupId = Number(row.group_id);
+      let group = groups.get(groupId);
+      if (!group) {
+        group = {
+          groupId,
+          rootName: String(row.root_name ?? ""),
+          size: Number(row.size ?? 0),
+          totalAmount: Number(row.total_amount ?? 0),
+          members: [],
+        };
+        groups.set(groupId, group);
+      }
+      group.members.push({ name: String(row.company_name ?? ""), nif: row.nif ? String(row.nif) : null });
+    }
+    return [...groups.values()];
+  });
+}

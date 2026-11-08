@@ -9,7 +9,7 @@ export default function Error({
 }) {
   return (
     <div className="max-w-7xl mx-auto px-4 py-16 text-center">
-      <h2 className="text-2xl font-bold text-gray-900 mb-4">
+      <h2 className="font-display text-xl font-semibold text-gray-900 mb-4">
         S&apos;ha produït un error
       </h2>
       <p className="text-gray-600 mb-6">

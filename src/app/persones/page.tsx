@@ -3,6 +3,7 @@ import SharePageButton from "@/components/ui/SharePageButton";
 import PersonSearchExplorer from "@/components/person/PersonSearchExplorer";
 import PersonesTopVinculacioTable from "@/components/person/PersonesTopVinculacioTable";
 import { loadTopVinculacions } from "@/lib/persones-top";
+import PageHeader from "@/components/layout/PageHeader";
 
 export const metadata: Metadata = {
   title: { absolute: "Qui controla les empreses que guanyen contractes públics a Catalunya" },
@@ -24,18 +25,19 @@ export default async function PersonesPage({ searchParams }: Props) {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <div className="mb-2 flex items-start justify-between gap-3">
-        <h1 className="text-3xl font-bold text-gray-900">Qui controla les empreses que guanyen contractes públics</h1>
-        <SharePageButton className="shrink-0" />
-      </div>
-      <p className="mb-2 max-w-4xl text-gray-600">
+      <PageHeader
+        title="Qui controla les empreses que guanyen contractes públics"
+        eyebrow="Persones · BORME"
+        actions={<SharePageButton className="shrink-0" />}
+        className="mb-6"
+      >
+      <p>
         Creuem el Registre Mercantil (BORME) amb els contractes públics de Catalunya: per a cada persona sabem de quines
         empreses és o ha estat propietària (soci únic) o administradora, i quants contractes van guanyar aquestes empreses
         mentre en tenia el càrrec.
       </p>
-      <p className="mb-6 max-w-4xl text-gray-600">
-        Cerca per nom per veure les empreses que controla una persona, o consulta el rànquing de més avall.
-      </p>
+      <p>Cerca per nom per veure les empreses que controla una persona, o consulta el rànquing de més avall.</p>
+      </PageHeader>
 
       <PersonSearchExplorer initialQuery={rawSearch} initialPage={page} />
       <PersonesTopVinculacioTable rows={topRows} />

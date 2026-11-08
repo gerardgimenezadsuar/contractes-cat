@@ -188,7 +188,7 @@ export default function PersonesTopVinculacioTable({ rows }: Props) {
                   <td className="border-b border-gray-100 px-2 py-3">
                     <Link
                       href={`/persones/${encodeURIComponent(row.personName)}`}
-                      className="text-sm font-medium text-gray-900 transition-colors hover:text-indigo-700 hover:underline"
+                      className="text-sm font-medium text-gray-900 transition-colors hover:text-accent hover:underline"
                     >
                       {row.personName}
                     </Link>

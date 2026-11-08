@@ -66,7 +66,7 @@ function AwardeeNames({
         const node = id ? (
           <Link
             href={buildCompanyHref(id, name)}
-            className={`hover:underline hover:text-indigo-700 ${className || ""}`}
+            className={`hover:underline hover:text-accent ${className || ""}`}
             title={`Veure fitxa de ${name}`}
           >
             {name}
@@ -90,7 +90,7 @@ function OrganLink({ name, className }: { name?: string; className?: string }) {
   return (
     <Link
       href={`/organismes/${encodeURIComponent(name)}`}
-      className={`hover:underline hover:text-indigo-700 ${className || ""}`}
+      className={`hover:underline hover:text-accent ${className || ""}`}
       title={`Veure fitxa de ${name}`}
     >
       {name}
@@ -292,7 +292,7 @@ export default function ContractsTable({
                         onClick={() =>
                           setExpandedAwardees((prev) => new Set(prev).add(rowKey))
                         }
-                        className="ml-2 inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-[11px] font-medium text-blue-700 hover:bg-blue-100 transition-colors cursor-pointer align-middle"
+                        className="ml-2 inline-flex items-center rounded-md bg-accent-soft px-2 py-1 text-[11px] font-medium text-accent hover:bg-accent/15 transition-colors cursor-pointer align-middle"
                         title={`UTE amb ${awardees.length} empreses — clic per expandir`}
                       >
                         UTE · +{awardees.length - 1}
@@ -307,7 +307,7 @@ export default function ContractsTable({
                             return next;
                           })
                         }
-                        className="ml-2 inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-[11px] font-medium text-blue-700 hover:bg-blue-100 transition-colors cursor-pointer align-middle"
+                        className="ml-2 inline-flex items-center rounded-md bg-accent-soft px-2 py-1 text-[11px] font-medium text-accent hover:bg-accent/15 transition-colors cursor-pointer align-middle"
                       >
                         Redueix
                       </button>
@@ -403,7 +403,7 @@ export default function ContractsTable({
                     onClick={() =>
                       setExpandedAwardees((prev) => new Set(prev).add(rowKey))
                     }
-                    className="ml-2 inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-[11px] font-medium text-blue-700 hover:bg-blue-100 transition-colors cursor-pointer align-middle"
+                    className="ml-2 inline-flex items-center rounded-md bg-accent-soft px-2 py-1 text-[11px] font-medium text-accent hover:bg-accent/15 transition-colors cursor-pointer align-middle"
                   >
                     UTE · +{awardees.length - 1}
                   </button>
@@ -417,7 +417,7 @@ export default function ContractsTable({
                         return next;
                       })
                     }
-                    className="ml-2 inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-[11px] font-medium text-blue-700 hover:bg-blue-100 transition-colors cursor-pointer align-middle"
+                    className="ml-2 inline-flex items-center rounded-md bg-accent-soft px-2 py-1 text-[11px] font-medium text-accent hover:bg-accent/15 transition-colors cursor-pointer align-middle"
                   >
                     Redueix
                   </button>

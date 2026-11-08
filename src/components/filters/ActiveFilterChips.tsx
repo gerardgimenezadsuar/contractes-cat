@@ -43,7 +43,7 @@ export default function ActiveFilterChips({ filters, onRemove, onClear }: Props)
           key={key}
           type="button"
           onClick={() => onRemove(key)}
-          className="inline-flex min-h-8 max-w-full items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 pl-3 pr-2 text-xs text-indigo-800 hover:bg-indigo-100"
+          className="inline-flex min-h-8 max-w-full items-center gap-1 rounded-full border border-accent/25 bg-accent-soft pl-3 pr-2 text-xs text-accent hover:bg-accent/15"
           aria-label={`Treu el filtre ${LABELS[key]}: ${formatValue(key, filters[key])}`}
         >
           <span className="truncate" aria-hidden="true">

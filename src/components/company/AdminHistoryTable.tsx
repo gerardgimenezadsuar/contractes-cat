@@ -34,7 +34,7 @@ export default function AdminHistoryTable({ spans, matchedName, embedded = false
     <section id="borme-detall" className={embedded ? "" : "mb-12"}>
       {!embedded && (
         <>
-          <h2 className="text-2xl font-bold text-gray-900 mb-1">
+          <h2 className="font-display text-xl font-semibold text-gray-900 mb-1">
             Administradors i propietat (BORME)
           </h2>
           <p className="text-sm text-gray-500 mb-4">
@@ -46,7 +46,7 @@ export default function AdminHistoryTable({ spans, matchedName, embedded = false
         </>
       )}
 
-      <div className="bg-white rounded-lg border border-gray-100 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-[560px] w-full table-auto text-sm">
             <thead>
@@ -133,7 +133,7 @@ function AdminRow({ span, isActive }: { span: BormeAdminSpan; isActive: boolean 
             href={span.source_pdf}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-blue-600 hover:underline text-xs"
+            className="text-accent hover:underline text-xs"
           >
             BORME
           </a>

@@ -1,19 +1,19 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { SITE_NAME } from "@/config/constants";
+import Logo from "@/components/brand/Logo";
 
 const NAV_ITEMS = [
   { href: "/", label: "Inici" },
   { href: "/empreses", label: "Empreses" },
   { href: "/persones", label: "Persones" },
   { href: "/organismes", label: "Organismes" },
+  { href: "/grups", label: "Grups" },
   { href: "/contractes", label: "Contractes" },
   { href: "/analisi", label: "Anàlisi" },
-  { href: "/about", label: "Sobre" },
 ];
 
 
@@ -25,17 +25,8 @@ export default function Header() {
     <header className="bg-white shadow-sm sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center justify-between h-16">
-          <Link href="/" prefetch className="flex items-center shrink-0">
-            <span className="block h-9 overflow-hidden md:h-10">
-              <Image
-                src="/logo-landing.png"
-                alt={SITE_NAME}
-                width={320}
-                height={180}
-                priority
-                className="h-14 w-auto max-w-[200px] -translate-y-2.5 md:h-18 md:max-w-[240px] md:-translate-y-3.5"
-              />
-            </span>
+          <Link href="/" prefetch className="flex items-center shrink-0" aria-label={`${SITE_NAME}, inici`}>
+            <Logo />
           </Link>
 
           {/* Desktop nav */}
@@ -51,13 +42,13 @@ export default function Header() {
                   prefetch
                   className={`relative px-4 py-2 text-sm transition-colors ${
                     isActive
-                      ? "text-indigo-600 font-semibold"
+                      ? "text-accent font-semibold"
                       : "text-gray-500 font-medium hover:text-gray-900"
                   }`}
                 >
                   {item.label}
                   <span
-                    className={`absolute bottom-0 left-1/2 -translate-x-1/2 h-[3px] rounded-full bg-indigo-500 transition-all duration-200 ${
+                    className={`absolute bottom-0 left-1/2 -translate-x-1/2 h-[3px] rounded-full bg-accent transition-all duration-200 ${
                       isActive ? "w-5/6" : "w-0 group-hover:w-1/2"
                     }`}
                   />
@@ -98,7 +89,7 @@ export default function Header() {
                   onClick={() => setMobileOpen(false)}
                   className={`block min-h-11 px-3 py-2.5 rounded-md text-sm ${
                     isActive
-                      ? "text-indigo-600 font-semibold bg-indigo-50 border-l-[3px] border-indigo-500"
+                      ? "text-accent font-semibold bg-accent-soft border-l-[3px] border-accent"
                       : "text-gray-500 font-medium hover:text-gray-900 hover:bg-gray-50"
                   }`}
                 >

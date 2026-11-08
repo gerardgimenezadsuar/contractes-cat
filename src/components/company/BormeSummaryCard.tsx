@@ -177,9 +177,8 @@ export default function BormeSummaryCard({ spans, matchedName, compact = false }
   if (blocks.length === 0) return null;
 
   return (
-    <div className={`bg-white rounded-lg border border-gray-100 shadow-sm ${compact ? "p-4" : "p-6"}`}>
-      <h2 className="text-2xl font-bold text-gray-900">Governança i propietat</h2>
-      <p className="text-sm text-gray-500 mt-1">
+    <div className={`bg-white rounded-lg border border-gray-200 ${compact ? "p-4" : "p-6"}`}>
+      <p className="text-sm text-gray-500">
         Nom al registre: <span className="font-medium text-gray-700">{matchedName}</span>
       </p>
       <p className="mt-1 text-xs text-gray-500">

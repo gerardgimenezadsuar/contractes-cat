@@ -1,18 +1,15 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import KeyFigures, { type KeyFigure } from "@/components/entity/KeyFigures";
+
+export type { KeyFigure };
 
 export interface HeaderChip {
   label: string;
   value: string;
   mono?: boolean;
-}
-
-export interface KeyFigure {
-  label: string;
-  value: string;
-  /** Smaller text after the value, e.g. a unit. */
-  unit?: string;
-  note?: string;
+  /** Makes the chip a link, e.g. to the company's group. */
+  href?: string;
 }
 
 interface Props {
@@ -25,9 +22,11 @@ interface Props {
   actions?: ReactNode;
 }
 
+const chipClass = "inline-flex max-w-full items-center gap-1.5 rounded-full border bg-white px-2.5 py-1 text-xs text-gray-500";
+
 /**
- * Header strip shared by organ and company pages: breadcrumb, eyebrow line,
- * title, identifier chips and the four figures a visitor wants first.
+ * Header strip shared by organ, company and person pages: breadcrumb, eyebrow
+ * line, title, identifier chips and the four figures a visitor wants first.
  */
 export default function EntityHeader({ backHref, backLabel, eyebrow, title, chips = [], figures, actions }: Props) {
   return (
@@ -46,34 +45,34 @@ export default function EntityHeader({ backHref, backLabel, eyebrow, title, chip
       </div>
       {chips.length > 0 ? (
         <ul className="flex flex-wrap gap-2">
-          {chips.map((chip) => (
-            <li
-              key={`${chip.label}-${chip.value}`}
-              className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs text-gray-500"
-            >
-              {chip.label}
-              <span className={`font-medium text-gray-900 ${chip.mono ? "font-mono" : ""}`}>{chip.value}</span>
-            </li>
-          ))}
+          {chips.map((chip) => {
+            const value = (
+              <span title={chip.value} className={`min-w-0 truncate font-medium ${chip.href ? "text-accent" : "text-gray-900"} ${chip.mono ? "font-mono" : ""}`}>
+                {chip.value}
+              </span>
+            );
+            return (
+              <li key={`${chip.label}-${chip.value}`} className="max-w-full">
+                {chip.href ? (
+                  <Link href={chip.href} className={`${chipClass} border-accent/30 hover:border-accent`}>
+                    {chip.label}
+                    {value}
+                    <span aria-hidden className="text-accent">
+                      &rarr;
+                    </span>
+                  </Link>
+                ) : (
+                  <span className={`${chipClass} border-gray-200`}>
+                    {chip.label}
+                    {value}
+                  </span>
+                )}
+              </li>
+            );
+          })}
         </ul>
       ) : null}
-      <dl className="grid grid-cols-2 overflow-hidden rounded-lg border border-gray-200 bg-white md:grid-cols-4">
-        {figures.map((figure, index) => (
-          <div
-            key={figure.label}
-            className={`min-w-0 px-4 py-3 ${index % 2 === 1 ? "border-l border-gray-200" : ""} ${
-              index >= 2 ? "border-t border-gray-200 md:border-t-0 md:border-l" : ""
-            }`}
-          >
-            <dt className="text-xs font-medium uppercase tracking-wider text-gray-500">{figure.label}</dt>
-            <dd className="mt-0.5 font-display text-2xl font-semibold leading-tight text-gray-900 tabular-nums">
-              {figure.value}
-              {figure.unit ? <span className="ml-1 font-sans text-sm font-normal text-gray-500">{figure.unit}</span> : null}
-            </dd>
-            {figure.note ? <dd className="mt-0.5 text-xs text-gray-500">{figure.note}</dd> : null}
-          </div>
-        ))}
-      </dl>
+      {figures.length > 0 ? <KeyFigures figures={figures} /> : null}
     </header>
   );
 }

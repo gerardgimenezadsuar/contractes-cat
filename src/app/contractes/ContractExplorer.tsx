@@ -237,7 +237,7 @@ export default function ContractExplorer({
               Filtres
             </span>
             {activeFilterCount > 0 && (
-              <span className="rounded-full bg-indigo-600 px-2 py-0.5 text-xs font-semibold text-white">
+              <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-white">
                 {activeFilterCount}
               </span>
             )}
@@ -314,7 +314,7 @@ export default function ContractExplorer({
         </p>
 
         <div
-          className={`bg-white rounded-lg border border-gray-100 shadow-sm ${
+          className={`bg-white rounded-lg border border-gray-200 ${
             loading ? "opacity-50" : ""
           }`}
         >

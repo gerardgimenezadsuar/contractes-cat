@@ -1,7 +1,9 @@
 import { ImageResponse } from "next/og";
+import { formatCompactEuros } from "@/lib/indicators";
+import { LogoMark } from "@/components/brand/Logo";
 import { loadPersonProfile, getPersonControlTargets } from "@/lib/borme";
 import { fetchContractsByAwardeesSummary } from "@/lib/api";
-import { formatCompactNumber, formatNumber } from "@/lib/utils";
+import { formatNumber } from "@/lib/utils";
 import { formatPersonDisplayName } from "@/lib/person-utils";
 
 export const size = {
@@ -33,7 +35,7 @@ export default async function Image({ params }: Props) {
   const stats = [
     { value: formatNumber(numCompanies), label: "Empreses (propietat o administració)" },
     { value: formatNumber(contractsSummary.total), label: "Contractes durant el càrrec" },
-    { value: formatCompactNumber(contractsSummary.totalAmount), label: "Import total" },
+    { value: formatCompactEuros(Number(contractsSummary.totalAmount) || 0), label: "Import total" },
   ];
 
   return new ImageResponse(
@@ -43,7 +45,7 @@ export default async function Image({ params }: Props) {
           width: "100%",
           height: "100%",
           display: "flex",
-          background: "linear-gradient(135deg, #EEF2FF 0%, #FFFFFF 50%, #F0F9FF 100%)",
+          background: "linear-gradient(135deg, #E2EFEE 0%, #FFFFFF 55%, #EEF5F4 100%)",
           padding: "32px",
           fontFamily:
             "ui-sans-serif, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial",
@@ -68,7 +70,7 @@ export default async function Image({ params }: Props) {
               style={{
                 display: "flex",
                 fontSize: 18,
-                color: "#6366F1",
+                color: "#0F5E63",
                 fontWeight: 600,
                 letterSpacing: "0.05em",
                 textTransform: "uppercase",
@@ -109,7 +111,7 @@ export default async function Image({ params }: Props) {
                   flexDirection: "column",
                   gap: 6,
                   background: "#F9FAFB",
-                  border: "2px solid #E0E7FF",
+                  border: "2px solid #E5E7EB",
                   borderRadius: 16,
                   padding: "24px 32px",
                   flex: 1,
@@ -123,7 +125,7 @@ export default async function Image({ params }: Props) {
                     display: "flex",
                     fontSize: 44,
                     fontWeight: 700,
-                    color: "#4F46E5",
+                    color: "#0F5E63",
                   }}
                 >
                   {stat.value}
@@ -141,14 +143,15 @@ export default async function Image({ params }: Props) {
                   width: 12,
                   height: 12,
                   borderRadius: "50%",
-                  background: "#22C55E",
+                  background: "#0F5E63",
                 }}
               />
               <div style={{ display: "flex", fontSize: 16, color: "#6B7280" }}>
                 Dades obertes · BORME + Contractació pública
               </div>
             </div>
-            <div style={{ display: "flex", fontSize: 30, fontWeight: 700, color: "#111827" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 30, fontWeight: 700, color: "#111827" }}>
+              <LogoMark size={40} />
               contractes.cat
             </div>
           </div>

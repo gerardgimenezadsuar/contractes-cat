@@ -7,6 +7,7 @@ import { formatSpanPeriod, formatSpanRole, isEntityName } from "@/lib/borme-form
 import { buildCompanyHref } from "@/lib/company-identity";
 import { displayCompanyName, formatBormeCompanyName } from "@/lib/company-names";
 import { formatPersonDisplayName } from "@/lib/person-utils";
+import PageHeader from "@/components/layout/PageHeader";
 
 interface Props {
   searchParams: Promise<{ a?: string; b?: string; an?: string; bn?: string }>;
@@ -108,11 +109,12 @@ export default async function ConnectionsPage({ searchParams }: Props) {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
-      <h1 className="font-display text-3xl font-semibold text-gray-900">Com estan connectades?</h1>
-      <p className="mt-2 text-gray-600">
-        Tria dues empreses i et mostrem la cadena més curta de socis únics i administradors que les uneix segons el
-        BORME, amb l&apos;enllaç a cada publicació. Fins a {4} salts.
-      </p>
+      <PageHeader title="Com estan connectades?" eyebrow="Connexions · BORME" className="mb-0">
+        <p>
+          Tria dues empreses i et mostrem la cadena més curta de socis únics i administradors que les uneix segons el
+          BORME, amb l&apos;enllaç a cada publicació. Fins a {4} salts.
+        </p>
+      </PageHeader>
 
       <div className="mt-6">
         <ConnectionForm

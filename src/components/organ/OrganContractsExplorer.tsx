@@ -106,10 +106,10 @@ export default function OrganContractsExplorer({
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-bold text-gray-900">Contractes ({formatNumber(total)})</h2>
+        <h2 className="font-display text-xl font-semibold text-gray-900">Contractes ({formatNumber(total)})</h2>
       </div>
       <div
-        className={`bg-white rounded-lg border border-gray-100 shadow-sm ${
+        className={`bg-white rounded-lg border border-gray-200 ${
           loading ? "opacity-50" : ""
         }`}
       >

@@ -4,6 +4,7 @@ import { listTopCompanyGroups } from "@/lib/borme";
 import { displayCompanyName } from "@/lib/company-names";
 import { formatCompactEuros } from "@/lib/indicators";
 import { formatNumber } from "@/lib/utils";
+import PageHeader from "@/components/layout/PageHeader";
 
 export const revalidate = 21600;
 
@@ -32,11 +33,12 @@ export default async function GroupsPage({ searchParams }: Props) {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
-      <h1 className="font-display text-3xl font-semibold text-gray-900">Grups empresarials</h1>
-      <p className="mt-2 max-w-3xl text-gray-600">
-        Empreses agrupades per propietat segons el BORME (una empresa és la sòcia única d&apos;una altra), ordenades
-        pel total de contractes públics que han guanyat les empreses del grup.
-      </p>
+      <PageHeader title="Grups empresarials" eyebrow="Grups · BORME" className="mb-0">
+        <p>
+          Empreses agrupades per propietat segons el BORME (una empresa és la sòcia única d&apos;una altra), ordenades
+          pel total de contractes públics que han guanyat les empreses del grup.
+        </p>
+      </PageHeader>
 
       <div className="mt-6 overflow-x-auto rounded-lg border border-gray-200 bg-white">
         <table className="w-full text-sm">
@@ -66,7 +68,7 @@ export default async function GroupsPage({ searchParams }: Props) {
                   <span className="text-xs text-gray-500"> ({formatNumber(g.numContractors)} amb contractes)</span>
                 </td>
                 <td className="hidden px-4 py-3 text-right md:table-cell">{formatNumber(g.numContracts)}</td>
-                <td className="px-4 py-3 text-right font-medium">{formatCompactEuros(g.totalAmount)}</td>
+                <td className="whitespace-nowrap px-4 py-3 text-right font-medium tabular-nums">{formatCompactEuros(g.totalAmount)}</td>
               </tr>
             ))}
             {groups.length === 0 ? (

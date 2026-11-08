@@ -41,7 +41,7 @@ export default function MinorShareTrendChart({ data }: Props) {
           type="monotone"
           dataKey="minor_contracts_share"
           name="% contractes menors"
-          stroke="#e11d48"
+          stroke="#9a2f2f"
           strokeWidth={2}
           dot={{ r: 3 }}
           activeDot={{ r: 5 }}

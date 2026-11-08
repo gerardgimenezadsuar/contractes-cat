@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SITE_NAME, GITHUB_URL, SOCRATA_DATASET_URL, CREATOR_NAME, CREATOR_URL } from "@/config/constants";
 import SharePageButton from "@/components/ui/SharePageButton";
+import PageHeader from "@/components/layout/PageHeader";
 
 export const metadata: Metadata = {
   title: "Sobre el projecte",
@@ -12,16 +13,11 @@ export const metadata: Metadata = {
 export default function AboutPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
-      <div className="mb-8 flex items-start justify-between gap-3">
-        <h1 className="text-3xl font-bold text-gray-900">
-          Sobre {SITE_NAME}
-        </h1>
-        <SharePageButton className="shrink-0" />
-      </div>
+      <PageHeader title={`Sobre ${SITE_NAME}`} eyebrow="El projecte" actions={<SharePageButton className="shrink-0" />} />
 
       {/* Disclaimer */}
       <section className="bg-amber-50 border border-amber-200 rounded-lg p-6 mb-8">
-        <h2 className="text-xl font-bold text-amber-900 mb-2">
+        <h2 className="font-display text-xl font-semibold text-amber-900 mb-2">
           Avís important
         </h2>
         <p className="text-amber-800">
@@ -35,7 +31,7 @@ export default function AboutPage() {
 
       {/* About */}
       <section className="mb-8">
-        <h2 className="text-xl font-bold text-gray-900 mb-3">
+        <h2 className="font-display text-xl font-semibold text-gray-900 mb-3">
           Què és {SITE_NAME}?
         </h2>
         <p className="text-gray-600 mb-4">
@@ -54,7 +50,7 @@ export default function AboutPage() {
 
       {/* Data source */}
       <section className="mb-8">
-        <h2 className="text-xl font-bold text-gray-900 mb-3">
+        <h2 className="font-display text-xl font-semibold text-gray-900 mb-3">
           Font de dades
         </h2>
         <p className="text-gray-600 mb-4">
@@ -63,7 +59,7 @@ export default function AboutPage() {
             href={SOCRATA_DATASET_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-blue-600 hover:underline"
+            className="text-accent hover:underline"
           >
             &quot;Contractació pública a Catalunya: publicacions a la Plataforma de
             serveis de contractació pública&quot;
@@ -95,7 +91,7 @@ export default function AboutPage() {
 
       {/* Methodology */}
       <section className="mb-8">
-        <h2 className="text-xl font-bold text-gray-900 mb-3">
+        <h2 className="font-display text-xl font-semibold text-gray-900 mb-3">
           Metodologia
         </h2>
         <p className="text-gray-600 mb-4">
@@ -114,7 +110,7 @@ export default function AboutPage() {
 
       {/* Privacy and legal */}
       <section className="mb-8">
-        <h2 className="text-xl font-bold text-gray-900 mb-3">
+        <h2 className="font-display text-xl font-semibold text-gray-900 mb-3">
           Privacitat i avís legal
         </h2>
         <p className="text-gray-600 mb-4">
@@ -124,7 +120,7 @@ export default function AboutPage() {
         </p>
         <p className="text-gray-600">
           Pots consultar el detall complet a{" "}
-          <Link href="/legal" className="text-blue-600 hover:underline">
+          <Link href="/legal" className="text-accent hover:underline">
             l&apos;avís legal i política de privacitat
           </Link>
           .
@@ -133,7 +129,7 @@ export default function AboutPage() {
 
       {/* Creator */}
       <section className="mb-8">
-        <h2 className="text-xl font-bold text-gray-900 mb-3">
+        <h2 className="font-display text-xl font-semibold text-gray-900 mb-3">
           Qui som
         </h2>
         <p className="text-gray-600 mb-4">
@@ -142,7 +138,7 @@ export default function AboutPage() {
             href={CREATOR_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-blue-600 hover:underline font-medium"
+            className="text-accent hover:underline font-medium"
           >
             {CREATOR_NAME}
           </a>
@@ -155,7 +151,7 @@ export default function AboutPage() {
 
       {/* Open source */}
       <section className="mb-8">
-        <h2 className="text-xl font-bold text-gray-900 mb-3">
+        <h2 className="font-display text-xl font-semibold text-gray-900 mb-3">
           Codi obert
         </h2>
         <p className="text-gray-600 mb-4">
@@ -178,7 +174,7 @@ export default function AboutPage() {
 
       {/* Contact */}
       <section>
-        <h2 className="text-xl font-bold text-gray-900 mb-3">
+        <h2 className="font-display text-xl font-semibold text-gray-900 mb-3">
           Contacte
         </h2>
         <p className="text-gray-600">
@@ -188,7 +184,7 @@ export default function AboutPage() {
             href={`${GITHUB_URL}/issues`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-blue-600 hover:underline"
+            className="text-accent hover:underline"
           >
             issue a GitHub
           </a>

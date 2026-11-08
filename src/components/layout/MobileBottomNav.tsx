@@ -67,7 +67,7 @@ export default function MobileBottomNav() {
                 aria-current={isActive ? "page" : undefined}
                 onClick={() => trackEvent("nav_tap", { tab: tab.label, from: pathname })}
                 className={`flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition-colors ${
-                  isActive ? "text-indigo-600" : "text-gray-500 active:text-gray-900"
+                  isActive ? "text-accent" : "text-gray-500 active:text-gray-900"
                 }`}
               >
                 <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
