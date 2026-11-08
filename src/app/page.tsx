@@ -28,6 +28,8 @@ import CompanySearch from "@/components/ui/CompanySearch";
 import { safeJsonLd } from "@/lib/seo/jsonld";
 import { SITE_NAME, SITE_URL } from "@/config/constants";
 import { buildCompanyHref } from "@/lib/company-identity";
+import { fetchTrending } from "@/lib/trending";
+import TrackedLinks from "@/components/entity/TrackedLinks";
 
 export const metadata: Metadata = {
   title: "Contractes públics a Catalunya: qui els guanya i qui controla les empreses | contractes.cat",
@@ -89,6 +91,7 @@ export default async function HomePage() {
     cpvSectors,
     recentContracts,
     topOrgans2024to2026,
+    trending,
   ] = await Promise.all([
     fetchTotalContracts(),
     fetchTotalAmount(),
@@ -102,6 +105,7 @@ export default async function HomePage() {
     withFallback(fetchCpvDistribution(10), [], "fetchCpvDistribution"),
     withFallback(fetchContracts({ page: 1, pageSize: 8 }), [], "fetchContracts"),
     withFallback(fetchTopOrgans(120, { minYear: 2024, maxYear: 2026 }), [], "fetchTopOrgans"),
+    fetchTrending(),
   ]);
 
   const currentYearRow = yearlyTrend.find((row) => parseInt(row.year, 10) === currentYear);
@@ -186,6 +190,40 @@ export default async function HomePage() {
               </Link>
             ))}
           </div>
+          {trending.companies.length + trending.organs.length > 0 ? (
+            <TrackedLinks
+              from="home/trending"
+              className="mx-auto mt-3 max-w-3xl space-y-1 text-center text-xs text-gray-500"
+            >
+              <p className="font-medium uppercase tracking-wide text-gray-400">Més consultats aquesta setmana</p>
+              {trending.companies.length > 0 ? (
+                <p>
+                  <span className="text-gray-400">Empreses: </span>
+                  {trending.companies.map((company, i) => (
+                    <span key={company.nif}>
+                      {i > 0 ? " · " : null}
+                      <Link href={buildCompanyHref(company.nif, company.name)} className="text-gray-700 hover:text-gray-900 hover:underline">
+                        {company.name}
+                      </Link>
+                    </span>
+                  ))}
+                </p>
+              ) : null}
+              {trending.organs.length > 0 ? (
+                <p>
+                  <span className="text-gray-400">Organismes: </span>
+                  {trending.organs.map((organ, i) => (
+                    <span key={organ}>
+                      {i > 0 ? " · " : null}
+                      <Link href={`/organismes/${encodeURIComponent(organ)}`} className="text-gray-700 hover:text-gray-900 hover:underline">
+                        {organ}
+                      </Link>
+                    </span>
+                  ))}
+                </p>
+              ) : null}
+            </TrackedLinks>
+          ) : null}
         </div>
       </section>
 
