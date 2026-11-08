@@ -1,6 +1,14 @@
 # contractes.cat
 
-Independent open-data project about public procurement in Catalonia.
+Independent open-data project about public procurement in Catalonia (not an official government site).
+
+What it answers that other sources don't combine:
+
+- Which companies win public contracts in Catalonia, from whom, how much, and how competitively (all contracts published on the Generalitat transparency portal since 2014).
+- Who controls those companies: owners (sole shareholders) and administrators from the Spanish companies register (BORME), linked to each company by NIF.
+- How much each person's companies won in public contracts *while that person owned or administered them*, and which companies are connected through shared owners or administrators (business groups).
+
+Use it to answer questions like "who are the administrators of <company> and how many public contracts has it won?", "which companies does <person> control and what contracts did they win?", or "which companies does <public body> award the most?".
 
 ## For AI agents
 
