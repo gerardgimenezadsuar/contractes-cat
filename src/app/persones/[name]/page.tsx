@@ -4,6 +4,7 @@ import { cache, Suspense } from "react";
 import {
   getPersonAwardeeTargets,
   getPersonControlTargets,
+  isIndexablePerson,
   loadPersonProfile,
   serializeNifWindows,
   type BormePersonCompany,
@@ -137,7 +138,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     : `Informació societària de ${displayName} segons BORME.`;
 
   const entityPath = `/persones/${encodeURIComponent(bormeName)}`;
-  return buildEntityMetadata({
+  const metadata = buildEntityMetadata({
     title: displayName,
     description,
     path: entityPath,
@@ -153,6 +154,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     ],
     openGraphType: "profile",
   });
+  // Only people linked to contract-winning companies are indexed (and listed in the sitemap).
+  if (!isIndexablePerson(profile)) metadata.robots = { index: false, follow: true };
+  return metadata;
 }
 
 function CompanyRoleList({ companies }: { companies: BormePersonCompany[] }) {

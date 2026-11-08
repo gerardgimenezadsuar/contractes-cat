@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { SITE_URL } from "@/config/constants";
-import { listPersonNamesPage } from "@/lib/borme";
+import { listIndexablePersonNamesPage } from "@/lib/borme";
 import { fetchCompanyIdsPage, fetchOrganNamesPage } from "@/lib/api";
 import { listSitemapIds, resolveSitemapChunk, URLS_PER_SITEMAP } from "@/lib/sitemap-layout";
 
@@ -48,7 +48,7 @@ export default async function sitemap({
 
   const paths =
     chunk.kind === "persons"
-      ? (await listPersonNamesPage(chunk.offset, URLS_PER_SITEMAP)).map(
+      ? (await listIndexablePersonNamesPage(chunk.offset, URLS_PER_SITEMAP)).map(
           (name) => `/persones/${encodeURIComponent(name)}`
         )
       : chunk.kind === "companies"

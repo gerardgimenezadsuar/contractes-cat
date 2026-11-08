@@ -1,4 +1,4 @@
-import { countAllPersonNames } from "@/lib/borme";
+import { countIndexablePersons } from "@/lib/borme";
 import { fetchCompanyIdsCount, fetchOrgansCount } from "@/lib/api";
 
 // Search engines cap each sitemap file at 50,000 URLs. Smaller chunks keep each
@@ -48,7 +48,7 @@ async function safeCount(label: string, fn: () => Promise<number>): Promise<numb
 /** All sitemap ids to advertise (robots.txt / generateSitemaps). Never throws. */
 export async function listSitemapIds(): Promise<number[]> {
   const [persons, companies, organs] = await Promise.all([
-    safeCount("persons", countAllPersonNames),
+    safeCount("persons", countIndexablePersons),
     safeCount("companies", fetchCompanyIdsCount),
     safeCount("organs", () => fetchOrgansCount()),
   ]);
