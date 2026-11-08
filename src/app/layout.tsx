@@ -31,6 +31,8 @@ export const metadata: Metadata = {
   },
   description: SITE_DESCRIPTION,
   metadataBase: new URL(SITE_URL),
+  // Google Search Console ownership (URL-prefix property https://www.contractes.cat/). Keep it, or the property loses verification.
+  verification: { google: "yMtPiuYoL50YLYCzNKyntpAPvz36g6ugSGf0A535rwc" },
   icons: {
     icon: [{ url: "/favicon.ico" }],
     shortcut: [{ url: "/favicon.ico" }],
