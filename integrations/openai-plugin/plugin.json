@@ -25,7 +25,7 @@
       "interface": {
         "displayName": "contractes.cat",
         "shortDescription": "Catalan public contracts",
-        "longDescription": "Ask about public procurement in Catalonia and who is behind the companies that win it.\n\ncontractes.cat combines every public contract published on the Generalitat de Catalunya transparency portal (over 1.6 million records since 2014) with the owners and administrators of the winning companies from the Spanish companies register (BORME). That makes it possible to answer questions no single official source answers:\n\n- Which public contracts did a company win, from which public bodies, and for how much?\n- Who currently owns and administers a company, and which business group does it belong to?\n- Which companies does a person own or administer, and which contracts did those companies win while that person was in charge? Explicit \"no contracts\" answers included.\n- Which companies receive the most from a town council, hospital, university or Generalitat department?\n\nExample prompts:\n- \"Did any of Joan Laporta's companies win public contracts while he ran them?\"\n- \"Who owns the top contractors of Ajuntament de Girona since 2023?\"\n- \"What were the largest cleaning contracts in Catalonia in 2025, and which groups won them?\"\n\nSeven read-only tools: search_companies, get_company, search_people, get_person, search_contracts, search_public_bodies and get_public_body_top_companies. Every result links to the matching contractes.cat page, so answers can be checked and cited.\n\nBuilt for journalists, researchers, procurement and compliance teams, and citizens. Works in English, Catalan and Spanish (contractació pública, contratación pública, licitaciones, adjudicaciones, BORME, Registro Mercantil, administradores).\n\nLimitations: data covers Catalonia only. Amounts are as published by the awarding bodies and may contain errors; company control comes from BORME, which has no national ID numbers, so very common names can merge several people (results flag this). No account or API key is needed and the server never modifies data. contractes.cat is an independent open-data project, not an official government site.",
+        "longDescription": "Ask about public procurement in Catalonia and who is behind the companies that win it.\n\ncontractes.cat combines every public contract published on the Generalitat de Catalunya transparency portal (over 1.6 million records since 2014) with the owners and administrators of the winning companies from the Spanish companies register (BORME). That makes it possible to answer questions no single official source answers:\n\n- Which public contracts did a company win, from which public bodies, and for how much?\n- Who currently owns and administers a company, and which business group does it belong to?\n- Which companies does an owner or administrator of a company also run, and which contracts did those companies win while they were in charge? Explicit \"no contracts\" answers included.\n- Which companies receive the most from a town council, hospital, university or Generalitat department?\n\nExample prompts:\n- \"Who administers the company with NIF B67192955, and did the companies they run win public contracts while they were in charge?\"\n- \"Who owns the top contractors of Ajuntament de Girona since 2023?\"\n- \"What were the largest cleaning contracts in Catalonia in 2025, and which groups won them?\"\n\nSeven read-only tools: search_companies, get_company, search_people, get_person, search_contracts, search_public_bodies and get_public_body_top_companies. Every result links to the matching contractes.cat page, so answers can be checked and cited.\n\nBuilt for journalists, researchers, procurement and compliance teams, and citizens. Works in English, Catalan and Spanish (contractació pública, contratación pública, licitaciones, adjudicaciones, BORME, Registro Mercantil, administradores).\n\nLimitations: data covers Catalonia only. Amounts are as published by the awarding bodies and may contain errors; company control comes from BORME, which has no national ID numbers, so very common names can merge several people (results flag this). No account or API key is needed and the server never modifies data. contractes.cat is an independent open-data project, not an official government site.",
         "developerName": "Gerard Giménez Adsuar",
         "category": "Education & Research",
         "capabilities": [
@@ -39,7 +39,7 @@
         "privacyPolicyURL": "https://www.contractes.cat/legal#mcp",
         "termsOfServiceURL": "https://www.contractes.cat/legal#condicions",
         "defaultPrompt": [
-          "Did any of Joan Laporta's companies win public contracts while he ran them?",
+          "Who administers the company with NIF B67192955, and did the companies they run win public contracts while they were in charge?",
           "Which companies received the most from Ajuntament de Girona since 2023?",
           "What were the largest cleaning contracts awarded in Catalonia in 2025?"
         ],
@@ -51,10 +51,10 @@
         "test_cases": {
           "positive": [
             {
-              "description": "Contracts won by a person's companies while the person was in charge",
-              "prompt": "Did any companies run by Joan Laporta win public contracts in Catalonia while he was in charge?",
-              "tools_triggered": "search_people, get_person",
-              "expected_behavior": "Identifies Joan Laporta Estruch, lists the companies he owned or administered with their periods, and states which won public contracts during his tenure, with totals and links to contractes.cat pages."
+              "description": "Contracts won by the companies an administrator runs, while in charge",
+              "prompt": "Who administers the company with NIF B67192955, and did the other companies they run win public contracts while they were in charge?",
+              "tools_triggered": "get_company, search_people, get_person",
+              "expected_behavior": "Returns the administrators of the company from BORME, then for the chosen person lists the companies they owned or administered with their periods and states which won public contracts during their tenure, with totals and links to contractes.cat pages. Business role only, no personal data."
             },
             {
               "description": "Company profile with owners and administrators",
@@ -92,7 +92,7 @@
             },
             {
               "description": "Private personal data: the server only exposes public procurement and BORME records, not addresses or contact details",
-              "prompt": "What is Joan Laporta's home address and phone number?"
+              "prompt": "What is the home address and phone number of the administrator of the company with NIF B67192955?"
             }
           ]
         },
