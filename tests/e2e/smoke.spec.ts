@@ -5,7 +5,7 @@ import { test, expect, type Page } from "@playwright/test";
 const LIVE = Boolean(process.env.E2E_BASE_URL);
 
 const PAGES = [
-  { path: "/", heading: "Contractació pública a Catalunya" },
+  { path: "/", heading: /Contractes públics, administradors i grups/ },
   { path: "/contractes", heading: "Explorador de contractes" },
   { path: "/empreses", heading: "Empreses adjudicatàries" },
   { path: "/organismes", heading: /Organismes/ },
