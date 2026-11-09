@@ -113,3 +113,6 @@ export const SUPABASE_URL =
   process.env.SUPABASE_URL || "https://igugctxdpetsmewmacpm.supabase.co";
 export const SUPABASE_PUBLISHABLE_KEY =
   process.env.SUPABASE_PUBLISHABLE_KEY || "sb_publishable_vg-CwwS-mGJuTSudeyVtdw_CQsm15du";
+
+/** Cache-busting version for favicon, PWA and home-screen icons (2 = Nov 2026 linked-dots logo). */
+export const ICON_VERSION = 2;

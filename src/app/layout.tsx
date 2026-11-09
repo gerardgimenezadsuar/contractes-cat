@@ -5,7 +5,7 @@ import "./globals.css";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import MobileBottomNav from "@/components/layout/MobileBottomNav";
-import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/config/constants";
+import { ICON_VERSION, SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/config/constants";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,10 +33,11 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   // Google Search Console ownership (URL-prefix property https://www.contractes.cat/). Keep it, or the property loses verification.
   verification: { google: "yMtPiuYoL50YLYCzNKyntpAPvz36g6ugSGf0A535rwc" },
+  // ?v= busts browser and home-screen caches; bump ICON_VERSION after running scripts/generate-icons.mjs.
   icons: {
-    icon: [{ url: "/favicon.ico", sizes: "48x48" }, { url: "/icon.svg", type: "image/svg+xml" }],
-    shortcut: [{ url: "/favicon.ico" }],
-    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    icon: [{ url: `/favicon.ico?v=${ICON_VERSION}`, sizes: "48x48" }, { url: `/icon.svg?v=${ICON_VERSION}`, type: "image/svg+xml" }],
+    shortcut: [{ url: `/favicon.ico?v=${ICON_VERSION}` }],
+    apple: [{ url: `/icons/apple-touch-icon.png?v=${ICON_VERSION}`, sizes: "180x180", type: "image/png" }],
   },
   appleWebApp: {
     capable: true,
