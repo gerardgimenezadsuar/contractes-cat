@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   buildCompanySeoDescription,
   buildCompanySeoTitle,
+  buildPersonAnswer,
   buildPersonSeoDescription,
   buildPersonSeoTitle,
   cleanEntityName,
@@ -101,12 +102,30 @@ test("person title and description lead with the companies they control", () => 
   assert.equal(buildPersonSeoTitle(input), "Joan Garcia Puig: empreses que controla i contractes públics");
   assert.equal(
     buildPersonSeoDescription(input),
-    "Joan Garcia Puig té o ha tingut la propietat o l'administració de 3 empreses segons el BORME. " +
-      "Mentre en tenia el càrrec, aquestes empreses van guanyar 40 contractes públics a Catalunya per 1,5 M€ (sense IVA). " +
+    "Joan Garcia Puig té o ha tingut la propietat o l'administració de 3 empreses segons el BORME, 2 de les quals han guanyat contractes públics a Catalunya. " +
+      "Mentre en tenia el càrrec, aquestes empreses van guanyar 40 contractes públics per 1,5 M€ (sense IVA). " +
       "Empresas que controla y contratos públicos."
   );
   assert.equal(
     buildPersonSeoTitle({ displayName: "Maria Roca", numControlCompaniesWithContracts: 0 }),
     "Maria Roca: càrrecs en empreses (BORME)"
+  );
+});
+
+test("person answer states the negative cases explicitly", () => {
+  const base = { displayName: "Maria Roca", numContracts: 0, numContractsLabel: "0", amountLabel: "0 €" };
+  assert.equal(
+    buildPersonAnswer({ ...base, numControlCompanies: 0, numControlCompaniesWithContracts: 0 }),
+    "Maria Roca no consta al BORME com a propietari ni administrador de cap empresa, i per tant no li atribuïm contractes públics."
+  );
+  assert.equal(
+    buildPersonAnswer({ ...base, numControlCompanies: 2, numControlCompaniesWithContracts: 0 }),
+    "Maria Roca té o ha tingut la propietat o l'administració de 2 empreses segons el BORME. " +
+      "Cap d'aquestes empreses no consta com a adjudicatària de contractes públics a Catalunya."
+  );
+  assert.equal(
+    buildPersonAnswer({ ...base, numControlCompanies: 1, numControlCompaniesWithContracts: 1 }),
+    "Maria Roca té o ha tingut la propietat o l'administració de 1 empresa segons el BORME, que ha guanyat contractes públics a Catalunya. " +
+      "Cap d'aquests contractes no es va adjudicar mentre Maria Roca en tenia la propietat o l'administració."
   );
 });

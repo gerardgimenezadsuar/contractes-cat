@@ -114,18 +114,39 @@ export function buildPersonSeoTitle(input: Pick<PersonSeoInput, "displayName" | 
     : `${input.displayName}: càrrecs en empreses (BORME)`;
 }
 
-export function buildPersonSeoDescription(input: PersonSeoInput): string {
+/**
+ * Plain-language answer to "has this person's companies won public contracts?",
+ * including the negative cases: a reliable "no" is also an answer nobody else gives.
+ * Shown under the H1 and reused in the meta description.
+ */
+export function buildPersonAnswer(input: PersonSeoInput): string {
   const { displayName } = input;
   if (input.numControlCompanies === 0) {
-    return `${displayName}: càrrecs societaris segons el BORME. Empresas y cargos en el Registro Mercantil.`;
+    return `${displayName} no consta al BORME com a propietari ni administrador de cap empresa, i per tant no li atribuïm contractes públics.`;
   }
   const companies = input.numControlCompanies === 1 ? "1 empresa" : `${input.numControlCompanies} empreses`;
-  const parts = [`${displayName} té o ha tingut la propietat o l'administració de ${companies} segons el BORME.`];
-  if (input.numContracts > 0) {
-    parts.push(
-      `Mentre en tenia el càrrec, aquestes empreses van guanyar ${contractsLabel(input.numContracts, input.numContractsLabel)} a Catalunya per ${input.amountLabel} (sense IVA).`
-    );
+  const withContracts = input.numControlCompaniesWithContracts;
+  if (withContracts === 0) {
+    const none = input.numControlCompanies === 1
+      ? "Aquesta empresa no consta com a adjudicatària de contractes públics a Catalunya."
+      : "Cap d'aquestes empreses no consta com a adjudicatària de contractes públics a Catalunya.";
+    return `${displayName} té o ha tingut la propietat o l'administració de ${companies} segons el BORME. ${none}`;
   }
-  parts.push("Empresas que controla y contratos públicos.");
-  return parts.join(" ");
+  const which = input.numControlCompanies === 1
+    ? ", que ha guanyat contractes públics a Catalunya"
+    : withContracts === 1
+      ? ", 1 de les quals ha guanyat contractes públics a Catalunya"
+      : `, ${withContracts} de les quals han guanyat contractes públics a Catalunya`;
+  const lead = `${displayName} té o ha tingut la propietat o l'administració de ${companies} segons el BORME${which}.`;
+  if (input.numContracts > 0) {
+    return `${lead} Mentre en tenia el càrrec, ${input.numControlCompanies === 1 ? "l'empresa va" : "aquestes empreses van"} guanyar ${contractsLabel(input.numContracts, input.numContractsLabel)} per ${input.amountLabel} (sense IVA).`;
+  }
+  return `${lead} Cap d'aquests contractes no es va adjudicar mentre ${displayName} en tenia la propietat o l'administració.`;
+}
+
+export function buildPersonSeoDescription(input: PersonSeoInput): string {
+  const spanish = input.numControlCompanies === 0
+    ? "Empresas y cargos en el Registro Mercantil."
+    : "Empresas que controla y contratos públicos.";
+  return `${buildPersonAnswer(input)} ${spanish}`;
 }

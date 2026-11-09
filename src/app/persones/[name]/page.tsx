@@ -29,7 +29,7 @@ import PersonContractsSection, {
 } from "@/components/person/PersonContractsSection";
 import { buildCompanyHref } from "@/lib/company-identity";
 import { formatCompactEuros } from "@/lib/indicators";
-import { buildPersonSeoDescription, buildPersonSeoTitle, cleanEntityName } from "@/lib/seo/entity-summary";
+import { buildPersonAnswer, buildPersonSeoDescription, buildPersonSeoTitle, cleanEntityName } from "@/lib/seo/entity-summary";
 import { SITE_URL } from "@/config/constants";
 
 export const revalidate = 21600;
@@ -148,6 +148,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     ? buildPersonSeoDescription(seoInput)
     : `Informació societària de ${displayName} segons BORME.`;
 
+  // Variant URLs (case/accents, given-name-first "JOAN LAPORTA ESTRUCH") render
+  // the full page, so agents that don't follow redirects still get the answer;
+  // the canonical points at the BORME name so search engines keep one URL.
+  // (No redirect: the root loading.tsx streams pages, which turns a redirect
+  // into a 200 + meta refresh with an empty body.)
   const entityPath = `/persones/${encodeURIComponent(bormeName)}`;
   const metadata = buildEntityMetadata({
     title: buildPersonSeoTitle(seoInput),
@@ -414,14 +419,16 @@ export default async function PersonDetailPage({ params }: Props) {
       : null;
 
   const personPath = `/persones/${encodeURIComponent(profile.person_name)}`;
-  const personDescription = buildPersonSeoDescription({
+  const personSeoInput = {
     displayName,
     numControlCompanies: profile.num_control_companies,
     numControlCompaniesWithContracts: profile.num_control_companies_with_nif,
     numContracts: contractsSummary.total,
     numContractsLabel: formatNumber(contractsSummary.total),
     amountLabel: formatCompactEuros(contractsSummary.totalAmount),
-  });
+  };
+  const personDescription = buildPersonSeoDescription(personSeoInput);
+  const personAnswer = buildPersonAnswer(personSeoInput);
   // Companies they currently own or administer that have public contracts.
   const affiliations = controlCompanies
     .filter((c) => c.control_active && c.nif)
@@ -481,22 +488,7 @@ export default async function PersonDetailPage({ params }: Props) {
           { label: "Altres càrrecs", value: formatNumber(otherCompanies.length), note: "apoderat, conseller, secretari…" },
         ]}
       />
-      {profile.num_control_companies > 0 ? (
-        <p className="mb-2 mt-4 max-w-3xl text-[15px] leading-relaxed text-gray-700">
-          Segons el BORME, <strong className="font-semibold text-gray-900">{displayName}</strong> té o ha tingut la
-          propietat o l&apos;administració de{" "}
-          {profile.num_control_companies === 1 ? "1 empresa" : `${formatNumber(profile.num_control_companies)} empreses`}
-          {profile.num_control_companies_with_nif > 0
-            ? `, ${formatNumber(profile.num_control_companies_with_nif)} de les quals han guanyat contractes públics a Catalunya`
-            : ""}
-          .
-          {contractsSummary.total > 0
-            ? ` Mentre en tenia el càrrec, aquestes empreses van guanyar ${
-                contractsSummary.total === 1 ? "1 contracte públic" : `${formatNumber(contractsSummary.total)} contractes públics`
-              } per un import de ${formatCompactEuros(contractsSummary.totalAmount)} (sense IVA).`
-            : ""}
-        </p>
-      ) : null}
+      <p className="mb-2 mt-4 max-w-3xl text-[15px] leading-relaxed text-gray-700">{personAnswer}</p>
       <p className="mb-6 max-w-3xl text-sm text-gray-500">
         Càrrecs societaris extrets del BORME. Comptem com a vinculació la propietat (soci únic) i
         l&apos;administració (administradors, presidència i conseller delegat), i només els contractes que les

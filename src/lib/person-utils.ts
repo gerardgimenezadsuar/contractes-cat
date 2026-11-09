@@ -142,3 +142,20 @@ export function formatPersonDisplayName(bormeName: string): string {
 
   return `${formattedNoms} ${formattedCognoms}`.trim();
 }
+
+/**
+ * BORME names are surname-first ("LAPORTA ESTRUCH JOAN"), but people and AI
+ * agents type them given-name-first ("JOAN LAPORTA ESTRUCH"). Returns the
+ * surname-first orders to try when a normalized name has no exact match:
+ * the first one or two words moved to the end (simple and compound given
+ * names, e.g. "JOSEP MARIA").
+ */
+export function surnameFirstCandidates(normalizedName: string): string[] {
+  const words = normalizedName.split(" ").filter(Boolean);
+  if (words.length < 2) return [];
+  const candidates: string[] = [];
+  for (let k = 1; k <= Math.min(2, words.length - 1); k++) {
+    candidates.push([...words.slice(k), ...words.slice(0, k)].join(" "));
+  }
+  return candidates;
+}

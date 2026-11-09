@@ -1,6 +1,7 @@
 import { createClient } from "@libsql/client";
 import { classifyControlRole, mergePeriods, PROFESSIONAL_ADMIN_THRESHOLD, type ControlRole } from "@/lib/borme-roles";
 import { isEntityName } from "@/lib/borme-format";
+import { surnameFirstCandidates } from "@/lib/person-utils";
 
 export interface BormeAdminSpan {
   person_name:   string;
@@ -453,8 +454,22 @@ async function resolveCanonicalPersonName(personName: string): Promise<string | 
     args: [normalized],
   });
 
-  if (result.rows.length === 0) return null;
-  return String(result.rows[0].person_name);
+  if (result.rows.length > 0) return String(result.rows[0].person_name);
+
+  // Given-name-first input ("JOAN LAPORTA ESTRUCH"): try the BORME order.
+  // Only reached on a miss, and still an indexed IN lookup.
+  const candidates = surnameFirstCandidates(normalized);
+  if (candidates.length === 0) return null;
+  const reordered = await client.execute({
+    sql: `SELECT person_name
+          FROM person_summary
+          WHERE person_name_norm IN (${candidates.map(() => "?").join(", ")})
+          ORDER BY num_companies_with_nif DESC, total_spans DESC
+          LIMIT 1`,
+    args: candidates,
+  });
+  if (reordered.rows.length === 0) return null;
+  return String(reordered.rows[0].person_name);
 }
 
 export async function loadPersonProfile(personName: string): Promise<BormePersonProfile | null> {
