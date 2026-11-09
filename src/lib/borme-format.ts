@@ -3,9 +3,14 @@ import type { CompanyLinkSpan } from "@/lib/borme";
 const ENTITY_SUFFIX =
   /\b(SL|SA|SLU|SAU|SLP|SLL|SCCL|S\.?L\.?U?|S\.?A\.?U?|SOCIEDAD|SOCIETAT|AIE|FUNDACION|FUNDACIO|COOPERATIVA)\b\.?$/i;
 
+// Organisations without a legal suffix ("FUTBOL CLUB BARCELONA", "AJUNTAMENT DE ...").
+const ENTITY_WORD =
+  /\b(CLUB|ASOCIACION|ASSOCIACIO|FEDERACION|FEDERACIO|AYUNTAMIENTO|AJUNTAMENT|CONSORCIO|CONSORCI|DIPUTACION|DIPUTACIO|UNIVERSIDAD|UNIVERSITAT|FUNDACION|FUNDACIO|GENERALITAT)\b/i;
+
 /** True when a BORME officer name is a legal entity rather than a person. */
 export function isEntityName(name: string): boolean {
-  return ENTITY_SUFFIX.test(name.trim());
+  const trimmed = name.trim();
+  return ENTITY_SUFFIX.test(trimmed) || ENTITY_WORD.test(trimmed);
 }
 
 function year(d: string | null): string {

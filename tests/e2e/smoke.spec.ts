@@ -11,6 +11,7 @@ const PAGES = [
   { path: "/organismes", heading: /Organismes/ },
   { path: "/analisi", heading: "Anàlisi ciutadana" },
   { path: "/metodologia", heading: "Com es calculen els indicadors" },
+  { path: "/assistents", heading: "Connecta el teu assistent d'IA" },
   ...(LIVE
     ? [{ path: "/organismes/Ajuntament%20de%20Barcelona", heading: "Ajuntament de Barcelona" }]
     : [
@@ -203,4 +204,16 @@ test.describe("home search resilience", () => {
     await alert.getByRole("button", { name: "Torna-ho a provar" }).click();
     await expect(page.getByRole("link", { name: /EMPRESA MOCK U SL A08000001/ })).toBeVisible();
   });
+});
+
+test("MCP endpoint lists the read-only tools", async ({ request }) => {
+  const res = await request.post("/api/mcp", {
+    headers: { accept: "application/json, text/event-stream", "mcp-protocol-version": "2025-06-18" },
+    data: { jsonrpc: "2.0", id: 1, method: "tools/list", params: {} },
+  });
+  expect(res.status()).toBe(200);
+  const body = await res.text();
+  const json = JSON.parse(body.startsWith("{") ? body : body.split("\n").find((l) => l.startsWith("data: "))!.slice(6));
+  const names = json.result.tools.map((t: { name: string }) => t.name);
+  expect(names).toEqual(expect.arrayContaining(["search_companies", "get_company", "get_person", "search_contracts"]));
 });

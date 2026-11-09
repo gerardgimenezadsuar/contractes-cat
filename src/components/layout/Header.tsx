@@ -57,6 +57,14 @@ export default function Header() {
             })}
           </nav>
 
+          <Link
+            href="/assistents"
+            prefetch
+            className="hidden lg:inline-flex items-center rounded-full border border-accent/40 px-3 py-1.5 text-sm font-medium text-accent hover:bg-accent-soft"
+          >
+            Connecta la teva IA
+          </Link>
+
           {/* Mobile menu button */}
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
@@ -97,6 +105,14 @@ export default function Header() {
                 </Link>
               );
             })}
+            <Link
+              href="/assistents"
+              prefetch
+              onClick={() => setMobileOpen(false)}
+              className="block min-h-11 px-3 py-2.5 rounded-md text-sm font-medium text-accent hover:bg-gray-50"
+            >
+              Connecta la teva IA (Claude, ChatGPT…)
+            </Link>
           </nav>
         )}
       </div>
