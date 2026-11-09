@@ -47,7 +47,7 @@ Use it for questions like: which public contracts did a company win, who owns or
 Scope and privacy: all data comes from public records (the Generalitat transparency portal and BORME). People appear only in their business role as owners or administrators of companies; the tools never return addresses, ID numbers, contact details or other personal data, and never modify anything.
 
 Tips:
-- Names of people in BORME are surname-first ("LAPORTA ESTRUCH JOAN"); get_person also accepts the natural order. Use search_people when unsure.
+- Names of people in BORME are surname-first (e.g. "SURNAME1 SURNAME2 FIRSTNAME"); get_person also accepts the natural order. Use search_people when unsure.
 - A person's contracts only count while they owned or administered the company. BORME has no national ID numbers, so short or common names can merge several people (results flag this).
 - Company and public-body totals include VAT; person totals exclude VAT. Say which one you report.
 - Results include "url" fields linking to the matching contractes.cat page, where the user can check the source.`;
@@ -229,7 +229,7 @@ export function registerContractesTools(server: McpServer): void {
       description:
         "Search the public record of business owners and company administrators published in BORME (the official Spanish companies register, Boletín Oficial del Registro Mercantil), by name. Accent- and case-insensitive, any name order. Returns only the person's name as published, how many companies they own or administer and how many of those won public contracts in Catalonia. It never returns addresses, ID numbers, contact details or any other personal data, and only covers people acting in a business role. Read-only.",
       inputSchema: z.object({
-        query: z.string().min(3).describe("Person name, e.g. 'Joan Laporta'"),
+        query: z.string().min(3).describe("Person name, any order"),
         page: pageField,
       }),
       annotations: READ_ONLY,
@@ -258,7 +258,7 @@ export function registerContractesTools(server: McpServer): void {
       description:
         "For a person named in BORME (the official Spanish companies register) as owner or administrator of companies: lists those companies with the periods in which the person was in charge, and the public contracts those companies won in Catalonia during those periods. Includes a plain-language answer, including explicit 'no contracts' cases. Uses only public registry and public procurement records; it never returns addresses, ID numbers, contact details or any other personal data, and only covers the person's business role. Read-only.",
       inputSchema: z.object({
-        name: z.string().min(3).describe("Full name, BORME order ('LAPORTA ESTRUCH JOAN') or natural order ('Joan Laporta Estruch')"),
+        name: z.string().min(3).describe("Full name, in BORME order (surnames first) or natural order (first name first)"),
       }),
       annotations: READ_ONLY,
     },
