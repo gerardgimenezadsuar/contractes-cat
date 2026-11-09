@@ -67,6 +67,12 @@ export default function LegalPage() {
           empresa o d&apos;una persona a cercar), no el contingut de la conversa, i no té accés a l&apos;historial, la
           memòria ni els fitxers de l&apos;usuari.
         </p>
+        <p className="text-gray-700 mb-3">
+          Les respostes només contenen dades públiques que ja es mostren al web: contractes publicats al portal de
+          transparència de la Generalitat i, per a les empreses, els noms dels seus socis únics, administradors i
+          càrrecs tal com apareixen al Butlletí Oficial del Registre Mercantil (BORME), amb les dates dels
+          nomenaments. No retornen cap altra dada personal.
+        </p>
         <p className="text-gray-700">
           No guardem aquestes consultes en cap base de dades. Com qualsevol petició web, poden quedar en els registres
           tècnics de l&apos;allotjament (Vercel) durant el període de retenció habitual, per a seguretat i prevenció
@@ -164,12 +170,31 @@ export default function LegalPage() {
         </p>
       </section>
 
+      <section id="condicions" className="mb-8">
+        <h2 className="font-display text-xl font-semibold text-gray-900 mb-3">Condicions d&apos;ús</h2>
+        <p className="text-gray-700 mb-3">
+          L&apos;ús del web, de l&apos;API, de la CLI i del servidor MCP és gratuït i no requereix registre. Les dades
+          provenen de fonts oficials obertes i es mostren tal com s&apos;han publicat, amb els tractaments descrits a la
+          metodologia; poden contenir errors o estar desactualitzades, i no tenen valor oficial. Comprova les dades
+          importants a la font original abans de prendre decisions.
+        </p>
+        <p className="text-gray-700 mb-3">
+          Pots reutilitzar la informació citant {SITE_NAME} i la font original. No està permès fer un ús abusiu del
+          servei (per exemple, descàrregues massives que en degradin el funcionament); podem limitar l&apos;accés a
+          clients que ho facin.
+        </p>
+        <p className="text-gray-700">
+          El servei s&apos;ofereix sense garanties i es pot modificar o interrompre en qualsevol moment. El responsable
+          no respon dels danys derivats de l&apos;ús de les dades, en la mesura que ho permeti la llei.
+        </p>
+      </section>
+
       <section className="mb-8">
         <h2 className="font-display text-xl font-semibold text-gray-900 mb-3">Canvis en aquesta política</h2>
         <p className="text-gray-700">
           Aquesta pàgina es revisarà si canvia el funcionament del web, els
           proveïdors o la normativa aplicable. Data d&apos;última actualització:
-          9 de febrer de 2026.
+          9 de novembre de 2026.
         </p>
       </section>
 

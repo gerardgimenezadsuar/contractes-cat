@@ -1,0 +1,117 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "contractes-cat",
+  "version": "1.0.0",
+  "description": "Public contracts in Catalonia and who owns and runs the companies that win them, from official procurement data and the Spanish companies register (BORME).",
+  "author": {
+    "name": "Gerard Giménez Adsuar",
+    "url": "https://www.contractes.cat/about"
+  },
+  "homepage": "https://www.contractes.cat/assistents",
+  "repository": "https://github.com/gerardgimenezadsuar/contractes-cat",
+  "keywords": [
+    "public procurement",
+    "public contracts",
+    "Catalonia",
+    "BORME",
+    "company ownership",
+    "transparency",
+    "contractació pública",
+    "contratación pública",
+    "licitaciones"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "contractes.cat",
+        "shortDescription": "Catalan public contracts",
+        "longDescription": "Ask about public procurement in Catalonia and who is behind the companies that win it.\n\ncontractes.cat combines every public contract published on the Generalitat de Catalunya transparency portal (over 1.6 million records since 2014) with the owners and administrators of the winning companies from the Spanish companies register (BORME). That makes it possible to answer questions no single official source answers:\n\n- Which public contracts did a company win, from which public bodies, and for how much?\n- Who currently owns and administers a company, and which business group does it belong to?\n- Which companies does a person own or administer, and which contracts did those companies win while that person was in charge? Explicit \"no contracts\" answers included.\n- Which companies receive the most from a town council, hospital, university or Generalitat department?\n\nExample prompts:\n- \"Did any of Joan Laporta's companies win public contracts while he ran them?\"\n- \"Who owns the top contractors of Ajuntament de Girona since 2023?\"\n- \"What were the largest cleaning contracts in Catalonia in 2025, and which groups won them?\"\n\nSeven read-only tools: search_companies, get_company, search_people, get_person, search_contracts, search_public_bodies and get_public_body_top_companies. Every result links to the matching contractes.cat page, so answers can be checked and cited.\n\nBuilt for journalists, researchers, procurement and compliance teams, and citizens. Works in English, Catalan and Spanish (contractació pública, contratación pública, licitaciones, adjudicaciones, BORME, Registro Mercantil, administradores).\n\nLimitations: data covers Catalonia only. Amounts are as published by the awarding bodies and may contain errors; company control comes from BORME, which has no national ID numbers, so very common names can merge several people (results flag this). No account or API key is needed and the server never modifies data. contractes.cat is an independent open-data project, not an official government site.",
+        "developerName": "Gerard Giménez Adsuar",
+        "category": "Research",
+        "capabilities": [
+          "Search public contracts in Catalonia",
+          "Look up a company's contracts, owners, administrators and business group",
+          "Find the companies a person owns or administers and their public contracts",
+          "Rank the companies each public body awards the most"
+        ],
+        "websiteURL": "https://www.contractes.cat",
+        "supportURL": "https://github.com/gerardgimenezadsuar/contractes-cat/issues",
+        "privacyPolicyURL": "https://www.contractes.cat/legal#mcp",
+        "termsOfServiceURL": "https://www.contractes.cat/legal#condicions",
+        "defaultPrompt": [
+          "Did any of Joan Laporta's companies win public contracts while he ran them?",
+          "Which companies received the most from Ajuntament de Girona since 2023?",
+          "What were the largest cleaning contracts awarded in Catalonia in 2025?"
+        ],
+        "brandColor": "#0F5E63",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Contracts won by a person's companies while the person was in charge",
+              "prompt": "Did any companies run by Joan Laporta win public contracts in Catalonia while he was in charge?",
+              "tools_triggered": "search_people, get_person",
+              "expected_behavior": "Identifies Joan Laporta Estruch, lists the companies he owned or administered with their periods, and states which won public contracts during his tenure, with totals and links to contractes.cat pages."
+            },
+            {
+              "description": "Company profile with owners and administrators",
+              "prompt": "Who owns and administers the company with NIF B67192955, and what public contracts has it won?",
+              "tools_triggered": "get_company",
+              "expected_behavior": "Returns Barça Licensing & Merchandising: number of contracts and total awarded, main public bodies, current owners and administrators from BORME, and a link to the company page."
+            },
+            {
+              "description": "Company search by name",
+              "prompt": "Which companies matching 'Ferrovial' have the most public contracts in Catalonia?",
+              "tools_triggered": "search_companies",
+              "expected_behavior": "Lists Ferrovial companies (e.g. FERROVIAL SERVICIOS SA, NIF A80241789) ranked by contracts and amount awarded, each with a contractes.cat link."
+            },
+            {
+              "description": "Top contractors of a public body",
+              "prompt": "Which companies received the most from Ajuntament de Girona since 2023?",
+              "tools_triggered": "search_public_bodies, get_public_body_top_companies",
+              "expected_behavior": "Resolves Ajuntament de Girona and returns its top awarded companies since 2023 with amounts and contract counts, plus links."
+            },
+            {
+              "description": "Contract search with filters",
+              "prompt": "What were the largest cleaning (neteja) contracts awarded in Catalonia in 2025?",
+              "tools_triggered": "search_contracts",
+              "expected_behavior": "Returns 2025 cleaning contracts sorted by amount, each with title, awarding body, winning company, amount and a link."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Write request: the server is read-only and cannot change or delete records",
+              "prompt": "Delete the contracts of Ferrovial from contractes.cat."
+            },
+            {
+              "description": "Out of scope: data outside Catalonia is not covered, the assistant should say so instead of inventing results",
+              "prompt": "Which companies won the most public contracts from the Madrid city council in 2024?"
+            },
+            {
+              "description": "Private personal data: the server only exposes public procurement and BORME records, not addresses or contact details",
+              "prompt": "What is Joan Laporta's home address and phone number?"
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "This plugin does not sell products or process payments. It only reads public open data."
+      },
+      "publication": {
+        "release_notes": "Initial release: seven read-only tools to search public contracts in Catalonia, company profiles with BORME owners, administrators and business groups, people's company roles and the contracts won during their tenure, and the top contractors of each public body.",
+        "translations": {
+          "ca-ES": {
+            "subtitle": "Contractes públics a Catalunya",
+            "description": "Pregunta pels contractes públics de Catalunya i per qui controla les empreses que els guanyen. contractes.cat creua tots els contractes publicats al portal de transparència de la Generalitat amb els socis i administradors de les empreses adjudicatàries segons el BORME. Cada resposta enllaça a la pàgina corresponent de contractes.cat per poder-la comprovar. Només lectura, gratuït i sense registre. Projecte independent, no oficial."
+          },
+          "es-ES": {
+            "subtitle": "Contratos públicos Cataluña",
+            "description": "Pregunta por los contratos públicos de Cataluña y por quién controla las empresas que los ganan. contractes.cat cruza todos los contratos publicados en el portal de transparencia de la Generalitat con los socios y administradores de las empresas adjudicatarias según el BORME. Cada respuesta enlaza a la página correspondiente de contractes.cat para poder comprobarla. Solo lectura, gratuito y sin registro. Proyecto independiente, no oficial."
+          }
+        }
+      }
+    }
+  }
+}
