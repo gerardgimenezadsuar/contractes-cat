@@ -225,7 +225,7 @@ export function registerContractesTools(server: McpServer): void {
     {
       title: "Search people",
       description:
-        "Find people who own or administer companies, according to BORME (the Spanish companies register). Accent- and case-insensitive, any name order. Returns how many companies each controls and how many of those won public contracts.",
+        "Search the public record of business owners and company administrators published in BORME (the official Spanish companies register, Boletín Oficial del Registro Mercantil), by name. Accent- and case-insensitive, any name order. Returns only the person's name as published, how many companies they own or administer and how many of those won public contracts in Catalonia. It never returns addresses, ID numbers, contact details or any other personal data, and only covers people acting in a business role. Read-only.",
       inputSchema: z.object({
         query: z.string().min(3).describe("Person name, e.g. 'Joan Laporta'"),
         page: pageField,
@@ -254,7 +254,7 @@ export function registerContractesTools(server: McpServer): void {
     {
       title: "Person: companies and public contracts",
       description:
-        "Companies a person owned or administered (BORME) and the public contracts those companies won in Catalonia while the person was in charge. Includes a plain-language answer, including explicit 'no contracts' cases.",
+        "For a person named in BORME (the official Spanish companies register) as owner or administrator of companies: lists those companies with the periods in which the person was in charge, and the public contracts those companies won in Catalonia during those periods. Includes a plain-language answer, including explicit 'no contracts' cases. Uses only public registry and public procurement records; it never returns addresses, ID numbers, contact details or any other personal data, and only covers the person's business role. Read-only.",
       inputSchema: z.object({
         name: z.string().min(3).describe("Full name, BORME order ('LAPORTA ESTRUCH JOAN') or natural order ('Joan Laporta Estruch')"),
       }),
