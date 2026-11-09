@@ -116,3 +116,6 @@ export const SUPABASE_PUBLISHABLE_KEY =
 
 /** Cache-busting version for favicon, PWA and home-screen icons (2 = Nov 2026 linked-dots logo). */
 export const ICON_VERSION = 2;
+
+// Listing in the Claude connectors directory: opens Claude's own "Connect" screen.
+export const CLAUDE_CONNECTOR_URL = "https://claude.ai/directory/contractes-cat";

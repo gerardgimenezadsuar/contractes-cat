@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import ClaudeMark from "@/components/brand/ClaudeMark";
 import PageHeader from "@/components/layout/PageHeader";
 import CopyButton from "@/components/ui/CopyButton";
-import { SITE_URL } from "@/config/constants";
+import { CLAUDE_CONNECTOR_URL, SITE_URL } from "@/config/constants";
 
 const MCP_URL = `${SITE_URL}/api/mcp`;
 const CLAUDE_CODE_CMD = `claude mcp add --transport http contractes ${MCP_URL}`;
@@ -78,19 +79,31 @@ export default function AssistantsPage() {
       </section>
 
       <Client title="Claude (web, escriptori i mòbil)">
-        <ol className="list-decimal space-y-1 pl-5">
-          <li>
-            Obre <strong>Configuració → Connectors</strong> a claude.ai o a l&apos;aplicació d&apos;escriptori.
-          </li>
-          <li>
-            Tria <strong>Afegeix un connector personalitzat</strong>, posa-hi el nom <em>contractes.cat</em> i
-            l&apos;adreça del servidor de dalt.
-          </li>
-          <li>En una conversa nova, activa el connector i fes la pregunta.</li>
-        </ol>
-        <p className="text-sm text-gray-500">
-          Un cop afegit, també funciona des de l&apos;app mòbil de Claude.
+        <a
+          href={CLAUDE_CONNECTOR_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex min-h-10 items-center gap-2 rounded-md bg-gray-900 px-4 text-sm font-medium text-white hover:bg-gray-800"
+        >
+          <ClaudeMark className="h-4 w-4" />
+          Afegeix contractes.cat a Claude
+        </a>
+        <p>
+          Et porta al directori de connectors de Claude: prem <strong>Connecta</strong> i ja el tens a totes les teves
+          converses (web, escriptori i mòbil). En una conversa nova, activa el connector i fes la pregunta.
         </p>
+        <details className="text-sm text-gray-600">
+          <summary className="cursor-pointer font-medium text-gray-700">Instal·lació manual</summary>
+          <ol className="mt-2 list-decimal space-y-1 pl-5">
+            <li>
+              Obre <strong>Configuració → Connectors</strong> a claude.ai.
+            </li>
+            <li>
+              Tria <strong>Afegeix un connector personalitzat</strong>, posa-hi el nom <em>contractes.cat</em> i
+              l&apos;adreça del servidor de dalt.
+            </li>
+          </ol>
+        </details>
       </Client>
 
       <Client title="ChatGPT">
