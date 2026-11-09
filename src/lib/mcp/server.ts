@@ -44,11 +44,13 @@ It combines every contract published on the Generalitat de Catalunya transparenc
 
 Use it for questions like: which public contracts did a company win, who owns or runs it, which companies a person controls and what contracts those won while they were in charge, or which companies a public body awards the most.
 
+Scope and privacy: all data comes from public records (the Generalitat transparency portal and BORME). People appear only in their business role as owners or administrators of companies; the tools never return addresses, ID numbers, contact details or other personal data, and never modify anything.
+
 Tips:
 - Names of people in BORME are surname-first ("LAPORTA ESTRUCH JOAN"); get_person also accepts the natural order. Use search_people when unsure.
 - A person's contracts only count while they owned or administered the company. BORME has no national ID numbers, so short or common names can merge several people (results flag this).
 - Company and public-body totals include VAT; person totals exclude VAT. Say which one you report.
-- Always cite the "url" fields so the user can check the source page.`;
+- Results include "url" fields linking to the matching contractes.cat page, where the user can check the source.`;
 
 const MAX_PAGE_SIZE = 25;
 
