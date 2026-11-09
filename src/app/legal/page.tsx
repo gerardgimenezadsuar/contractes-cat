@@ -57,6 +57,23 @@ export default function LegalPage() {
         </p>
       </section>
 
+      <section id="mcp" className="mb-8">
+        <h2 className="font-display text-xl font-semibold text-gray-900 mb-3">
+          Servidor MCP per a assistents d&apos;IA
+        </h2>
+        <p className="text-gray-700 mb-3">
+          El servidor MCP (<code>/api/mcp</code>) que fan servir Claude, ChatGPT i altres assistents és només de
+          lectura i no demana cap compte. Rep únicament els paràmetres de cada consulta (per exemple, el nom d&apos;una
+          empresa o d&apos;una persona a cercar), no el contingut de la conversa, i no té accés a l&apos;historial, la
+          memòria ni els fitxers de l&apos;usuari.
+        </p>
+        <p className="text-gray-700">
+          No guardem aquestes consultes en cap base de dades. Com qualsevol petició web, poden quedar en els registres
+          tècnics de l&apos;allotjament (Vercel) durant el període de retenció habitual, per a seguretat i prevenció
+          d&apos;abús, i no es cedeixen a tercers.
+        </p>
+      </section>
+
       <section className="mb-8">
         <h2 className="font-display text-xl font-semibold text-gray-900 mb-3">
           Finalitats i base jurídica

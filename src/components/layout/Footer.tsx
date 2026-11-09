@@ -86,6 +86,11 @@ export default function Footer() {
                 </a>
               </li>
               <li>
+                <Link href="/assistents" prefetch className="text-gray-600 hover:text-gray-900">
+                  Connecta la teva IA (MCP)
+                </Link>
+              </li>
+              <li>
                 <Link href="/cli" prefetch className="text-gray-600 hover:text-gray-900">
                   CLI per desenvolupadors
                 </Link>
