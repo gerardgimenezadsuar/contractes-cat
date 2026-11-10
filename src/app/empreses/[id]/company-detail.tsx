@@ -303,7 +303,7 @@ export async function CompanyDetail({ decodedId, name }: { decodedId: string; na
             </div>
           </div>
           {hasBormeData ? (
-            <TrackedLinks from="empresa/administradors" id="administradors" className="min-w-0 scroll-mt-32 xl:col-span-2">
+            <TrackedLinks from="empresa/administradors" trackView id="administradors" className="min-w-0 scroll-mt-32 xl:col-span-2">
               <h2 className="mb-3 font-display text-xl font-semibold text-gray-900">Administradors (BORME)</h2>
               <BormeSummaryCard spans={adminHistory?.spans || []} matchedName={adminHistory?.matched_name || ""} compact />
             </TrackedLinks>
@@ -312,19 +312,19 @@ export async function CompanyDetail({ decodedId, name }: { decodedId: string; na
       </TrackedLinks>
 
       {hasTimeline ? (
-        <TrackedLinks as="section" from="empresa/cronologia" id="cronologia" className="scroll-mt-32 pt-10">
+        <TrackedLinks as="section" from="empresa/cronologia" trackView id="cronologia" className="scroll-mt-32 pt-10">
           <ControlTimeline yearly={yearlyRows} spans={adminHistory?.spans ?? []} currentYear={currentYear} />
         </TrackedLinks>
       ) : null}
 
       {topOrgans.length > 0 ? (
-        <TrackedLinks as="section" from="empresa/organismes" id="organismes" className="scroll-mt-32 pt-10">
+        <TrackedLinks as="section" from="empresa/organismes" trackView id="organismes" className="scroll-mt-32 pt-10">
           <CompanyCounterpartyTable rows={topOrgans} companyTotalAmount={totalAmount} lastAwardDate={lastAwardDate} />
         </TrackedLinks>
       ) : null}
 
       {hasNetwork ? (
-        <TrackedLinks as="section" from="empresa/relacionades" id="relacionades" className="scroll-mt-32 pt-10">
+        <TrackedLinks as="section" from="empresa/relacionades" trackView id="relacionades" className="scroll-mt-32 pt-10">
           <RelatedCompaniesSection
             companyName={company.denominacio_adjudicatari}
             related={relatedCompanies}
@@ -334,7 +334,7 @@ export async function CompanyDetail({ decodedId, name }: { decodedId: string; na
         </TrackedLinks>
       ) : null}
 
-      <TrackedLinks as="section" from="empresa/contractes" id="contractes" className="scroll-mt-32 pt-10">
+      <TrackedLinks as="section" from="empresa/contractes" trackView id="contractes" className="scroll-mt-32 pt-10">
         <CompanyContractsExplorer
           nif={nif}
           awardeeName={company.denominacio_adjudicatari}
