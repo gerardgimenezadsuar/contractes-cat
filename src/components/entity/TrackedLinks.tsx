@@ -1,6 +1,6 @@
 "use client";
 
-import type { MouseEvent, ReactNode } from "react";
+import { useEffect, useRef, type MouseEvent, type ReactNode, type RefObject } from "react";
 import { trackEvent } from "@/lib/analytics";
 
 type Tag = "section" | "div";
@@ -11,6 +11,8 @@ interface Props {
   as?: Tag;
   id?: string;
   className?: string;
+  /** Also report `section_view` (same `from`) once, when the block first scrolls into view. */
+  trackView?: boolean;
   children: ReactNode;
 }
 
@@ -33,7 +35,25 @@ export function linkTarget(href: string): string | null {
  * Analytics allows two properties per event: `from` = page/section, `to` =
  * kind of page the link leads to.
  */
-export default function TrackedLinks({ from, as = "div", id, className, children }: Props) {
+export default function TrackedLinks({ from, as = "div", id, className, trackView = false, children }: Props) {
+  const ref = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!trackView || !el || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        trackEvent("section_view", { from });
+        observer.disconnect();
+      },
+      // Counts as seen once its top edge is well inside the viewport, not when it peeks in.
+      { rootMargin: "0px 0px -25% 0px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [from, trackView]);
+
   const onClick = (event: MouseEvent<HTMLElement>) => {
     // Nested blocks: the innermost one reports the click, outer ones skip it.
     const native = event.nativeEvent as Event & { trackedLink?: boolean };
@@ -47,7 +67,8 @@ export default function TrackedLinks({ from, as = "div", id, className, children
   };
   const Tag = as;
   return (
-    <Tag id={id} className={className} onClick={onClick}>
+    // Both tags are HTMLElement; the cast keeps the ref type independent of `as`.
+    <Tag ref={ref as RefObject<HTMLDivElement>} id={id} className={className} onClick={onClick}>
       {children}
     </Tag>
   );

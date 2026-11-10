@@ -1306,20 +1306,19 @@ export async function fetchContractsByAwardeesCount(
   return summary.total;
 }
 
-export async function fetchContractsByAwardeesSummary(
-  filters: Pick<
-    AwardeeContractFilters,
-    "nifs" | "names" | "nifDateWindows" | "nom_organ" | "dateFrom" | "dateTo"
-  >
-): Promise<AwardeeContractsSummary> {
+type AwardeeSummaryFilters = Pick<
+  AwardeeContractFilters,
+  "nifs" | "names" | "nifDateWindows" | "nom_organ" | "dateFrom" | "dateTo"
+>;
+
+/** WHERE conditions shared by the awardee summary queries; null when there is no awardee scope. */
+function buildAwardeeSummaryConditions(filters: AwardeeSummaryFilters): string[] | null {
   const conditions: string[] = [];
   const futureCutoffIso = getContractsFutureCutoffIso();
   const { nifs, names, nifDateWindows, nom_organ, dateFrom, dateTo } = filters;
 
   const awardeeScopeCondition = buildAwardeeScopeCondition(nifs, names);
-  if (!awardeeScopeCondition) {
-    return { total: 0, totalAmount: 0 };
-  }
+  if (!awardeeScopeCondition) return null;
   conditions.push(awardeeScopeCondition);
 
   const nifWindowCondition = buildAwardeeNifDateScopeCondition(nifDateWindows);
@@ -1331,18 +1330,22 @@ export async function fetchContractsByAwardeesSummary(
     conditions.push(`upper(nom_organ) like upper('%${nom_organ.replace(/'/g, "''")}%')`);
   }
 
-  const from = parseIsoDateFilter(dateFrom);
-  const to = parseIsoDateFilter(dateTo);
-  if (from) {
-    conditions.push(`(${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) >= '${from}T00:00:00'`);
-  }
-  if (to) {
-    conditions.push(`(${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) <= '${to}T23:59:59'`);
-  }
+  const range = buildDateRangeCondition(dateFrom, dateTo);
+  if (range) conditions.push(range);
 
   conditions.push(`(${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) IS NOT NULL`);
   conditions.push(`(${BEST_AVAILABLE_CONTRACT_DATE_EXPR}) <= '${futureCutoffIso}'`);
   conditions.push(AWARDED_CONTRACT_WHERE);
+  return conditions;
+}
+
+export async function fetchContractsByAwardeesSummary(
+  filters: AwardeeSummaryFilters
+): Promise<AwardeeContractsSummary> {
+  const conditions = buildAwardeeSummaryConditions(filters);
+  if (!conditions) {
+    return { total: 0, totalAmount: 0 };
+  }
 
   const rows = await soqlFetch<{ total: string }>({
     $select: "count(*) as total, sum(import_adjudicacio_sense::number) as total_amount",
@@ -1352,6 +1355,31 @@ export async function fetchContractsByAwardeesSummary(
     total: parseInt(rows[0]?.total || "0", 10),
     totalAmount: parseFloat((rows[0] as { total_amount?: string })?.total_amount || "0"),
   };
+}
+
+/** Same scope as fetchContractsByAwardeesSummary, split by awardee NIF (keys upper-cased). */
+export async function fetchContractsByAwardeesSummaryByNif(
+  filters: AwardeeSummaryFilters
+): Promise<Map<string, AwardeeContractsSummary>> {
+  const out = new Map<string, AwardeeContractsSummary>();
+  const conditions = buildAwardeeSummaryConditions(filters);
+  if (!conditions) return out;
+
+  const rows = await soqlFetch<{ identificacio_adjudicatari: string; total: string; total_amount?: string }>({
+    $select:
+      "identificacio_adjudicatari, count(*) as total, sum(import_adjudicacio_sense::number) as total_amount",
+    $where: conditions.join(" AND "),
+    $group: "identificacio_adjudicatari",
+    $limit: "1000",
+  });
+  for (const row of rows) {
+    if (!row.identificacio_adjudicatari) continue;
+    out.set(row.identificacio_adjudicatari.toUpperCase(), {
+      total: parseInt(row.total || "0", 10),
+      totalAmount: parseFloat(row.total_amount || "0"),
+    });
+  }
+  return out;
 }
 
 // Contracts list with filters
