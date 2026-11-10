@@ -32,7 +32,7 @@ export function withUsageTracking(register: (server: McpServer) => void) {
         let status = "ok";
         try {
           const res = await cb(...args);
-          if (res?.isError) status = "not_found";
+          if (res?.isError) status = "tool_error";
           return res;
         } catch (err) {
           status = "error";

@@ -76,7 +76,9 @@ export default function LegalPage() {
         <p className="text-gray-700">
           No guardem aquestes consultes en cap base de dades. Com qualsevol petició web, poden quedar en els registres
           tècnics de l&apos;allotjament (Vercel) durant el període de retenció habitual, per a seguretat i prevenció
-          d&apos;abús, i no es cedeixen a tercers.
+          d&apos;abús, i no es cedeixen a tercers. Per saber quines eines es fan servir, cada crida compta com un
+          esdeveniment anònim a Vercel Web Analytics amb només el nom de l&apos;eina, si ha funcionat i el tipus de
+          client (per exemple, Claude o ChatGPT), mai els paràmetres de la consulta.
         </p>
       </section>
 

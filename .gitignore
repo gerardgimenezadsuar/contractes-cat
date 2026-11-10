@@ -71,3 +71,6 @@ next-env.d.ts
 /test-results/
 /playwright-report/
 /.pw-browsers/
+
+# OpenAI plugin package (built from integrations/openai-plugin)
+integrations/*.zip
