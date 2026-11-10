@@ -590,6 +590,15 @@ def main() -> int:
     day += dt.timedelta(days=1)
 
   log(f"[DONE] {days_done} days processed; totals={dict(totals)}")
+
+  # Let the GitHub workflow skip the (~17 min) graph rebuild when nothing changed.
+  gh_output = os.environ.get("GITHUB_OUTPUT")
+  if gh_output:
+    changed = (not args.dry_run) and any(
+      totals.get(k, 0) > 0 for k in ("companies_new", "companies_updated", "spans_new", "spans_closed", "persons_new")
+    )
+    with open(gh_output, "a", encoding="utf-8") as fh:
+      fh.write(f"changed={'true' if changed else 'false'}\n")
   return 0
 
 
