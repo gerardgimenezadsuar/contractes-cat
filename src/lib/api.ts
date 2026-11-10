@@ -1208,8 +1208,11 @@ export interface AwardeeNifDateWindow {
 }
 
 function parseIsoDateFilter(value?: string): string | null {
-  if (!value) return null;
-  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  // Must be a real calendar day: Socrata rejects the whole query (400 type-mismatch)
+  // when a literal like '2025-02-30' can't be cast to a timestamp.
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().startsWith(value) ? value : null;
 }
 
 /** Inclusive date range on the best available contract date; null when neither bound is valid. */

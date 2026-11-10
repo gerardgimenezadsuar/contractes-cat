@@ -5,8 +5,10 @@ name: BORME incremental update
 # failed or skipped run is simply caught up by the next one.
 on:
   schedule:
-    # BORME is published Mon-Fri in the morning (Madrid); run in the evening.
-    - cron: "0 18 * * 1-5"
+    # BORME is published Mon-Fri in the morning (Madrid); run in the late afternoon.
+    # Off the top of the hour on purpose: GitHub delays :00 schedules the most
+    # (the 18:00 run on 2026-11-09 only started at 01:12 UTC).
+    - cron: "23 16 * * 1-5"
   workflow_dispatch:
     inputs:
       start_date:
@@ -23,9 +25,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
           cache: pip
@@ -35,6 +37,7 @@ jobs:
         run: pip install -r scripts/requirements-borme.txt
 
       - name: Apply new BORME days to Turso
+        id: update
         env:
           TURSO_URL: ${{ secrets.TURSO_URL }}
           TURSO_WRITE_TOKEN: ${{ secrets.TURSO_WRITE_TOKEN }}
@@ -45,6 +48,8 @@ jobs:
           python3 scripts/borme_incremental_update.py "${args[@]}"
 
       - name: Rebuild related-companies graph (company_links, diff-synced)
+        # Skipped when no BORME day brought changes (weekday holidays); manual runs always rebuild.
+        if: steps.update.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
         env:
           TURSO_URL: ${{ secrets.TURSO_URL }}
           TURSO_WRITE_TOKEN: ${{ secrets.TURSO_WRITE_TOKEN }}

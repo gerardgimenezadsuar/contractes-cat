@@ -325,8 +325,8 @@ export function registerContractesTools(server: McpServer): void {
         awardee_name: z.string().optional().describe("Winning company name (partial)"),
         public_body: z.string().optional().describe("Exact contracting body name, e.g. 'Ajuntament de Girona' (see search_public_bodies)"),
         year: z.number().int().min(2000).max(2100).optional(),
-        date_from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe("YYYY-MM-DD"),
-        date_to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe("YYYY-MM-DD"),
+        date_from: z.iso.date().optional().describe("YYYY-MM-DD (a real calendar date)"),
+        date_to: z.iso.date().optional().describe("YYYY-MM-DD (a real calendar date)"),
         min_amount_eur: z.number().min(0).optional(),
         max_amount_eur: z.number().min(0).optional(),
         sort: z.enum(["date-desc", "date-asc", "amount-desc", "amount-asc"]).default("date-desc"),
@@ -356,6 +356,10 @@ export function registerContractesTools(server: McpServer): void {
       if (filters.nif) qs.set("nif", filters.nif);
       if (filters.nom_organ) qs.set("nom_organ", filters.nom_organ);
       if (filters.year) qs.set("year", filters.year);
+      if (filters.dateFrom) qs.set("date_from", filters.dateFrom);
+      if (filters.dateTo) qs.set("date_to", filters.dateTo);
+      if (filters.amountMin) qs.set("amountMin", filters.amountMin);
+      if (filters.amountMax) qs.set("amountMax", filters.amountMax);
       return json({
         total_matches: total,
         page: args.page,
