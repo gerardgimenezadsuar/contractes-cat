@@ -32,9 +32,7 @@ import { formatCompactEuros } from "@/lib/indicators";
 import { buildPersonAnswer, buildPersonSeoDescription, buildPersonSeoTitle, cleanEntityName } from "@/lib/seo/entity-summary";
 import { SITE_URL } from "@/config/constants";
 import TrackedLinks from "@/components/entity/TrackedLinks";
-import ExperimentExposure from "@/components/analytics/ExperimentExposure";
 import PersonTopCompanies, { type TopCompany } from "@/components/person/PersonTopCompanies";
-import { PERSON_STRIP_EXPERIMENT, pageVariant } from "@/lib/experiments";
 
 export const revalidate = 21600;
 
@@ -254,15 +252,12 @@ export default async function PersonDetailPage({ params }: Props) {
   const otherCompanies = profile.companies.filter((c) => !c.control);
   const activeControlCompanies = controlCompanies.filter((c) => c.control_active).length;
 
-  // A/B test (see lib/experiments): only pages with contracts while in charge can
-  // show the strip, so only they enter the experiment.
-  const inExperiment = controlTargets.nifs.length > 0 && contractsSummary.total > 0;
-  const variant = inExperiment ? pageVariant(PERSON_STRIP_EXPERIMENT, profile.person_name) : null;
-  const trackPrefix = variant ? `persona-${variant}` : "persona";
+  // Top companies strip under the opening answer. Shipped to everyone after the
+  // Nov 2026 person_strip A/B test (click-through to another page ~9% -> ~19%).
   const STRIP_SIZE = 3;
   let topCompanies: TopCompany[] = [];
   let moreTopCompanies = 0;
-  if (variant === "b") {
+  if (controlTargets.nifs.length > 0 && contractsSummary.total > 0) {
     const byNif = await fetchContractsByAwardeesSummaryByNif({
       nifs: controlTargets.nifs,
       nifDateWindows: controlTargets.windows,
@@ -528,11 +523,10 @@ export default async function PersonDetailPage({ params }: Props) {
           { label: "Altres càrrecs", value: formatNumber(otherCompanies.length), note: "apoderat, conseller, secretari…" },
         ]}
       />
-      {variant ? <ExperimentExposure experiment={PERSON_STRIP_EXPERIMENT} variant={variant} /> : null}
       <p className="mb-2 mt-4 max-w-3xl text-[15px] leading-relaxed text-gray-700">{personAnswer}</p>
       {topCompanies.length > 0 ? (
-        <TrackedLinks from={`${trackPrefix}/destacades`} trackView className="mt-4">
-          <PersonTopCompanies companies={topCompanies} moreCount={moreTopCompanies} />
+        <TrackedLinks from="persona/destacades" trackView className="mt-4">
+          <PersonTopCompanies companies={topCompanies} moreCount={moreTopCompanies} contractsCount={contractsSummary.total} />
         </TrackedLinks>
       ) : null}
       <p className="mb-6 max-w-3xl text-sm text-gray-500">
@@ -561,7 +555,7 @@ export default async function PersonDetailPage({ params }: Props) {
       ) : null}
 
       {publicOffice.periods.length > 0 ? (
-        <TrackedLinks as="section" from={`${trackPrefix}/carrecs`} trackView className="mb-8">
+        <TrackedLinks as="section" from="persona/carrecs" trackView className="mb-8">
           <h2 className="mb-1 font-display text-xl font-semibold text-gray-900">Càrrecs públics</h2>
           <p className="mb-1 text-sm text-gray-500">Font: Transparència Catalunya</p>
           <p className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
@@ -644,7 +638,7 @@ export default async function PersonDetailPage({ params }: Props) {
         </TrackedLinks>
       ) : null}
 
-      <TrackedLinks as="section" from={`${trackPrefix}/empreses`} trackView id="empreses" className="mb-8 scroll-mt-24">
+      <TrackedLinks as="section" from="persona/empreses" trackView id="empreses" className="mb-8 scroll-mt-24">
         <h2 className="mb-1 font-display text-xl font-semibold text-gray-900">Propietat i administració (BORME)</h2>
         <p className="mb-3 text-sm text-gray-500">
           Empreses on ha estat soci únic o administrador. El soci únic deixa de constar quan el BORME en publica un altre.
@@ -668,7 +662,7 @@ export default async function PersonDetailPage({ params }: Props) {
         ) : null}
       </TrackedLinks>
 
-      <TrackedLinks as="section" from={`${trackPrefix}/contractes`} trackView id="contractes">
+      <TrackedLinks as="section" from="persona/contractes" trackView id="contractes" className="scroll-mt-24">
         <Suspense
           fallback={
             <PersonContractsSectionFallback
