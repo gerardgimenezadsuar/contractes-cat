@@ -29,10 +29,4 @@ export function pageVariant(experiment: string, pageKey: string): Variant {
   return hash32(`${experiment}:${pageKey}`) % 2 === 0 ? "a" : "b";
 }
 
-/**
- * Person pages, Nov 2026: "b" shows the top companies by contracts won while the
- * person was in charge, right under the opening answer. Read the result with
- * `experiment_view` (denominator) and `entity_link` / `section_view` events whose
- * `from` starts with `persona-a/` or `persona-b/`.
- */
-export const PERSON_STRIP_EXPERIMENT = "person_strip";
+// Past tests: person_strip (Nov 2026, person pages, top-companies strip) -> b shipped.
