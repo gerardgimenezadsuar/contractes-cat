@@ -12,7 +12,7 @@ export const CLEAN_AMOUNT_SENSE_FILTER =
 
 // Data source updates are typically daily; a 12h cache keeps ISR writes down while staying fresh.
 export const REVALIDATE_SECONDS = 43200; // 12 hours cache
-export const API_ROUTE_S_MAXAGE_SECONDS = 21600; // 6 hours CDN cache
+export const API_ROUTE_S_MAXAGE_SECONDS = 86400; // 24 hours CDN cache
 export const API_ROUTE_STALE_WHILE_REVALIDATE_SECONDS = 86400; // 24 hours
 
 export const DEFAULT_PAGE_SIZE = 50;
