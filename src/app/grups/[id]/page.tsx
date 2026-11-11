@@ -32,12 +32,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const data = await getGroup(id);
   if (!data) return { title: "Grup empresarial" };
   const name = displayCompanyName(data.group.rootName, false);
+  const title = `Grup ${name}`;
+  const description = `${formatNumber(data.group.size)} empreses del grup ${name} segons el BORME, amb ${formatCompactEuros(
+    data.group.totalAmount
+  )} en contractes públics a Catalunya.`;
+  const path = `/grups/${data.group.groupId}`;
+  // og:image comes from ./opengraph-image.tsx.
   return {
-    title: `Grup ${name}`,
-    description: `${formatNumber(data.group.size)} empreses del grup ${name} segons el BORME, amb ${formatCompactEuros(
-      data.group.totalAmount
-    )} en contractes públics a Catalunya.`,
-    alternates: { canonical: `/grups/${data.group.groupId}` },
+    title,
+    description,
+    alternates: { canonical: path },
+    openGraph: { title, description, url: path, type: "article" },
+    twitter: { card: "summary_large_image", title, description },
   };
 }
 
