@@ -11,7 +11,7 @@ import { displayCompanyName } from "@/lib/company-names";
 import { formatCompactEuros } from "@/lib/indicators";
 import { formatNumber } from "@/lib/utils";
 
-export const revalidate = 43200;
+export const revalidate = 86400;
 
 export async function generateStaticParams() {
   return [];
