@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import ChatGPTMark from "@/components/brand/ChatGPTMark";
 import ClaudeMark from "@/components/brand/ClaudeMark";
 import PageHeader from "@/components/layout/PageHeader";
 import CopyButton from "@/components/ui/CopyButton";
-import { CLAUDE_CONNECTOR_URL, SITE_URL } from "@/config/constants";
+import { CHATGPT_PLUGIN_URL, CLAUDE_CONNECTOR_URL, SITE_URL } from "@/config/constants";
 
 const MCP_URL = `${SITE_URL}/api/mcp`;
 const CLAUDE_CODE_CMD = `claude mcp add --transport http contractes ${MCP_URL}`;
@@ -50,7 +51,7 @@ function Client({ title, children }: { title: string; children: React.ReactNode 
 export default function AssistantsPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
-      <PageHeader title="Connecta el teu assistent d'IA" eyebrow="Claude · ChatGPT · Codex · Cursor" className="mb-6">
+      <PageHeader title="Connecta el teu assistent d'IA" eyebrow="ChatGPT · Claude · Codex · Cursor" className="mb-6">
         <p>
           Fes preguntes en llenguatge natural sobre contractes públics a Catalunya i sobre qui controla les empreses que
           els guanyen. L&apos;assistent consulta les dades de contractes.cat i cita les pàgines d&apos;on surt cada xifra.
@@ -78,6 +79,33 @@ export default function AssistantsPage() {
         </ul>
       </section>
 
+      <Client title="ChatGPT">
+        <a
+          href={CHATGPT_PLUGIN_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex min-h-10 items-center gap-2 rounded-md bg-gray-900 px-4 text-sm font-medium text-white hover:bg-gray-800"
+        >
+          <ChatGPTMark className="h-4 w-4" />
+          Afegeix contractes.cat a ChatGPT
+        </a>
+        <p>
+          Et porta a la fitxa oficial de contractes.cat al directori de plugins de ChatGPT: afegeix-lo i, en una
+          conversa, tria&apos;l des del menú «+» i fes la pregunta.
+        </p>
+        <details className="text-sm text-gray-600">
+          <summary className="cursor-pointer font-medium text-gray-700">Instal·lació manual</summary>
+          <ol className="mt-2 list-decimal space-y-1 pl-5">
+            <li>
+              A <strong>Configuració → Aplicacions i connectors → Configuració avançada</strong>, activa el{" "}
+              <strong>mode de desenvolupador</strong>.
+            </li>
+            <li>Crea un connector nou amb l&apos;adreça del servidor de dalt i sense autenticació.</li>
+          </ol>
+          <p className="mt-2">Els connectors personalitzats depenen del teu pla de ChatGPT, i els noms dels menús poden canviar.</p>
+        </details>
+      </Client>
+
       <Client title="Claude (web, escriptori i mòbil)">
         <a
           href={CLAUDE_CONNECTOR_URL}
@@ -104,22 +132,6 @@ export default function AssistantsPage() {
             </li>
           </ol>
         </details>
-      </Client>
-
-      <Client title="ChatGPT">
-        <ol className="list-decimal space-y-1 pl-5">
-          <li>
-            A <strong>Configuració → Aplicacions i connectors → Configuració avançada</strong>, activa el{" "}
-            <strong>mode de desenvolupador</strong>.
-          </li>
-          <li>
-            Crea un connector nou amb l&apos;adreça del servidor de dalt i sense autenticació.
-          </li>
-          <li>En una conversa, afegeix el connector des del menú «+» i fes la pregunta.</li>
-        </ol>
-        <p className="text-sm text-gray-500">
-          Els connectors personalitzats depenen del teu pla de ChatGPT, i els noms dels menús poden canviar.
-        </p>
       </Client>
 
       <Client title="Claude Code">

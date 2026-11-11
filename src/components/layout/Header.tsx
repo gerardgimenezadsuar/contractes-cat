@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { SITE_NAME } from "@/config/constants";
+import AssistantMarks from "@/components/brand/AssistantMarks";
 import Logo from "@/components/brand/Logo";
 
 const NAV_ITEMS = [
@@ -60,8 +61,9 @@ export default function Header() {
           <Link
             href="/assistents"
             prefetch
-            className="hidden lg:inline-flex items-center rounded-full border border-accent/40 px-3 py-1.5 text-sm font-medium text-accent hover:bg-accent-soft"
+            className="hidden lg:inline-flex items-center gap-2 rounded-full border border-accent/40 py-1 pl-1.5 pr-3 text-sm font-medium text-accent hover:bg-accent-soft"
           >
+            <AssistantMarks />
             Connecta la teva IA
           </Link>
 
@@ -109,9 +111,10 @@ export default function Header() {
               href="/assistents"
               prefetch
               onClick={() => setMobileOpen(false)}
-              className="block min-h-11 px-3 py-2.5 rounded-md text-sm font-medium text-accent hover:bg-gray-50"
+              className="flex min-h-11 items-center gap-2 px-3 py-2.5 rounded-md text-sm font-medium text-accent hover:bg-gray-50"
             >
-              Connecta la teva IA (Claude, ChatGPT…)
+              <AssistantMarks />
+              Connecta la teva IA (ChatGPT, Claude…)
             </Link>
           </nav>
         )}

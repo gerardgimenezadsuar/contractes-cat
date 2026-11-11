@@ -119,3 +119,6 @@ export const ICON_VERSION = 2;
 
 // Listing in the Claude connectors directory: opens Claude's own "Connect" screen.
 export const CLAUDE_CONNECTOR_URL = "https://claude.ai/directory/contractes-cat";
+
+// Official listing in the ChatGPT plugin directory (approved Nov 2026).
+export const CHATGPT_PLUGIN_URL = "https://chatgpt.com/plugins/plugin_asdk_app_6af201c53e148191a9b6fa95f1c37a31";
