@@ -6,7 +6,7 @@ import { formatCompactEuros } from "@/lib/indicators";
 import { formatNumber } from "@/lib/utils";
 import PageHeader from "@/components/layout/PageHeader";
 
-export const revalidate = 21600;
+export const revalidate = 43200;
 
 const PAGE_SIZE = 50;
 

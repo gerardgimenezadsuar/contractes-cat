@@ -80,7 +80,7 @@ export default function AboutPage() {
           <ul className="list-disc list-inside space-y-1">
             <li>API: Socrata Open Data (SODA)</li>
             <li>Actualització: Les dades s&apos;actualitzen periòdicament a la font</li>
-            <li>Memòria cau: Les dades es refresquen aproximadament cada 6 hores</li>
+            <li>Memòria cau: Les dades es refresquen aproximadament cada 12 hores</li>
             <li>
               Un petit nombre de registres (~0,3%) amb dades inconsistents
               s&apos;exclouen dels càlculs agregats
