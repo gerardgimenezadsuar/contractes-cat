@@ -51,10 +51,17 @@ export interface CompanySeoInput {
   hasBorme: boolean;
 }
 
-export function buildCompanySeoTitle(input: Pick<CompanySeoInput, "name" | "nif" | "hasBorme">): string {
+/**
+ * People search the company name, so the title leads with it and then shows
+ * what other company-data sites don't have: who runs it and how much public
+ * money it won. The NIF stays in the description, where it still matches.
+ */
+export function buildCompanySeoTitle(
+  input: Pick<CompanySeoInput, "name" | "hasBorme"> & { amountLabel?: string | null }
+): string {
   const name = cleanEntityName(input.name);
-  const id = input.nif ? ` (${input.nif})` : "";
-  return `${name}${id}: contractes públics${input.hasBorme ? " i administradors" : " a Catalunya"}`;
+  const contracts = input.amountLabel ? `${input.amountLabel} en contractes públics` : "contractes públics";
+  return input.hasBorme ? `${name}: administradors i ${contracts}` : `${name}: ${contracts} a Catalunya`;
 }
 
 export function buildCompanySeoDescription(input: CompanySeoInput): string {
@@ -93,6 +100,74 @@ export function currentControllers(spans: ControllerSpan[]): { owners: Controlle
     if (!target.has(span.person_name)) target.set(span.person_name, { personName: span.person_name, role: span.control });
   }
   return { owners: [...owners.values()], admins: [...admins.values()] };
+}
+
+export interface KeyPersonSpan extends ControllerSpan {
+  date_start: string;
+  role_title_raw: string | null;
+}
+
+export interface KeyPerson extends Controller {
+  /** Short Catalan role label, gender-neutral where BORME doesn't say. */
+  title: string;
+  /** Year the current role started (earliest current control span), if known. */
+  sinceYear: number | null;
+}
+
+/** Most to least decisive, for ordering and for picking one label per person. */
+const ADMIN_TITLES: Array<[RegExp, string]> = [
+  [/UNIC|ÚNIC/i, "Administració única"],
+  [/CONS(EJERO)?[\s._]*DEL|DELEGAD/i, "Conseller/a delegat/da"],
+  [/CONS[\s._]*EJECUT/i, "Conseller/a executiu/va"],
+  [/(?<!VICE[\s._]*)PRESID/i, "Presidència"],
+  [/VICE[\s._]*PRES/i, "Vicepresidència"],
+  [/SOLID/i, "Administració solidària"],
+  [/MANCOM|CONJUNT/i, "Administració mancomunada"],
+];
+
+function adminTitle(raw: string | null): { title: string; rank: number } {
+  const text = raw ?? "";
+  const index = ADMIN_TITLES.findIndex(([pattern]) => pattern.test(text));
+  return index >= 0 ? { title: ADMIN_TITLES[index][1], rank: index + 1 } : { title: "Administració", rank: ADMIN_TITLES.length + 1 };
+}
+
+/** Roles one person holds at a time. BORME often misses the exit, so older holders are stale. */
+const SINGLE_HOLDER_TITLES = new Set(["Soci únic", "Administració única", "Presidència"]);
+
+/**
+ * The people to show first on a company page: current sole shareholders, then
+ * administrators from the most decisive role down, then the longest-serving.
+ * One entry per person, with their strongest current role. For roles only one
+ * person can hold, only the latest appointment is kept.
+ */
+export function companyKeyPeople(spans: KeyPersonSpan[]): KeyPerson[] {
+  type Entry = KeyPerson & { rank: number; since: string; roleStart: string };
+  const people = new Map<string, Entry>();
+  const latestByTitle = new Map<string, string>();
+  for (const span of spans) {
+    if (span.date_end || !span.control || isJunkPersonName(span.person_name)) continue;
+    const { title, rank } =
+      span.control === "OWNER" ? { title: "Soci únic", rank: 0 } : adminTitle(span.role_title_raw);
+    const start = span.date_start || "";
+    if (start > (latestByTitle.get(title) ?? "")) latestByTitle.set(title, start);
+    const existing = people.get(span.person_name);
+    if (!existing) {
+      people.set(span.person_name, { personName: span.person_name, role: span.control, title, rank, since: start, roleStart: start, sinceYear: null });
+      continue;
+    }
+    if (rank < existing.rank || (rank === existing.rank && start > existing.roleStart)) {
+      Object.assign(existing, { role: span.control, title, rank, roleStart: start });
+    }
+    if (start && (!existing.since || start < existing.since)) existing.since = start;
+  }
+  const NO_DATE = "99999999";
+  return [...people.values()]
+    .filter((p) => !SINGLE_HOLDER_TITLES.has(p.title) || p.roleStart === latestByTitle.get(p.title))
+    .sort((a, b) => a.rank - b.rank || (a.since || NO_DATE).localeCompare(b.since || NO_DATE) || a.personName.localeCompare(b.personName))
+    .map(({ personName, role, title, since }) => {
+      const year = parseInt(since.slice(0, 4), 10);
+      return { personName, role, title, sinceYear: Number.isFinite(year) && year > 1900 ? year : null };
+    });
 }
 
 // ---------------------------------------------------------------------------

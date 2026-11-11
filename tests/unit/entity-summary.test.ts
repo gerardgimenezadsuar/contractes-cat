@@ -7,6 +7,7 @@ import {
   buildPersonSeoDescription,
   buildPersonSeoTitle,
   cleanEntityName,
+  companyKeyPeople,
   currentControllers,
   isJunkPersonName,
   joinCa,
@@ -24,15 +25,16 @@ test("cleanEntityName drops trailing separators and extra spaces", () => {
   assert.equal(cleanEntityName(" EUROFINS ANALISIS AGRO, S.A. "), "EUROFINS ANALISIS AGRO, S.A.");
 });
 
-test("company title carries NIF and the administrators angle when BORME data exists", () => {
+test("company title leads with the name, the administrators angle and the amount", () => {
   assert.equal(
-    buildCompanySeoTitle({ name: "ACME, S.L.,", nif: "B12345678", hasBorme: true }),
-    "ACME, S.L. (B12345678): contractes públics i administradors"
+    buildCompanySeoTitle({ name: "ACME, S.L.,", hasBorme: true, amountLabel: "12,3 M€" }),
+    "ACME, S.L.: administradors i 12,3 M€ en contractes públics"
   );
   assert.equal(
-    buildCompanySeoTitle({ name: "ACME SL", nif: null, hasBorme: false }),
-    "ACME SL: contractes públics a Catalunya"
+    buildCompanySeoTitle({ name: "ACME SL", hasBorme: false, amountLabel: "850,2 k€" }),
+    "ACME SL: 850,2 k€ en contractes públics a Catalunya"
   );
+  assert.equal(buildCompanySeoTitle({ name: "ACME SL", hasBorme: false }), "ACME SL: contractes públics a Catalunya");
 });
 
 test("company description reads naturally and never ends with a double period", () => {
@@ -128,4 +130,47 @@ test("person answer states the negative cases explicitly", () => {
     "Maria Roca té o ha tingut la propietat o l'administració de 1 empresa segons el BORME, que ha guanyat contractes públics a Catalunya. " +
       "Cap d'aquests contractes no es va adjudicar mentre Maria Roca en tenia la propietat o l'administració."
   );
+});
+
+test("companyKeyPeople puts owners first, then the most decisive admin role, one entry per person", () => {
+  const span = (person_name: string, control: "OWNER" | "ADMIN" | null, role_title_raw: string | null, date_start: string, date_end: string | null = null) => ({
+    person_name,
+    control,
+    role_title_raw,
+    date_start,
+    date_end,
+  });
+  const people = companyKeyPeople([
+    span("SOLIDARI B", "ADMIN", "ADM. SOLIDAR.", "20180101"),
+    span("SOLIDARI A", "ADMIN", "ADM. SOLIDAR.", "20150101"),
+    span("PRESI", "ADMIN", "PRESIDENTE", "20200101"),
+    span("PRESI", "ADMIN", "CONS.DELEG.", "20190301"),
+    span("OWNER", "OWNER", null, "20210101"),
+    span("VICE", "ADMIN", "VICEPRESIDEN", "20100101"),
+    span("OLD", "ADMIN", "ADM. UNICO", "20100101", "20120101"),
+    span("APODERAT", null, "APODERADO", "20100101"),
+    span("X Presidente: Y", "ADMIN", "PRESIDENTE", "20100101"),
+  ]);
+  assert.deepEqual(
+    people.map((p) => [p.personName, p.title, p.sinceYear]),
+    [
+      ["OWNER", "Soci únic", 2021],
+      ["PRESI", "Conseller/a delegat/da", 2019],
+      ["VICE", "Vicepresidència", 2010],
+      ["SOLIDARI A", "Administració solidària", 2015],
+      ["SOLIDARI B", "Administració solidària", 2018],
+    ]
+  );
+});
+
+test("companyKeyPeople keeps only the latest holder of single-holder roles", () => {
+  const people = companyKeyPeople([
+    { person_name: "OLD PRESI", control: "ADMIN", role_title_raw: "PRESIDENTE", date_start: "20120101", date_end: null },
+    { person_name: "NEW PRESI", control: "ADMIN", role_title_raw: "PRESIDENTE", date_start: "20250101", date_end: null },
+    { person_name: "OLD OWNER", control: "OWNER", role_title_raw: null, date_start: "20100101", date_end: null },
+    { person_name: "NEW OWNER", control: "OWNER", role_title_raw: null, date_start: "20200101", date_end: null },
+    { person_name: "SOLID A", control: "ADMIN", role_title_raw: "ADM.SOLIDAR.", date_start: "20100101", date_end: null },
+    { person_name: "SOLID B", control: "ADMIN", role_title_raw: "ADM.SOLIDAR.", date_start: "20200101", date_end: null },
+  ]);
+  assert.deepEqual(people.map((p) => p.personName), ["NEW OWNER", "NEW PRESI", "SOLID A", "SOLID B"]);
 });

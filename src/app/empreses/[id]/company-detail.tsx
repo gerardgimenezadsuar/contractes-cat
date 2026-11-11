@@ -41,8 +41,9 @@ import {
   buildCompanySeoDescription,
   buildCompanySeoTitle,
   cleanEntityName,
-  currentControllers,
+  companyKeyPeople,
 } from "@/lib/seo/entity-summary";
+import CompanyKeyStrip from "@/components/company/CompanyKeyStrip";
 import CompanySummary from "@/components/company/CompanySummary";
 import RelatedCompaniesSection from "@/components/company/RelatedCompaniesSection";
 import { buildCompanyHref, isAmbiguousCompanyId } from "@/lib/company-identity";
@@ -85,7 +86,11 @@ export async function buildCompanyMetadata(decodedId: string, name?: string): Pr
   const totalContracts = parseInt(company?.num_contracts || "0", 10);
   const publicNif = isAmbiguousCompanyId(canonicalCompanyId) ? null : canonicalCompanyId;
   const hasBorme = Boolean(adminHistory && adminHistory.spans.length > 0);
-  const title = buildCompanySeoTitle({ name: companyName, nif: publicNif, hasBorme });
+  const title = buildCompanySeoTitle({
+    name: companyName,
+    hasBorme,
+    amountLabel: totalAmount > 0 ? formatCompactEuros(totalAmount) : null,
+  });
   const description = company
     ? buildCompanySeoDescription({
         name: companyName,
@@ -191,13 +196,19 @@ export async function CompanyDetail({ decodedId, name }: { decodedId: string; na
   const entityPath = buildCompanyHref(nif, company.denominacio_adjudicatari);
   const publicNif = canMeasureCompetition ? nif : null;
   const { firstYear, lastYear: lastContractYear } = contractYears(yearly);
-  const controllers = currentControllers(
-    (adminHistory?.spans ?? []).map((span) => ({
-      person_name: span.person_name,
-      date_end: span.date_end,
-      control: classifyControlRole(span.relation_type, span.role_title_code),
-    }))
-  );
+  const controlSpans = (adminHistory?.spans ?? []).map((span) => ({
+    person_name: span.person_name,
+    date_start: span.date_start,
+    date_end: span.date_end,
+    role_title_raw: span.role_title_raw,
+    control: classifyControlRole(span.relation_type, span.role_title_code),
+  }));
+  // Same people everywhere on the page, without stale single-holder roles.
+  const keyPeople = companyKeyPeople(controlSpans);
+  const controllers = {
+    owners: keyPeople.filter((person) => person.role === "OWNER"),
+    admins: keyPeople.filter((person) => person.role === "ADMIN"),
+  };
   const companyDescription = `${formatCompactNumber(totalAmount)} adjudicats en ${formatNumber(numContracts)} contractes públics a ${cleanEntityName(company.denominacio_adjudicatari)}.`;
   const bormeName = adminHistory?.matched_name;
   const jsonLd = buildEntityJsonLdGraph(
@@ -275,6 +286,9 @@ export async function CompanyDetail({ decodedId, name }: { decodedId: string; na
         admins={controllers.admins}
           relatedCount={relatedCompanies.length}
         />
+      </TrackedLinks>
+      <TrackedLinks from="empresa/destacades">
+        <CompanyKeyStrip people={keyPeople} topClients={topOrgans} contractsCount={contractsCount} />
       </TrackedLinks>
       <SectionTabs tabs={tabs} />
 
