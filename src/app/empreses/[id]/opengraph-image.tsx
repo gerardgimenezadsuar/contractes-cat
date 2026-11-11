@@ -1,6 +1,6 @@
 import { fetchCompanyDetail } from "@/lib/api";
 import { loadAdminHistory } from "@/lib/borme";
-import { classifyControlRole } from "@/lib/borme-roles";
+import { toControlSpans } from "@/lib/borme-roles";
 import { formatCompactEuros } from "@/lib/indicators";
 import { OG_CONTENT_TYPE, OG_SIZE, renderCard } from "@/lib/og/card";
 import { formatPersonDisplayName } from "@/lib/person-utils";
@@ -41,13 +41,7 @@ export default async function Image({ params }: Props) {
     .filter(Number.isFinite);
   const period = years.length > 0 ? `${Math.min(...years)}–${Math.max(...years)}` : "—";
 
-  const { owners, admins } = currentControllers(
-    (adminHistory?.spans ?? []).map((span) => ({
-      person_name: span.person_name,
-      date_end: span.date_end,
-      control: classifyControlRole(span.relation_type, span.role_title_code),
-    }))
-  );
+  const { owners, admins } = currentControllers(toControlSpans(adminHistory?.spans ?? []));
   const summary =
     owners.length > 0
       ? `Soci únic: ${names(owners)}.${admins.length > 0 ? ` Administració: ${names(admins)}.` : ""}`
