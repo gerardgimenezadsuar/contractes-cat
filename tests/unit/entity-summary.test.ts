@@ -73,14 +73,22 @@ test("company description handles a single contract and no history", () => {
   assert.equal(description, "X ha guanyat 1 contracte públic a Catalunya per 5 k€ el 2024. Contratos públicos adjudicados en Cataluña.");
 });
 
-test("currentControllers keeps active owners and admins, deduplicated, skipping junk and ended roles", () => {
+test("currentControllers splits companyKeyPeople by role, skipping junk, ended and stale roles", () => {
+  const span = (person_name: string, control: "OWNER" | "ADMIN" | null, date_start: string, date_end: string | null = null, role_title_raw: string | null = "ADM.SOLIDAR.") => ({
+    person_name,
+    control,
+    date_start,
+    date_end,
+    role_title_raw,
+  });
   const result = currentControllers([
-    { person_name: "GARCIA PUIG JOAN", date_end: null, control: "ADMIN" },
-    { person_name: "GARCIA PUIG JOAN", date_end: null, control: "ADMIN" },
-    { person_name: "ROCA MARIA", date_end: null, control: "OWNER" },
-    { person_name: "OLD ADMIN", date_end: "20200101", control: "ADMIN" },
-    { person_name: "APODERAT", date_end: null, control: null },
-    { person_name: "PEREZ Presidente: X", date_end: null, control: "ADMIN" },
+    span("GARCIA PUIG JOAN", "ADMIN", "20150101"),
+    span("GARCIA PUIG JOAN", "ADMIN", "20180101"),
+    span("ROCA MARIA", "OWNER", "20200101", null, null),
+    span("OLD OWNER", "OWNER", "20100101", null, null),
+    span("OLD ADMIN", "ADMIN", "20100101", "20200101"),
+    span("APODERAT", null, "20100101"),
+    span("PEREZ Presidente: X", "ADMIN", "20100101"),
   ]);
   assert.deepEqual(result.owners.map((p) => p.personName), ["ROCA MARIA"]);
   assert.deepEqual(result.admins.map((p) => p.personName), ["GARCIA PUIG JOAN"]);

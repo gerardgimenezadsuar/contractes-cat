@@ -39,3 +39,16 @@ export function mergePeriods(periods: Array<{ start: string; end: string | null 
   }
   return out;
 }
+
+/** BORME spans in the shape the controller helpers in seo/entity-summary.ts take. */
+export function toControlSpans(
+  spans: Array<{ person_name: string; relation_type: string; role_title_code: string | null; role_title_raw: string | null; date_start: string; date_end: string | null }>
+) {
+  return spans.map((span) => ({
+    person_name: span.person_name,
+    date_start: span.date_start,
+    date_end: span.date_end,
+    role_title_raw: span.role_title_raw,
+    control: classifyControlRole(span.relation_type, span.role_title_code),
+  }));
+}

@@ -36,12 +36,13 @@ import SectionTabs from "@/components/entity/SectionTabs";
 import TrackedLinks from "@/components/entity/TrackedLinks";
 import { IndicatorGrid } from "@/components/entity/IndicatorCard";
 import { loadAdminHistory, loadCompanyGroupByNif, loadRelatedCompanies } from "@/lib/borme";
-import { classifyControlRole } from "@/lib/borme-roles";
+import { toControlSpans } from "@/lib/borme-roles";
 import {
   buildCompanySeoDescription,
   buildCompanySeoTitle,
   cleanEntityName,
   companyKeyPeople,
+  currentControllers,
 } from "@/lib/seo/entity-summary";
 import CompanyKeyStrip from "@/components/company/CompanyKeyStrip";
 import CompanySummary from "@/components/company/CompanySummary";
@@ -196,19 +197,10 @@ export async function CompanyDetail({ decodedId, name }: { decodedId: string; na
   const entityPath = buildCompanyHref(nif, company.denominacio_adjudicatari);
   const publicNif = canMeasureCompetition ? nif : null;
   const { firstYear, lastYear: lastContractYear } = contractYears(yearly);
-  const controlSpans = (adminHistory?.spans ?? []).map((span) => ({
-    person_name: span.person_name,
-    date_start: span.date_start,
-    date_end: span.date_end,
-    role_title_raw: span.role_title_raw,
-    control: classifyControlRole(span.relation_type, span.role_title_code),
-  }));
-  // Same people everywhere on the page, without stale single-holder roles.
+  // Same people as the social card and the MCP server, without stale single-holder roles.
+  const controlSpans = toControlSpans(adminHistory?.spans ?? []);
   const keyPeople = companyKeyPeople(controlSpans);
-  const controllers = {
-    owners: keyPeople.filter((person) => person.role === "OWNER"),
-    admins: keyPeople.filter((person) => person.role === "ADMIN"),
-  };
+  const controllers = currentControllers(controlSpans);
   const companyDescription = `${formatCompactNumber(totalAmount)} adjudicats en ${formatNumber(numContracts)} contractes públics a ${cleanEntityName(company.denominacio_adjudicatari)}.`;
   const bormeName = adminHistory?.matched_name;
   const jsonLd = buildEntityJsonLdGraph(

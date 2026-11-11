@@ -90,17 +90,6 @@ export interface Controller {
   role: "OWNER" | "ADMIN";
 }
 
-/** People currently owning or administering the company, owners first, deduplicated. */
-export function currentControllers(spans: ControllerSpan[]): { owners: Controller[]; admins: Controller[] } {
-  const owners = new Map<string, Controller>();
-  const admins = new Map<string, Controller>();
-  for (const span of spans) {
-    if (span.date_end || !span.control || isJunkPersonName(span.person_name)) continue;
-    const target = span.control === "OWNER" ? owners : admins;
-    if (!target.has(span.person_name)) target.set(span.person_name, { personName: span.person_name, role: span.control });
-  }
-  return { owners: [...owners.values()], admins: [...admins.values()] };
-}
 
 export interface KeyPersonSpan extends ControllerSpan {
   date_start: string;
@@ -168,6 +157,15 @@ export function companyKeyPeople(spans: KeyPersonSpan[]): KeyPerson[] {
       const year = parseInt(since.slice(0, 4), 10);
       return { personName, role, title, sinceYear: Number.isFinite(year) && year > 1900 ? year : null };
     });
+}
+
+/**
+ * Current owners and administrators, owners first, split by role. Same people
+ * and order as companyKeyPeople, so the page, social card and MCP agree.
+ */
+export function currentControllers(spans: KeyPersonSpan[]): { owners: KeyPerson[]; admins: KeyPerson[] } {
+  const people = companyKeyPeople(spans);
+  return { owners: people.filter((p) => p.role === "OWNER"), admins: people.filter((p) => p.role === "ADMIN") };
 }
 
 // ---------------------------------------------------------------------------

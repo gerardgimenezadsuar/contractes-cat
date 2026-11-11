@@ -30,7 +30,7 @@ import {
   searchPersonsWithTotal,
 } from "@/lib/borme";
 import { isEntityName } from "@/lib/borme-format";
-import { classifyControlRole } from "@/lib/borme-roles";
+import { toControlSpans } from "@/lib/borme-roles";
 import { buildCompanyHref } from "@/lib/company-identity";
 import { formatPersonDisplayName } from "@/lib/person-utils";
 import { buildPersonAnswer, cleanEntityName, currentControllers } from "@/lib/seo/entity-summary";
@@ -169,19 +169,15 @@ export function registerContractesTools(server: McpServer): void {
       ]);
       if (!company) return notFound(`No public contracts found for NIF ${id}. Try search_companies.`);
       const companyName = cleanEntityName(company.denominacio_adjudicatari);
-      const controllers = currentControllers(
-        (adminHistory?.spans ?? []).map((span) => ({
-          person_name: span.person_name,
-          date_end: span.date_end,
-          control: classifyControlRole(span.relation_type, span.role_title_code),
-        }))
-      );
+      const controllers = currentControllers(toControlSpans(adminHistory?.spans ?? []));
       const people = (list: typeof controllers.owners) =>
         list.slice(0, 15).map((p) => ({
           // Corporate owners ("FUTBOL CLUB BARCELONA") keep their order; people are surname-first.
           name: isEntityName(p.personName) ? cleanEntityName(p.personName) : formatPersonDisplayName(p.personName),
           is_organisation: isEntityName(p.personName),
           borme_name: p.personName,
+          role: p.title,
+          since_year: p.sinceYear,
           url: personUrl(p.personName),
         }));
       return json({
