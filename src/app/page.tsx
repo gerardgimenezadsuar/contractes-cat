@@ -55,20 +55,12 @@ export const metadata: Metadata = {
     url: SITE_URL,
     siteName: SITE_NAME,
     type: "website",
-    images: [
-      {
-        url: "/social-card-v1.png",
-        width: 1200,
-        height: 630,
-        alt: "Contractació pública a Catalunya - contractes.cat",
-      },
-    ],
+    // Image comes from app/opengraph-image.tsx (generated, same design as entity cards).
   },
   twitter: {
     card: "summary_large_image",
     title: "Contractació pública a Catalunya",
     description: OG_DESCRIPTION,
-    images: ["/social-card-v1.png"],
   },
 };
 

@@ -35,7 +35,12 @@ export const metadata: Metadata = {
   verification: { google: "yMtPiuYoL50YLYCzNKyntpAPvz36g6ugSGf0A535rwc" },
   // ?v= busts browser and home-screen caches; bump ICON_VERSION after running scripts/generate-icons.mjs.
   icons: {
-    icon: [{ url: `/favicon.ico?v=${ICON_VERSION}`, sizes: "48x48" }, { url: `/icon.svg?v=${ICON_VERSION}`, type: "image/svg+xml" }],
+    // Google picks the site favicon from these; it prefers square sizes in multiples of 48px.
+    icon: [
+      { url: `/favicon.ico?v=${ICON_VERSION}`, sizes: "48x48" },
+      { url: `/icons/icon-192.png?v=${ICON_VERSION}`, sizes: "192x192", type: "image/png" },
+      { url: `/icon.svg?v=${ICON_VERSION}`, type: "image/svg+xml" },
+    ],
     shortcut: [{ url: `/favicon.ico?v=${ICON_VERSION}` }],
     apple: [{ url: `/icons/apple-touch-icon.png?v=${ICON_VERSION}`, sizes: "180x180", type: "image/png" }],
   },
