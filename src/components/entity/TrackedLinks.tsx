@@ -19,6 +19,8 @@ interface Props {
 /** What kind of page a link leads to, from its href. */
 export function linkTarget(href: string): string | null {
   if (!href || href.startsWith("#")) return null;
+  if (/^https?:\/\/(www\.)?chatgpt\.com\//i.test(href)) return "chatgpt";
+  if (/^https?:\/\/claude\.ai\//i.test(href)) return "claude";
   if (/^https?:\/\//i.test(href) && !href.includes("contractes.cat")) return "external";
   const path = href.replace(/^https?:\/\/[^/]+/i, "");
   if (path.startsWith("/empreses/")) return "empresa";

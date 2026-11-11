@@ -40,6 +40,7 @@ Human-readable pages to cite for users:
 
 - Remote MCP endpoint (Streamable HTTP, no auth): `https://www.contractes.cat/api/mcp`
 - Tools: search_companies, get_company, search_people, get_person, search_contracts, search_public_bodies, get_public_body_top_companies
+- ChatGPT plugin (one click): https://chatgpt.com/plugins/plugin_asdk_app_6af201c53e148191a9b6fa95f1c37a31
 - Claude connector (one click): https://claude.ai/directory/contractes-cat
 - Setup for Claude, ChatGPT, Codex, Cursor and VS Code: https://www.contractes.cat/assistents
 

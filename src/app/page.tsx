@@ -26,7 +26,7 @@ import { displayCompanyName } from "@/lib/company-names";
 import { listTopCompanyGroups, loadBormeCoverage } from "@/lib/borme";
 import { fetchTrending } from "@/lib/trending";
 import TrackedLinks from "@/components/entity/TrackedLinks";
-import ConnectClaudeBanner from "@/components/home/ConnectClaudeBanner";
+import ConnectAssistantsBanner from "@/components/home/ConnectAssistantsBanner";
 
 const OG_DESCRIPTION =
   "Contractes públics adjudicats a Catalunya, administradors i propietaris de les empreses (BORME) i grups empresarials. Cerca per empresa, organisme o persona.";
@@ -309,7 +309,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <ConnectClaudeBanner />
+      <ConnectAssistantsBanner />
 
       <div className="mx-auto max-w-7xl px-4">
         <KeyFigures figures={figures} className="mt-6" />
