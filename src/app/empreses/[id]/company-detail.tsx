@@ -35,7 +35,8 @@ import EntityHeader, { type HeaderChip, type KeyFigure } from "@/components/enti
 import SectionTabs from "@/components/entity/SectionTabs";
 import TrackedLinks from "@/components/entity/TrackedLinks";
 import { IndicatorGrid } from "@/components/entity/IndicatorCard";
-import { loadAdminHistory, loadCompanyGroupByNif, loadRelatedCompanies } from "@/lib/borme";
+import { loadAdminHistory, loadCompanyGroupByNif, loadCompanyRegistry, loadRelatedCompanies } from "@/lib/borme";
+import CompanyRegistryCard, { registryStatusChip, registryStatusTone } from "@/components/company/CompanyRegistryCard";
 import { toControlSpans } from "@/lib/borme-roles";
 import {
   buildCompanySeoDescription,
@@ -147,7 +148,7 @@ export async function CompanyDetail({ decodedId, name }: { decodedId: string; na
 
   const nif = company.identificacio_adjudicatari;
   const canMeasureCompetition = !isAmbiguousCompanyId(nif);
-  const [contracts, contractsCount, topOrgans, lastAwardDate, competition, baseline, adminHistory, relatedCompanies, companyGroup] = await Promise.all([
+  const [contracts, contractsCount, topOrgans, lastAwardDate, competition, baseline, adminHistory, relatedCompanies, companyGroup, registry] = await Promise.all([
     fetchCompanyContracts(decodedId, name, 0, 50),
     fetchCompanyContractsCount(decodedId, name),
     getTopOrgans(decodedId, name),
@@ -157,6 +158,7 @@ export async function CompanyDetail({ decodedId, name }: { decodedId: string; na
     getAdminHistory(decodedId),
     canMeasureCompetition ? loadRelatedCompanies(nif) : Promise.resolve([]),
     canMeasureCompetition ? loadCompanyGroupByNif(nif) : Promise.resolve(null),
+    canMeasureCompetition ? loadCompanyRegistry(nif) : Promise.resolve(null),
   ]);
   const hasNetwork = relatedCompanies.length > 0 || Boolean(companyGroup && companyGroup.size > 1);
   const relatedTotals =
@@ -188,6 +190,10 @@ export async function CompanyDetail({ decodedId, name }: { decodedId: string; na
   ];
 
   const chips: HeaderChip[] = [{ label: "NIF", value: nif, mono: true }];
+  const statusTone = registry ? registryStatusTone(registry) : null;
+  if (registry && statusTone) {
+    chips.unshift({ label: "Estat", value: registryStatusChip(registry), tone: statusTone });
+  }
   if (lastAwardDate) chips.push({ label: "Darrera adjudicació", value: formatDate(lastAwardDate) });
   if (hasBormeData && adminHistory?.matched_name) chips.push({ label: "BORME", value: adminHistory.matched_name });
   if (companyGroup && companyGroup.size > 1) {
@@ -241,6 +247,7 @@ export async function CompanyDetail({ decodedId, name }: { decodedId: string; na
     ...(hasBormeData ? [{ id: "administradors", label: "Administradors" }] : []),
     ...(hasNetwork ? [{ id: "relacionades", label: "Empreses relacionades" }] : []),
     { id: "contractes", label: "Contractes" },
+    ...(registry ? [{ id: "fitxa", label: "Fitxa mercantil" }] : []),
   ];
 
   return (
@@ -348,6 +355,13 @@ export async function CompanyDetail({ decodedId, name }: { decodedId: string; na
           totalContracts={contractsCount}
         />
       </TrackedLinks>
+
+      {registry ? (
+        <TrackedLinks as="section" from="empresa/fitxa" trackView id="fitxa" className="scroll-mt-32 pt-12">
+          <h2 className="mb-3 font-display text-xl font-semibold text-gray-900">Fitxa mercantil</h2>
+          <CompanyRegistryCard registry={registry} />
+        </TrackedLinks>
+      ) : null}
     </div>
   );
 }

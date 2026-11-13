@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """High-volume BORME Section A extractor with optional matching against contractes.cat dataset.
 
+Parsing lives in borme_parser.py; this module fetches sumarios/PDFs and writes CSVs.
+
 Outputs:
-  - relations_<run_id>.csv: person-level relations with event_type and role title detail.
-  - company_events_<run_id>.csv: per-filing company metadata (constitucion + datos registrales).
+  - relations_<run_id>.csv: person-level relations with event_type and role title detail
+    (+ "_COMPANY" rows for company-level closing acts such as Extinción).
+  - company_events_<run_id>.csv: one row per inscribed act with structured fields (JSON).
 """
 
 from __future__ import annotations
@@ -21,6 +24,10 @@ from typing import Iterable
 
 import requests
 from pypdf import PdfReader
+
+import sys as _sys
+_sys.path.insert(0, str(Path(__file__).resolve().parent))
+import borme_parser as bp  # noqa: E402
 
 BORME_SUMARIO_URL = "https://www.boe.es/datosabiertos/api/borme/sumario/{date}"
 SOCRATA_BASE_URL = "https://analisi.transparenciacatalunya.cat/resource/ybgg-dgi6.json"
@@ -112,210 +119,6 @@ def extract_section_a_items(payload: dict, provinces: set[str], date_yyyymmdd: s
   return items
 
 
-def split_registry_blocks(pdf_text: str) -> list[str]:
-  return re.split(r"\n\d+\s-\s", pdf_text)
-
-
-def extract_company_name(block_text: str) -> str:
-  candidate = block_text.strip()
-  if not candidate:
-    return ""
-  marker = re.search(
-    r"\b("
-    r"Constitución|Nombramientos|Revocaciones|Reelecciones|Fe de erratas|Otros conceptos|Cambio de domicilio|"
-    r"Transformación de sociedad|Reducción de capital|Ampliación de capital|Disolución|Extinción|"
-    r"Ceses/Dimisiones|Declaración de unipersonalidad|Cambio de objeto social|Modificaciones estatutarias"
-    r")\b",
-    candidate,
-    flags=re.IGNORECASE,
-  )
-  company_raw = candidate[: marker.start()] if marker else candidate.split("\n", 1)[0]
-  company_raw = normalize_spaces(company_raw).rstrip(" .,:;")
-  return company_raw
-
-
-def clean_fragment(text: str) -> str:
-  value = normalize_spaces(text)
-  value = re.split(
-    r"\b("
-    r"DATOS\s+REGISTRALES|NOMBRAMIENTOS|OTROS\s+CONCEPTOS|DOMICILIO|CAPITAL|"
-    r"CONSTITUCION|REVOCACIONES|REELECCIONES|OBJETO\s+SOCIAL|COMIENZO\s+DE\s+OPERACIONES"
-    r")\b",
-    value,
-    maxsplit=1,
-    flags=re.IGNORECASE,
-  )[0]
-  value = re.sub(r"^(DON|DOÑA)\s+", "", value, flags=re.IGNORECASE)
-  return value.strip(" '\".,:;")
-
-
-def split_names(text: str) -> list[str]:
-  value = clean_fragment(text)
-  if not value:
-    return []
-  parts = re.split(r"\s*;\s*|\s+Y\s+", value, flags=re.IGNORECASE)
-  return [p.strip(" '\".,:;") for p in parts if len(p.strip(" '\".,:;")) >= 3]
-
-
-SECTION_BOUNDARIES = (
-  r"CONSTITUCI[OÓ]N",
-  r"NOMBRAMIENTOS",
-  r"CESES/DIMISIONES",
-  r"REVOCACIONES",
-  r"REELECCIONES",
-  r"DATOS\s+REGISTRALES",
-  r"OTROS\s+CONCEPTOS",
-  r"CAMBIO\s+DE\s+DOMICILIO",
-  r"DECLARACI[OÓ]N\s+DE\s+UNIPERSONALIDAD",
-  r"P[ÉE]RDIDA\s+DEL\s+CARACTER\s+DE\s+UNIPERSONALIDAD",
-  r"DISOLUCI[OÓ]N",
-  r"EXTINCI[OÓ]N",
-  r"MODIFICACIONES\s+ESTATUTARIAS",
-  r"OBJETO\s+SOCIAL",
-)
-
-ROLE_CAPTURE_PATTERN = re.compile(r"([A-ZÁÉÍÓÚÜÑ][A-ZÁÉÍÓÚÜÑ./\s-]{1,60}?)\s*:\s*([^\.]+)", re.IGNORECASE)
-
-
-def extract_section_body(block: str, header_regex: str) -> list[str]:
-  boundary = "|".join(SECTION_BOUNDARIES)
-  return re.findall(
-    rf"{header_regex}\.\s*(.+?)(?=(?:\b(?:{boundary})\b\.)|$)",
-    block,
-    flags=re.IGNORECASE,
-  )
-
-
-def normalize_role_title_code(role_title_raw: str) -> str:
-  value = normalize_spaces(role_title_raw).upper()
-  value = re.sub(r"[^A-Z0-9]+", "_", value).strip("_")
-  value = re.sub(r"_+", "_", value)
-  return value
-
-
-def classify_relation_type(role_title_raw: str) -> str | None:
-  title = normalize_spaces(role_title_raw).upper()
-  normalized = re.sub(r"[^A-Z0-9]", "", title)
-  if not normalized:
-    return None
-  if "ADM" in normalized and "COM" not in normalized:
-    return "ADMINISTRADOR"
-  if "APOD" in normalized or "APODER" in normalized:
-    return "APODERADO"
-  if "LIQUID" in normalized:
-    return "LIQUIDADOR"
-  if (
-    "CONSEJ" in normalized
-    or "PRESIDENT" in normalized
-    or "SECRETAR" in normalized
-    or "VICEPRES" in normalized
-    or "CONSDEL" in normalized
-    or "COMISIONEJECUT" in normalized
-  ):
-    return "ORGANO_GOBIERNO"
-  return None
-
-
-def parse_role_relations(section_text: str, event_type: str) -> list[dict]:
-  relations: list[dict] = []
-  for match in ROLE_CAPTURE_PATTERN.finditer(section_text):
-    role_title_raw = normalize_spaces(match.group(1))
-    relation_type = classify_relation_type(role_title_raw)
-    if not relation_type:
-      continue
-    role_title_code = normalize_role_title_code(role_title_raw)
-    for owner in split_names(match.group(2)):
-      relations.append(
-        {
-          "relation_type": relation_type,
-          "owner_name": owner,
-          "event_type": event_type,
-          "role_title_raw": role_title_raw,
-          "role_title_code": role_title_code,
-        }
-      )
-  return relations
-
-
-def parse_spanish_date(raw: str) -> str | None:
-  value = normalize_spaces(raw).strip(" .")
-  match = re.fullmatch(r"(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})", value)
-  if not match:
-    return None
-  day = int(match.group(1))
-  month = int(match.group(2))
-  year = int(match.group(3))
-  if year < 100:
-    year += 2000 if year <= 69 else 1900
-  try:
-    parsed = dt.date(year, month, day)
-  except ValueError:
-    return None
-  return parsed.strftime("%Y%m%d")
-
-
-def extract_constitucion_metadata(block: str, filing_date: str) -> dict:
-  has_constitucion = bool(re.search(r"\bCONSTITUCI[OÓ]N\.", block, flags=re.IGNORECASE))
-  start_raw = ""
-  start_yyyymmdd = ""
-  date_match = re.search(
-    r"COMIENZO\s+DE\s+OPERACIONES\s*:\s*(\d{1,2}[./-]\d{1,2}[./-]\d{2,4})",
-    block,
-    flags=re.IGNORECASE,
-  )
-  if date_match:
-    start_raw = date_match.group(1)
-    parsed = parse_spanish_date(start_raw)
-    if parsed:
-      start_yyyymmdd = parsed
-  else:
-    match = re.search(r"COMIENZO\s+DE\s+OPERACIONES\s*:\s*([^\.]+)", block, flags=re.IGNORECASE)
-    if match:
-      start_raw = clean_fragment(match.group(1))
-      parsed = parse_spanish_date(start_raw)
-      if parsed:
-        start_yyyymmdd = parsed
-  return {
-    "has_constitucion": "1" if has_constitucion else "0",
-    "constitution_date": filing_date if has_constitucion else "",
-    "start_operations_raw": start_raw,
-    "start_operations_yyyymmdd": start_yyyymmdd,
-  }
-
-
-def extract_datos_registrales(block: str) -> dict:
-  raw = ""
-  tomo = ""
-  folio = ""
-  hoja = ""
-  inscripcion = ""
-  registry_date = ""
-  match = re.search(r"DATOS\s+REGISTRALES\.\s*(.+)$", block, flags=re.IGNORECASE)
-  if match:
-    raw = normalize_spaces(match.group(1)).strip().rstrip(".")
-    m_t = re.search(r"\bT\s*([0-9]+)\b", raw, flags=re.IGNORECASE)
-    m_f = re.search(r"\bF\s*([0-9]+)\b", raw, flags=re.IGNORECASE)
-    m_h = re.search(r"\bH\s*([A-Z]?\s*[0-9]+)\b", raw, flags=re.IGNORECASE)
-    m_ia = re.search(r"\bI/A\s*([0-9A-Z]+)\b", raw, flags=re.IGNORECASE)
-    m_dt = re.search(r"\((\d{1,2}[./-]\d{1,2}[./-]\d{2,4})\)", raw)
-    tomo = m_t.group(1) if m_t else ""
-    folio = m_f.group(1) if m_f else ""
-    hoja = normalize_spaces(m_h.group(1)) if m_h else ""
-    inscripcion = m_ia.group(1) if m_ia else ""
-    if m_dt:
-      parsed = parse_spanish_date(m_dt.group(1))
-      if parsed:
-        registry_date = parsed
-  return {
-    "datos_registrales_raw": raw,
-    "registry_tomo": tomo,
-    "registry_folio": folio,
-    "registry_hoja": hoja,
-    "registry_inscripcion": inscripcion,
-    "registry_date_yyyymmdd": registry_date,
-  }
-
-
 def extract_tax_ids(text: str) -> list[str]:
   compact = normalize_spaces(text).replace(" ", "")
   pattern = re.compile(r"\b(?:[A-HJNP-SUVW]\d{7}[0-9A-J]|\d{8}[A-Z]|[XYZ]\d{7}[A-Z])\b", re.IGNORECASE)
@@ -327,41 +130,6 @@ def extract_tax_ids(text: str) -> list[str]:
       seen.add(value)
       ids.append(value)
   return ids
-
-
-def extract_relations(block_text: str) -> list[dict]:
-  relations: list[dict] = []
-  block = normalize_spaces(block_text)
-  patterns = [
-    ("SOCIO_UNICO", r"SIENDO\s+(?:EL\s+)?SOCIO\s+U[NÑ]ICO\s+([^.;]+)"),
-    ("SOCIO_UNICO", r"NUEVO\s+SOCIO\s+U[NÑ]ICO:\s*([^.;]+)"),
-    ("SOCIO_UNICO", r"SOCIO\s+U[NÑ]ICO:\s*([^.;]+)"),
-    ("ACCIONISTA_UNICO", r"SIENDO\s+(?:EL\s+)?ACCIONISTA\s+U[NÑ]ICO\s+([^.;]+)"),
-    ("ACCIONISTA_UNICO", r"NUEVO\s+ACCIONISTA\s+U[NÑ]ICO:\s*([^.;]+)"),
-    ("ACCIONISTA_UNICO", r"ACCIONISTA\s+U[NÑ]ICO:\s*([^.;]+)"),
-    ("SOCIO", r"SOCIOS(?:\s+PROFESIONALES)?\s*:\s*([^.;]+)"),
-    ("SOCIO", r"SEPARACION\s+DE\s+([^.;]+?)\s+COMO\s+SOCIOS"),
-    ("SOCIO", r"INCORPORACION\s+DE\s+([^.;]+?)\s+COMO\s+SOCIOS"),
-  ]
-  for relation_type, pattern in patterns:
-    for m in re.finditer(pattern, block, flags=re.IGNORECASE):
-      for owner in split_names(m.group(1)):
-        relations.append(
-          {
-            "relation_type": relation_type,
-            "owner_name": owner,
-            "event_type": "MENCION",
-            "role_title_raw": "",
-            "role_title_code": "",
-          }
-        )
-  for section in extract_section_body(block, r"NOMBRAMIENTOS"):
-    relations.extend(parse_role_relations(section, "NOMBRAMIENTO"))
-  for section in extract_section_body(block, r"CESES/DIMISIONES"):
-    relations.extend(parse_role_relations(section, "CESE_DIMISION"))
-  for section in extract_section_body(block, r"REVOCACIONES"):
-    relations.extend(parse_role_relations(section, "REVOCACION"))
-  return relations
 
 
 def load_or_fetch_pdf_text(item: SectionItem, cache_dir: Path) -> str:
@@ -378,58 +146,109 @@ def load_or_fetch_pdf_text(item: SectionItem, cache_dir: Path) -> str:
 
 
 def process_item(item: SectionItem, cache_dir: Path) -> tuple[list[dict], list[dict], dict]:
+  """Parse one BORME PDF with the structured parser (scripts/borme_parser.py).
+
+  Returns (relation_rows, company_event_rows, stats). Relation rows keep the
+  historical CSV schema plus `company_hoja` (registry sheet, the stable company
+  key). Company event rows hold one row per inscribed act with its structured
+  fields as JSON (capital, domicile, CNAE, status changes, …).
+  """
   try:
     text = load_or_fetch_pdf_text(item, cache_dir)
   except Exception as exc:
     print(f"[WARN] skipping {item.item_id} ({item.date_yyyymmdd}): {exc}", flush=True)
     return [], [], {"item_id": item.item_id, "relations": 0, "company_events": 0}
-  blocks = split_registry_blocks(text)
+  return rows_from_text(text, item)
+
+
+def rows_from_text(text: str, item: SectionItem) -> tuple[list[dict], list[dict], dict]:
   rows: list[dict] = []
-  company_event_rows: list[dict] = []
-  for block in blocks[1:]:
-    company = extract_company_name(block)
+  event_rows: list[dict] = []
+  for entry in bp.parse_text(text):
+    company = entry.company_name
     if not company:
       continue
-    block_norm = normalize_spaces(block)
-    company_tax_ids = extract_tax_ids(block)
-    constitucion_meta = extract_constitucion_metadata(block_norm, item.date_yyyymmdd)
-    registry_meta = extract_datos_registrales(block_norm)
-    company_event_rows.append(
-      {
-        "borme_date": item.date_yyyymmdd,
-        "borme_item_id": item.item_id,
-        "province": item.province_title,
-        "company_name_borme": company,
-        "company_tax_id_candidates": "|".join(company_tax_ids),
+    company_tax_ids = extract_tax_ids(entry.text)
+    constitution = next((a for a in entry.acts if a.code == "CONSTITUCION"), None)
+    start_ops = (constitution.fields.get("start_operations") or "") if constitution else ""
+    reg = entry.registry
+    base = {
+      "borme_date": item.date_yyyymmdd,
+      "borme_item_id": item.item_id,
+      "province": item.province_title,
+      "company_name_borme": company,
+      "company_hoja": entry.hoja,
+    }
+    meta = {
+      "has_constitucion": "1" if constitution else "0",
+      "constitution_date": item.date_yyyymmdd if constitution else "",
+      "start_operations_raw": start_ops,
+      "start_operations_yyyymmdd": start_ops if re.fullmatch(r"\d{8}", start_ops or "") else "",
+      "datos_registrales_raw": reg.get("raw", ""),
+      "registry_tomo": reg.get("tomo", ""),
+      "registry_folio": reg.get("folio", ""),
+      "registry_hoja": entry.hoja,
+      "registry_inscripcion": reg.get("inscripcion", ""),
+      "registry_date_yyyymmdd": reg.get("registry_date") or "",
+      "company_tax_id_candidates": "|".join(company_tax_ids),
+      "source_pdf_url": item.pdf_url,
+    }
+    for seq, act in enumerate(entry.acts):
+      if act.code == "DATOS_REGISTRALES":
+        continue
+      fields = dict(act.fields)
+      if act.code in ("OTROS_CONCEPTOS", "FE_DE_ERRATAS", "DISOLUCION", "SITUACION_CONCURSAL", "TRANSFORMACION",
+                      "CAMBIO_DOMICILIO", "CAMBIO_DENOMINACION") or not fields:
+        fields.setdefault("text", act.text[:2000])
+      if act.code in ("OTROS_CONCEPTOS", "FE_DE_ERRATAS", "SOCIEDAD_UNIPERSONAL", "DECLARACION_UNIPERSONALIDAD") and entry.previous_owners:
+        fields["previous_owners"] = entry.previous_owners
+      event_rows.append({
+        **base,
+        "entry_number": entry.number,
+        "act_seq": seq,
+        "act_code": act.code,
+        "fields_json": json.dumps(fields, ensure_ascii=False, sort_keys=True),
+        "registry_date_yyyymmdd": meta["registry_date_yyyymmdd"],
         "source_pdf_url": item.pdf_url,
-        **constitucion_meta,
-        **registry_meta,
-      }
-    )
-    relations = extract_relations(block_norm)
-    for relation in relations:
+      })
+    for relation in entry.relations:
       owner_name = str(relation["owner_name"])
-      owner_tax_ids = extract_tax_ids(owner_name)
-      rows.append(
-        {
-          "borme_date": item.date_yyyymmdd,
-          "borme_item_id": item.item_id,
-          "province": item.province_title,
-          "company_name_borme": company,
-          "relation_type": relation["relation_type"],
-          "owner_name": owner_name,
-          "event_type": relation["event_type"],
-          "role_title_raw": relation["role_title_raw"],
-          "role_title_code": relation["role_title_code"],
-          "company_tax_id_candidates": "|".join(company_tax_ids),
-          "owner_tax_id_candidates": "|".join(owner_tax_ids),
-          **constitucion_meta,
-          **registry_meta,
-          "source_pdf_url": item.pdf_url,
-        }
-      )
-  stats = {"item_id": item.item_id, "relations": len(rows), "company_events": len(company_event_rows)}
-  return rows, company_event_rows, stats
+      rows.append({
+        **base,
+        "relation_type": relation["relation_type"],
+        "owner_name": owner_name,
+        "event_type": relation["event_type"],
+        "role_title_raw": relation["role_title_raw"],
+        "role_title_code": relation["role_title_code"],
+        "owner_tax_id_candidates": "|".join(extract_tax_ids(owner_name)),
+        **meta,
+      })
+    # Company-level events that end people's roles, as relation rows the span
+    # builders understand (owner_name empty, relation_type "_COMPANY").
+    for act in entry.acts:
+      if act.code in COMPANY_CLOSING_ACTS:
+        rows.append({
+          **base,
+          "relation_type": "_COMPANY",
+          "owner_name": "",
+          "event_type": act.code,
+          "role_title_raw": "",
+          "role_title_code": "",
+          "owner_tax_id_candidates": "",
+          **meta,
+        })
+  stats = {"item_id": item.item_id, "relations": len(rows), "company_events": len(event_rows)}
+  return rows, event_rows, stats
+
+
+# Acts that end roles at the company: extinction closes everything, losing
+# sole-shareholder status closes the SOCIO_UNICO span.
+COMPANY_CLOSING_ACTS = ("EXTINCION", "PERDIDA_UNIPERSONALIDAD")
+
+COMPANY_EVENT_FIELDS = [
+  "borme_date", "borme_item_id", "province", "company_name_borme", "company_hoja",
+  "entry_number", "act_seq", "act_code", "fields_json", "registry_date_yyyymmdd", "source_pdf_url",
+]
 
 
 def fetch_all_company_rows() -> list[dict]:
@@ -562,7 +381,7 @@ def main() -> None:
   dedup_company_events = []
   seen_company = set()
   for row in company_events:
-    key = (row["borme_date"], row["borme_item_id"], row["company_name_borme"])
+    key = (row["borme_date"], row["borme_item_id"], row["entry_number"], row["act_seq"])
     if key in seen_company:
       continue
     seen_company.add(key)
@@ -591,6 +410,7 @@ def main() -> None:
     "borme_item_id",
     "province",
     "company_name_borme",
+    "company_hoja",
     "relation_type",
     "owner_name",
     "event_type",
@@ -621,24 +441,7 @@ def main() -> None:
     row.setdefault("matched_contracts", "0")
   write_csv(relations_csv, relations_rows, relation_fields)
 
-  company_event_fields = [
-    "borme_date",
-    "borme_item_id",
-    "province",
-    "company_name_borme",
-    "has_constitucion",
-    "constitution_date",
-    "start_operations_raw",
-    "start_operations_yyyymmdd",
-    "datos_registrales_raw",
-    "registry_tomo",
-    "registry_folio",
-    "registry_hoja",
-    "registry_inscripcion",
-    "registry_date_yyyymmdd",
-    "company_tax_id_candidates",
-    "source_pdf_url",
-  ]
+  company_event_fields = COMPANY_EVENT_FIELDS
   write_csv(company_events_csv, dedup_company_events, company_event_fields)
 
   match_rows = [
