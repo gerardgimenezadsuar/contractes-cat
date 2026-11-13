@@ -3,7 +3,7 @@ import { buildCompanyMetadata, CompanyDetail } from "../../company-detail";
 
 // Target of the `/empreses/:id?name=...` rewrite in next.config.ts: one awardee
 // behind an anonymised DNI. Canonical URLs keep the ?name= form.
-export const revalidate = 21600;
+export const revalidate = 86400;
 
 export async function generateStaticParams() {
   return [];

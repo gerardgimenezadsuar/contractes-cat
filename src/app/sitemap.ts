@@ -4,7 +4,7 @@ import { listIndexablePersonNamesPage } from "@/lib/borme";
 import { fetchCompanyIdsPage, fetchOrganNamesPage } from "@/lib/api";
 import { listSitemapIds, resolveSitemapChunk, URLS_PER_SITEMAP } from "@/lib/sitemap-layout";
 
-// Sitemap chunks change slowly; regenerating them every 6h (the site default)
+// Sitemap chunks change slowly; regenerating them every 6h (the old site default)
 // made crawler sweeps a large share of Turso/Socrata load. Must be a literal.
 export const revalidate = 86400;
 

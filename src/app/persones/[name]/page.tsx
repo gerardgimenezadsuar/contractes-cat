@@ -34,7 +34,7 @@ import { SITE_URL } from "@/config/constants";
 import TrackedLinks from "@/components/entity/TrackedLinks";
 import PersonTopCompanies, { type TopCompany } from "@/components/person/PersonTopCompanies";
 
-export const revalidate = 21600;
+export const revalidate = 86400;
 
 // No withFallback on this page: it is ISR-cached, so a degraded render (zeros
 // standing in for a failed Socrata query) would be served for hours. Letting the

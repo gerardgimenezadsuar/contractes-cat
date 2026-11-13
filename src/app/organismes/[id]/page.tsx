@@ -46,7 +46,7 @@ import OrganRecentContracts from "@/components/organ/OrganRecentContracts";
 import OrganElectesCard from "@/components/organ/OrganElectesCard";
 import OrganThresholdBlock, { MIN_MINOR_CONTRACTS, organThresholdTotal } from "@/components/organ/OrganThresholdBlock";
 
-export const revalidate = 21600;
+export const revalidate = 86400;
 const ELECTES_PAGE_SIZE = 10;
 // Supplier concentration is measured from this year on (see /metodologia).
 const CONCENTRATION_SINCE_YEAR = 2023;

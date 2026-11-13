@@ -29,7 +29,7 @@ const loadCachedRanking = unstable_cache(
     return rows;
   },
   ["person-ranking-v1"],
-  { revalidate: 21600 }
+  { revalidate: 86400 }
 );
 
 export async function loadTopVinculacions(): Promise<TopVinculacioRow[]> {
