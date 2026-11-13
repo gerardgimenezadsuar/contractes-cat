@@ -56,6 +56,10 @@ next-env.d.ts
 # ...except the scripts needed by the scheduled incremental update (.github/workflows/borme-update.yml)
 !/scripts/borme_incremental_update.py
 !/scripts/borme_bulk_extract.py
+!/scripts/borme_parser.py
+!/scripts/borme_reparse_cache.py
+!/scripts/borme_build_spans.py
+!/scripts/borme_person_redirects.py
 !/scripts/borme_build_sqlite.py
 !/scripts/borme_repair_person_fts.py
 !/scripts/borme_check.py

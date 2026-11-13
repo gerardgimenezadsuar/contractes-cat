@@ -172,7 +172,7 @@ export async function loadAdminHistory(nif: string): Promise<BormeAdminData | nu
                      s.source_pdf_start AS source_pdf
               FROM companies c
               JOIN admin_spans s ON s.company_id = c.id
-              WHERE c.nif = ?
+              WHERE c.id IN (SELECT company_id FROM company_nifs WHERE nif = ?)
                 AND s.relation_type IN (
                   'ADMINISTRADOR',
                   'APODERADO',
@@ -186,11 +186,11 @@ export async function loadAdminHistory(nif: string): Promise<BormeAdminData | nu
         args: [normalizedNif],
       });
     } catch {
-      // Backward compatibility for pre-migration Turso schema without role_title columns.
+      // Databases built before company_nifs existed: match on companies.nif only.
       result = await client.execute({
         sql: `SELECT c.nif, c.matched_name,
                      s.person_name, s.relation_type,
-                     NULL AS role_title_raw, NULL AS role_title_code,
+                     s.role_title_raw, s.role_title_code,
                      s.date_start, s.date_end,
                      s.source_pdf_start AS source_pdf
               FROM companies c
@@ -214,7 +214,7 @@ export async function loadAdminHistory(nif: string): Promise<BormeAdminData | nu
 
     const first = result.rows[0];
     return {
-      nif:          String(first.nif ?? normalizedNif),
+      nif:          normalizedNif,
       matched_name: String(first.matched_name ?? ""),
       spans: result.rows.map((r) => ({
         person_name:   String(r.person_name),
@@ -860,10 +860,10 @@ export function loadCompanyGroupByNif(nif: string): Promise<CompanyGroupSummary 
             FROM companies c
             JOIN company_group_members m ON m.company_id = c.id
             JOIN company_groups g ON g.group_id = m.group_id
-            WHERE c.nif = ?
+            WHERE c.nif = ? OR c.id IN (SELECT company_id FROM company_nifs WHERE nif = ?)
             ORDER BY g.size DESC
             LIMIT 1`,
-      args: [nif.trim().toUpperCase()],
+      args: [nif.trim().toUpperCase(), nif.trim().toUpperCase()],
     });
     return result.rows[0] ? toGroupSummary(result.rows[0] as Record<string, unknown>) : null;
   });
@@ -1295,4 +1295,145 @@ export function loadContractingGroups(): Promise<GroupSearchEntry[]> {
     }
     return [...groups.values()];
   });
+}
+
+// ---------------------------------------------------------------------------
+// Registry profile ("fitxa mercantil"): status, domicile, capital, activity and
+// the latest inscribed acts. Built by scripts/borme_build_sqlite.py from every
+// BORME act, not only appointments. Returns null on databases without the
+// company_profile table, so pages keep working before the migration.
+// ---------------------------------------------------------------------------
+
+export type CompanyRegistryStatus =
+  | "ACTIVA"
+  | "EN_LIQUIDACION"
+  | "EN_CONCURSO"
+  | "CONVENI"
+  | "EXTINGIDA"
+  | "ABSORBIDA"
+  | "HOJA_CERRADA";
+
+export interface CompanyRegistryEvent {
+  date: string;
+  actCode: string;
+  fields: Record<string, unknown>;
+  sourcePdf: string | null;
+}
+
+export interface CompanyRegistry {
+  companyName: string;
+  province: string;
+  /** Registry sheet, e.g. "B-642774" (Registre Mercantil de Barcelona). */
+  hoja: string | null;
+  formerNames: string[];
+  status: CompanyRegistryStatus;
+  statusDate: string | null;
+  constitutionDate: string | null;
+  startOperations: string | null;
+  address: string | null;
+  municipality: string | null;
+  addressDate: string | null;
+  capital: number | null;
+  capitalDate: string | null;
+  cnae: string | null;
+  cnaeLabel: string | null;
+  object: string | null;
+  website: string | null;
+  /** Last insolvency phase seen: OPEN, LIQUIDATION, AGREEMENT or CLOSED. */
+  concursoKind: string | null;
+  /** When the current/last insolvency procedure was opened (BORME date). */
+  concursoSince: string | null;
+  concursoLastDate: string | null;
+  /** CULPABLE / FORTUITO when the court qualified the insolvency. */
+  concursoCalificacion: string | null;
+  firstSeen: string | null;
+  events: CompanyRegistryEvent[];
+}
+
+const registryCache = new Map<string, { expiresAt: number; value: CompanyRegistry | null }>();
+let registryUnavailable = false;
+
+function str(v: unknown): string | null {
+  return v == null || v === "" ? null : String(v);
+}
+
+export async function loadCompanyRegistry(nif: string): Promise<CompanyRegistry | null> {
+  const key = nif.trim().toUpperCase();
+  const cached = getCachedValue(registryCache, key);
+  if (cached !== null) return cached;
+  if (registryUnavailable) return null;
+  const client = getDb();
+  if (!client || !canReadTurso()) return null;
+  try {
+    // A NIF can map to several BORME rows (e.g. before/after a change of legal
+    // form); the profile of the most recently active one is the current one.
+    const companyRes = await client.execute({
+      sql: `SELECT c.id, c.company_name, c.province, c.hoja, c.aliases, c.first_seen,
+                   p.status, p.status_date, p.constitution_date, p.start_operations, p.address, p.municipality,
+                   p.address_date, p.capital, p.capital_date, p.cnae, p.cnae_label, p.object, p.website, p.concurso_kind,
+                   p.concurso_since, p.concurso_last_date, p.concurso_calificacion
+            FROM companies c
+            JOIN company_profile p ON p.company_id = c.id
+            WHERE c.id IN (SELECT company_id FROM company_nifs WHERE nif = ?)
+            -- Prefer a living company over an extinct predecessor with the same NIF.
+            ORDER BY (p.status IN ('EXTINGIDA', 'ABSORBIDA')) ASC, c.last_seen DESC
+            LIMIT 1`,
+      args: [key],
+    });
+    const row = companyRes.rows[0];
+    if (!row) {
+      setCachedValue(registryCache, key, null, 60 * 60 * 1000);
+      return null;
+    }
+    const eventsRes = await client.execute({
+      sql: `SELECT borme_date, act_code, fields_json, source_pdf
+            FROM company_events
+            WHERE company_id = ?
+              AND act_code NOT IN ('OTROS_CONCEPTOS', 'FE_DE_ERRATAS', 'MODIFICACIONES_ESTATUTARIAS', 'ADAPTACION', 'ARTICULO_378')
+            ORDER BY borme_date DESC, id DESC
+            LIMIT 40`,
+      args: [Number(row.id)],
+    });
+    const value: CompanyRegistry = {
+      companyName: String(row.company_name),
+      province: String(row.province),
+      hoja: str(row.hoja),
+      formerNames: (str(row.aliases) ?? "").split("|").filter(Boolean).reverse(),
+      status: (str(row.status) ?? "ACTIVA") as CompanyRegistryStatus,
+      statusDate: str(row.status_date),
+      constitutionDate: str(row.constitution_date),
+      startOperations: str(row.start_operations),
+      address: str(row.address),
+      municipality: str(row.municipality),
+      addressDate: str(row.address_date),
+      capital: row.capital == null ? null : Number(row.capital),
+      capitalDate: str(row.capital_date),
+      cnae: str(row.cnae),
+      cnaeLabel: str(row.cnae_label),
+      object: str(row.object),
+      website: str(row.website),
+      concursoKind: str(row.concurso_kind),
+      concursoSince: str(row.concurso_since),
+      concursoLastDate: str(row.concurso_last_date),
+      concursoCalificacion: str(row.concurso_calificacion),
+      firstSeen: str(row.first_seen),
+      events: eventsRes.rows.map((r) => {
+        let fields: Record<string, unknown> = {};
+        try {
+          fields = JSON.parse(String(r.fields_json ?? "{}"));
+        } catch {
+          fields = {};
+        }
+        return { date: String(r.borme_date), actCode: String(r.act_code), fields, sourcePdf: str(r.source_pdf) };
+      }),
+    };
+    setCachedValue(registryCache, key, value, 60 * 60 * 1000);
+    return value;
+  } catch (error) {
+    markBlockedRead(error);
+    if (/no such table|no such column/i.test(error instanceof Error ? error.message : String(error))) {
+      registryUnavailable = true;
+    }
+    return null;
+  }
 }

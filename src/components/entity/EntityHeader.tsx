@@ -10,7 +10,14 @@ export interface HeaderChip {
   mono?: boolean;
   /** Makes the chip a link, e.g. to the company's group. */
   href?: string;
+  /** Highlights a status worth noticing (e.g. a dissolved or insolvent company). */
+  tone?: "warning" | "danger";
 }
+
+const toneClass = {
+  warning: "border-amber-300 bg-amber-50 text-amber-800",
+  danger: "border-red-300 bg-red-50 text-red-800",
+} as const;
 
 interface Props {
   backHref: string;
@@ -47,7 +54,10 @@ export default function EntityHeader({ backHref, backLabel, eyebrow, title, chip
         <ul className="flex flex-wrap gap-2">
           {chips.map((chip) => {
             const value = (
-              <span title={chip.value} className={`min-w-0 truncate font-medium ${chip.href ? "text-accent" : "text-gray-900"} ${chip.mono ? "font-mono" : ""}`}>
+              <span
+                title={chip.value}
+                className={`min-w-0 truncate font-medium ${chip.href ? "text-accent" : chip.tone ? "" : "text-gray-900"} ${chip.mono ? "font-mono" : ""}`}
+              >
                 {chip.value}
               </span>
             );
@@ -62,7 +72,7 @@ export default function EntityHeader({ backHref, backLabel, eyebrow, title, chip
                     </span>
                   </Link>
                 ) : (
-                  <span className={`${chipClass} border-gray-200`}>
+                  <span className={`${chipClass} ${chip.tone ? toneClass[chip.tone] : "border-gray-200"}`}>
                     {chip.label}
                     {value}
                   </span>

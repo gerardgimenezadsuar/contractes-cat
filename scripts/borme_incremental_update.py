@@ -8,15 +8,17 @@ How it works
 ------------
   1. Reads the last processed BORME date from the `borme_meta` table.
   2. For each following day up to today, fetches the sumario + PDFs for the
-     Catalan provinces and parses them with borme_bulk_extract.py.
-  3. For every company touched that day, loads its currently-open spans from
-     the DB and replays the day's events with the same algorithm as
-     borme_build_spans.py (NOMBRAMIENTO opens, CESE/REVOCACION closes,
-     MENCION opens only if nothing matching is open).
-  4. Writes new spans, closes ended spans, inserts/updates companies (new
-     companies get a NIF match against Socrata), refreshes person_summary for
-     the affected people, adds FTS rows for new people and advances
-     `borme_meta.last_processed_date` -- all in ONE transaction per day.
+     Catalan provinces and parses them (borme_parser.py via borme_bulk_extract.py)
+     into people relations and company acts.
+  3. Companies are identified by their registry sheet (province + hoja); a new
+     name is stored as the company name and the old one kept in `aliases`.
+  4. Spans are replayed with borme_build_spans.apply_filing, the same rule as the
+     full rebuild (appointments open; resignations, revocations, official
+     cancellations, extinction, a new sole shareholder close).
+  5. Company acts go to `company_events` and the company's `company_profile`
+     (status, domicile, capital, activity…) is recomputed.
+  6. person_summary / FTS rows are refreshed for the affected people and
+     `borme_meta.last_processed_date` advances -- all in ONE transaction per day.
 
 Re-running a day is a no-op for companies whose `last_seen` is already >= that
 day, so interrupted runs can simply be restarted.
@@ -26,11 +28,8 @@ Usage
   # Production (reads TURSO_URL + TURSO_WRITE_TOKEN from env; falls back to TURSO_TOKEN):
   python3 scripts/borme_incremental_update.py
 
-  # First run against a DB that has no borme_meta yet (data ends 2025-12-31):
-  python3 scripts/borme_incremental_update.py --start-date 2026-01-01
-
   # Test against a local SQLite copy instead of Turso:
-  python3 scripts/borme_incremental_update.py --sqlite /path/to/admin.sqlite --start-date 2026-01-01
+  python3 scripts/borme_incremental_update.py --sqlite /path/to/admin.sqlite --start-date 2026-11-07
 
   # Parse + compute without writing anything:
   python3 scripts/borme_incremental_update.py --dry-run
@@ -41,6 +40,7 @@ from __future__ import annotations
 import argparse
 import csv
 import datetime as dt
+import json
 import os
 import sqlite3
 import sys
@@ -57,19 +57,19 @@ REPO_DIR = SCRIPT_DIR.parent
 sys.path.insert(0, str(SCRIPT_DIR))
 
 import borme_bulk_extract as bx  # noqa: E402
+import borme_build_spans as bspans  # noqa: E402
 import borme_build_sqlite as bsql  # noqa: E402
 
 ROLES_TO_INCLUDE = {"ADMINISTRADOR", "APODERADO", "SOCIO_UNICO", "ORGANO_GOBIERNO", "LIQUIDADOR"}
 PERSON_RELATIONS = bsql.PERSON_RELATIONS
-EVENT_ORDER = {"CESE_DIMISION": 0, "REVOCACION": 0, "NOMBRAMIENTO": 1, "MENCION": 2}
 META_KEY = "last_processed_date"
 CHUNK = 400
 
 DEFAULT_CACHE_DIR = REPO_DIR / "borme-dataset" / "data" / "borme_cache" / "pdf_text"
-DEFAULT_ARCHIVE_DIR = REPO_DIR / "borme-dataset" / "data"
+DEFAULT_ARCHIVE_DIR = REPO_DIR / "borme-dataset" / "data" / "v2"
 
 RELATION_FIELDS = [
-  "borme_date", "borme_item_id", "province", "company_name_borme", "relation_type", "owner_name",
+  "borme_date", "borme_item_id", "province", "company_name_borme", "company_hoja", "relation_type", "owner_name",
   "event_type", "role_title_raw", "role_title_code", "has_constitucion", "constitution_date",
   "start_operations_raw", "start_operations_yyyymmdd", "datos_registrales_raw", "registry_tomo",
   "registry_folio", "registry_hoja", "registry_inscripcion", "registry_date_yyyymmdd",
@@ -232,8 +232,8 @@ def prefetch_pdf(item: bx.SectionItem, cache_dir: Path) -> None:
       time.sleep(2 ** attempt * 3)
 
 
-def parse_day(day: str, provinces: set[str], cache_dir: Path, workers: int) -> list[dict] | None:
-  """Return deduplicated relation rows for a day, or None if no BORME that day."""
+def parse_day(day: str, provinces: set[str], cache_dir: Path, workers: int) -> tuple[list[dict], list[dict]] | None:
+  """Return (relation rows, company act rows) for a day, or None if no BORME that day."""
   payload = fetch_sumario_or_none(day)
   if payload is None:
     return None
@@ -242,70 +242,95 @@ def parse_day(day: str, provinces: set[str], cache_dir: Path, workers: int) -> l
     list(ex.map(lambda it: prefetch_pdf(it, cache_dir), items))
 
   rows: list[dict] = []
+  acts: list[dict] = []
   seen: set[tuple] = set()
   for item in items:  # keep sumario order for deterministic filing order
-    item_rows, _events, _stats = bx.process_item(item, cache_dir)
+    item_rows, item_acts, _stats = bx.process_item(item, cache_dir)
     for row in item_rows:
-      key = (row["borme_date"], row["borme_item_id"], row["company_name_borme"], row["relation_type"],
-             row["event_type"], row["role_title_code"], row["owner_name"])
+      key = (row["borme_date"], row["borme_item_id"], row.get("company_hoja", ""), row["company_name_borme"],
+             row["relation_type"], row["event_type"], row["role_title_code"], row["owner_name"])
       if key in seen:
         continue
       seen.add(key)
       rows.append(row)
-  log(f"[INFO] {day}: {len(items)} PDFs, {len(rows)} relations")
-  return rows
+    acts.extend(item_acts)
+  log(f"[INFO] {day}: {len(items)} PDFs, {len(rows)} relations, {len(acts)} acts")
+  return rows, acts
 
 
-def archive_rows(archive_dir: Path, day: str, rows: list[dict]) -> None:
-  """Write the day's raw relations next to the yearly bulk CSVs so a full
-  rebuild with borme_build_spans.py picks them up too."""
-  out = archive_dir / f"bulk_{day[:4]}" / f"relations_{day}_{day}.csv"
-  out.parent.mkdir(parents=True, exist_ok=True)
-  with out.open("w", newline="", encoding="utf-8") as f:
-    w = csv.DictWriter(f, fieldnames=RELATION_FIELDS, extrasaction="ignore")
-    w.writeheader()
-    for row in rows:
-      w.writerow({"match_type": "none", "matched_nif": "", "matched_name": "", "matched_contracts": "0", **row})
+def archive_rows(archive_dir: Path, day: str, rows: list[dict], acts: list[dict]) -> None:
+  """Write the day's raw relations + acts next to the yearly CSVs of borme_reparse_cache.py
+  so a full rebuild without the PDF cache can still pick them up."""
+  out_dir = archive_dir / f"bulk_{day[:4]}"
+  out_dir.mkdir(parents=True, exist_ok=True)
+  for name, fields, data in (("relations", RELATION_FIELDS, rows), ("company_events", bx.COMPANY_EVENT_FIELDS, acts)):
+    with (out_dir / f"{name}_{day}_{day}.csv").open("w", newline="", encoding="utf-8") as f:
+      w = csv.DictWriter(f, fieldnames=fields, extrasaction="ignore")
+      w.writeheader()
+      w.writerows(data)
 
 
 # ---------------------------------------------------------------------------
-# Span application (mirrors borme_build_spans.compute_spans)
+# Company keys and day grouping
 # ---------------------------------------------------------------------------
-def group_events(rows: list[dict]) -> dict[tuple[str, str], dict[str, list[dict]]]:
-  """{(province, company): {item_id: [events]}} restricted to span roles."""
-  out: dict[tuple[str, str], dict[str, list[dict]]] = defaultdict(lambda: defaultdict(list))
+def ckey(province: str, hoja: str, name: str) -> tuple[str, str]:
+  """Company identity: registry sheet; the name only when a filing has no sheet."""
+  return (province.strip(), f"H:{hoja.strip()}" if hoja.strip() else f"N:{name.strip()}")
+
+
+def group_day(rows: list[dict], acts: list[dict]) -> dict[tuple[str, str], dict]:
+  """{company key: {"name": latest name, "filings": {item_id: [span events]}, "acts": [act rows]}}"""
+  out: dict[tuple[str, str], dict] = {}
+
+  def entry(province: str, hoja: str, name: str) -> dict:
+    k = ckey(province, hoja, name)
+    e = out.setdefault(k, {"name": name, "filings": defaultdict(list), "acts": []})
+    e["name"] = name  # rows come in filing order: the last name wins
+    return e
+
   for row in rows:
-    if row["relation_type"] not in ROLES_TO_INCLUDE:
-      continue
-    owner = row["owner_name"].strip()
     company = row["company_name_borme"].strip()
-    if not owner or not company:
+    if not company:
       continue
-    out[(row["province"].strip(), company)][row["borme_item_id"].strip()].append({
+    e = entry(row["province"], row.get("company_hoja", ""), company)
+    rel = row["relation_type"]
+    owner = row["owner_name"].strip()
+    if rel != "_COMPANY" and (rel not in ROLES_TO_INCLUDE or not owner):
+      continue
+    e["filings"][row["borme_item_id"].strip()].append({
       "event_type": (row.get("event_type") or "").strip().upper() or "MENCION",
-      "relation_type": row["relation_type"].strip(),
+      "relation_type": rel,
       "role_title_raw": (row.get("role_title_raw") or "").strip(),
       "role_title_code": (row.get("role_title_code") or "").strip(),
       "person_name": owner,
       "source_pdf_url": row["source_pdf_url"].strip(),
     })
+  for act in acts:
+    company = act["company_name_borme"].strip()
+    if company:
+      entry(act["province"], act.get("company_hoja", ""), company)["acts"].append(act)
   return out
 
 
 def load_companies(db, keys: list[tuple[str, str]]) -> dict[tuple[str, str], dict]:
-  wanted = set(keys)
-  names = sorted({name for _, name in keys})
   found: dict[tuple[str, str], dict] = {}
-  for part in chunks(names):
+  cols = "id, company_name, province, hoja, aliases, nif, last_seen"
+  by_province: dict[str, list[str]] = defaultdict(list)
+  names: list[str] = []
+  for province, ident in keys:
+    if ident.startswith("H:"):
+      by_province[province].append(ident[2:])
+    else:
+      names.append(ident[2:])
+  for province, hojas in by_province.items():
+    for part in chunks(sorted(set(hojas))):
+      ph = ",".join("?" for _ in part)
+      for r in db.query(f"SELECT {cols} FROM companies WHERE province = ? AND hoja IN ({ph})", [province, *part]):
+        found[(province, f"H:{r['hoja']}")] = r
+  for part in chunks(sorted(set(names))):
     ph = ",".join("?" for _ in part)
-    for r in db.query(
-      f"SELECT id, company_name, province, nif, first_seen, last_seen, num_filings "
-      f"FROM companies WHERE company_name IN ({ph}) ORDER BY id",
-      part,
-    ):
-      key = (r["province"], r["company_name"])
-      if key in wanted and key not in found:
-        found[key] = r
+    for r in db.query(f"SELECT {cols} FROM companies WHERE hoja IS NULL AND company_name IN ({ph}) ORDER BY id", part):
+      found.setdefault((r["province"], f"N:{r['company_name']}"), r)
   return found
 
 
@@ -315,81 +340,29 @@ def load_open_spans(db, company_ids: list[int]) -> dict[int, list[dict]]:
     ph = ",".join("?" for _ in part)
     for r in db.query(
       f"SELECT id, company_id, person_name, relation_type, role_title_code, date_start "
-      f"FROM admin_spans WHERE company_id IN ({ph}) AND date_end IS NULL",
+      f"FROM admin_spans WHERE company_id IN ({ph}) AND date_end IS NULL ORDER BY id",
       part,
     ):
       out[r["company_id"]].append(r)
   return out
 
 
-def apply_company_day(day: str, filings: dict[str, list[dict]], open_spans: list[dict]):
-  """Replay one company's filings for a day on top of its open spans.
-
-  Returns (new_spans, closed_existing) where closed_existing is a list of
-  (span_id, item_id_end, source_pdf_end) and new_spans may already be closed.
-  """
-  active: dict[tuple[str, str], list[dict]] = defaultdict(list)
-  for s in sorted(open_spans, key=lambda s: s["id"]):
-    active[(s["person_name"], s["relation_type"])].append({
-      "existing_id": s["id"],
-      "role_title_code": s["role_title_code"] or "",
-      "date_start": s["date_start"],
-    })
-
-  new_spans: list[dict] = []
-  closed_existing: list[tuple[int, str, str]] = []
-
-  for item_id, events in filings.items():
-    events = sorted(events, key=lambda e: EVENT_ORDER.get(e["event_type"], 3))
-    for ev in events:
-      base_key = (ev["person_name"], ev["relation_type"])
-      open_list = active.get(base_key, [])
-      code = ev["role_title_code"]
-
-      if ev["event_type"] in {"CESE_DIMISION", "REVOCACION"}:
-        if not open_list:
-          continue
-        idx = None
-        if code:
-          for i, s in enumerate(open_list):
-            if s.get("role_title_code") == code:
-              idx = i
-              break
-        if idx is None:
-          idx = max(range(len(open_list)), key=lambda i: open_list[i]["date_start"])
-        span = open_list.pop(idx)
-        if "existing_id" in span:
-          closed_existing.append((span["existing_id"], item_id, ev["source_pdf_url"]))
-        else:
-          span["date_end"] = day
-          span["item_id_end"] = item_id
-          span["source_pdf_end"] = ev["source_pdf_url"]
-        if not open_list:
-          active.pop(base_key, None)
-        continue
-
-      if any(s.get("role_title_code") == code for s in open_list):
-        continue
-      span = {
-        "person_name": ev["person_name"],
-        "relation_type": ev["relation_type"],
-        "role_title_raw": ev["role_title_raw"],
-        "role_title_code": code,
-        "date_start": day,
-        "date_end": None,
-        "item_id_start": item_id,
-        "item_id_end": None,
-        "source_pdf_start": ev["source_pdf_url"],
-        "source_pdf_end": None,
-      }
-      active[base_key].append(span)
-      new_spans.append(span)
-
-  return new_spans, closed_existing
+def load_company_events(db, company_ids: list[int]) -> dict[int, list[dict]]:
+  out: dict[int, list[dict]] = defaultdict(list)
+  for part in chunks(company_ids):
+    ph = ",".join("?" for _ in part)
+    for r in db.query(
+      f"SELECT company_id, borme_date, act_code, fields_json FROM company_events "
+      f"WHERE company_id IN ({ph}) ORDER BY borme_date, id",
+      part,
+    ):
+      out[r["company_id"]].append({"borme_date": r["borme_date"], "act_code": r["act_code"],
+                                   "fields": json.loads(r["fields_json"] or "{}")})
+  return out
 
 
 # ---------------------------------------------------------------------------
-# NIF matching for new companies (lazy: only fetched when needed)
+# NIF matching for new companies / new names (lazy: only fetched when needed)
 # ---------------------------------------------------------------------------
 class NifMatcher:
   def __init__(self):
@@ -405,10 +378,20 @@ class NifMatcher:
 # ---------------------------------------------------------------------------
 # Build the per-day transaction
 # ---------------------------------------------------------------------------
-def build_day_statements(db, day: str, rows: list[dict], matcher: NifMatcher) -> tuple[list[Stmt], dict]:
-  grouped = group_events(rows)
-  stats = {"companies_new": 0, "companies_updated": 0, "companies_skipped": 0,
-           "spans_new": 0, "spans_closed": 0, "persons": 0, "persons_new": 0}
+COMPANY_BY_KEY = "(SELECT id FROM companies WHERE province = ? AND {cond} ORDER BY id LIMIT 1)"
+
+
+def company_ref(key: tuple[str, str]) -> tuple[str, list[Any]]:
+  province, ident = key
+  if ident.startswith("H:"):
+    return COMPANY_BY_KEY.format(cond="hoja = ?"), [province, ident[2:]]
+  return COMPANY_BY_KEY.format(cond="hoja IS NULL AND company_name = ?"), [province, ident[2:]]
+
+
+def build_day_statements(db, day: str, rows: list[dict], acts: list[dict], matcher: NifMatcher) -> tuple[list[Stmt], dict]:
+  grouped = group_day(rows, acts)
+  stats = {"companies_new": 0, "companies_updated": 0, "companies_skipped": 0, "companies_renamed": 0,
+           "spans_new": 0, "spans_closed": 0, "acts": 0, "persons": 0, "persons_new": 0}
   if not grouped:
     return [], stats
 
@@ -416,52 +399,119 @@ def build_day_statements(db, day: str, rows: list[dict], matcher: NifMatcher) ->
   # Idempotency: skip companies already updated with this (or a later) day.
   todo = {k: v for k, v in grouped.items() if k not in existing or (existing[k]["last_seen"] or "") < day}
   stats["companies_skipped"] = len(grouped) - len(todo)
-  open_by_company = load_open_spans(db, [existing[k]["id"] for k in todo if k in existing])
+  ids = [existing[k]["id"] for k in todo if k in existing]
+  open_by_company = load_open_spans(db, ids)
+  events_by_company = load_company_events(db, [existing[k]["id"] for k, v in todo.items() if k in existing and v["acts"]])
 
   stmts: list[Stmt] = []
   affected_persons: set[str] = set()
 
-  for (province, company), filings in todo.items():
-    comp = existing.get((province, company))
+  for key, day_data in todo.items():
+    province, ident = key
+    hoja = ident[2:] if ident.startswith("H:") else None
+    name = day_data["name"]
+    comp = existing.get(key)
+    ref_sql, ref_args = company_ref(key)
+
     if comp is None:
-      m = matcher.match(company)
+      m = matcher.match(name)
       stmts.append((
-        "INSERT INTO companies (company_name, province, nif, match_type, matched_name, first_seen, last_seen, num_filings) "
-        "VALUES (?,?,?,?,?,?,?,?)",
-        [company, province, m["nif"] if m else None, m["match_type"] if m else None,
-         m["name"] if m else None, day, day, len(filings)],
+        "INSERT INTO companies (company_name, province, nif, match_type, matched_name, first_seen, last_seen, "
+        "num_filings, hoja, aliases, extinct_on) VALUES (?,?,?,?,?,?,?,?,?,NULL,NULL)",
+        [name, province, m["nif"] if m else None, m["match_type"] if m else None, m["name"] if m else None,
+         day, day, 1, hoja],
       ))
+      if m:
+        stmts.append((f"INSERT OR IGNORE INTO company_nifs (nif, company_id, match_type, matched_name) "
+                      f"VALUES (?, {ref_sql}, ?, ?)", [m["nif"], *ref_args, m["match_type"], m["name"]]))
       stats["companies_new"] += 1
       open_spans: list[dict] = []
+      prior_events: list[dict] = []
     else:
-      stmts.append((
-        "UPDATE companies SET last_seen = ?, num_filings = COALESCE(num_filings, 0) + ? WHERE id = ?",
-        [day, len(filings), comp["id"]],
-      ))
+      stmts.append(("UPDATE companies SET last_seen = ?, num_filings = COALESCE(num_filings, 0) + 1 WHERE id = ?",
+                    [day, comp["id"]]))
       stats["companies_updated"] += 1
+      if hoja and name != comp["company_name"]:
+        # Renamed (or a cleaner spelling): keep the old name as an alias, try a NIF for the new one.
+        aliases = [a for a in (comp["aliases"] or "").split("|") if a and a != name]
+        if comp["company_name"] not in aliases:
+          aliases.append(comp["company_name"])
+        stmts.append(("UPDATE companies SET company_name = ?, aliases = ? WHERE id = ?",
+                      [name, "|".join(aliases), comp["id"]]))
+        m = matcher.match(name)
+        if m:
+          stmts.append(("INSERT OR IGNORE INTO company_nifs (nif, company_id, match_type, matched_name) VALUES (?,?,?,?)",
+                        [m["nif"], comp["id"], m["match_type"], m["name"]]))
+          if not comp["nif"]:
+            stmts.append(("UPDATE companies SET nif = ?, match_type = ?, matched_name = ? WHERE id = ?",
+                          [m["nif"], m["match_type"], m["name"], comp["id"]]))
+        stats["companies_renamed"] += 1
       open_spans = open_by_company.get(comp["id"], [])
+      prior_events = events_by_company.get(comp["id"], [])
 
-    new_spans, closed = apply_company_day(day, filings, open_spans)
-    open_by_id = {s["id"]: s for s in open_spans}
-    for span_id, item_id_end, pdf_end in closed:
-      stmts.append((
-        "UPDATE admin_spans SET date_end = ?, item_id_end = ?, source_pdf_end = ? WHERE id = ? AND date_end IS NULL",
-        [day, item_id_end, pdf_end, span_id],
-      ))
-      affected_persons.add(open_by_id[span_id]["person_name"])
-    for s in new_spans:
+    # --- spans (same rule as the full rebuild: borme_build_spans.apply_filing)
+    active: dict[tuple[str, str], list[dict]] = defaultdict(list)
+    for sp in open_spans:
+      active[(sp["person_name"], sp["relation_type"])].append(
+        {"existing_id": sp["id"], "person_name": sp["person_name"], "role_title_code": sp["role_title_code"] or "",
+         "date_start": sp["date_start"]})
+    new_spans: list[dict] = []
+    closed_existing: list[tuple[int, str, str, str, str]] = []
+
+    def close(span: dict, date: str, item_id: str, pdf: str, reason: str) -> None:
+      if "existing_id" in span:
+        closed_existing.append((span["existing_id"], span["person_name"], item_id, pdf, reason))
+      else:
+        span.update(date_end=date, item_id_end=item_id, source_pdf_end=pdf, end_reason=reason)
+
+    def open_span(event: dict, date: str, item_id: str) -> dict:
+      span = {"person_name": event["person_name"], "relation_type": event["relation_type"],
+              "role_title_raw": event["role_title_raw"], "role_title_code": event["role_title_code"],
+              "date_start": date, "date_end": None, "item_id_start": item_id, "item_id_end": None,
+              "source_pdf_start": event["source_pdf_url"], "source_pdf_end": None, "end_reason": None}
+      new_spans.append(span)
+      return span
+
+    extinct = False
+    for item_id in sorted(day_data["filings"]):
+      extinct |= bspans.apply_filing(active, day_data["filings"][item_id], day, item_id, close, open_span)
+
+    for span_id, person, item_id_end, pdf_end, reason in closed_existing:
+      stmts.append(("UPDATE admin_spans SET date_end = ?, item_id_end = ?, source_pdf_end = ?, end_reason = ? "
+                    "WHERE id = ? AND date_end IS NULL", [day, item_id_end, pdf_end, reason, span_id]))
+      affected_persons.add(person)
+    for sp in new_spans:
       stmts.append((
         "INSERT INTO admin_spans (company_id, person_name, relation_type, role_title_raw, role_title_code, "
-        "date_start, date_end, item_id_start, item_id_end, source_pdf_start, source_pdf_end) "
-        "VALUES ((SELECT id FROM companies WHERE province = ? AND company_name = ? ORDER BY id LIMIT 1),"
-        "?,?,?,?,?,?,?,?,?,?)",
-        [province, company, s["person_name"], s["relation_type"], s["role_title_raw"] or None,
-         s["role_title_code"] or None, s["date_start"], s["date_end"], s["item_id_start"],
-         s["item_id_end"], s["source_pdf_start"], s["source_pdf_end"]],
+        "date_start, date_end, item_id_start, item_id_end, source_pdf_start, source_pdf_end, end_reason) "
+        f"VALUES ({ref_sql},?,?,?,?,?,?,?,?,?,?,?)",
+        [*ref_args, sp["person_name"], sp["relation_type"], sp["role_title_raw"] or None, sp["role_title_code"] or None,
+         sp["date_start"], sp["date_end"], sp["item_id_start"], sp["item_id_end"], sp["source_pdf_start"],
+         sp["source_pdf_end"], sp["end_reason"]],
       ))
-      affected_persons.add(s["person_name"])
+      affected_persons.add(sp["person_name"])
+    if extinct:
+      stmts.append((f"UPDATE companies SET extinct_on = ? WHERE id = {ref_sql}", [day, *ref_args]))
     stats["spans_new"] += len(new_spans)
-    stats["spans_closed"] += len(closed)
+    stats["spans_closed"] += len(closed_existing)
+
+    # --- company acts + profile
+    company_acts = [a for a in day_data["acts"] if a["act_code"] not in bsql.ROLE_ACT_CODES]
+    for act in company_acts:
+      stmts.append((f"INSERT INTO company_events (company_id, borme_date, act_code, fields_json, source_pdf) "
+                    f"VALUES ({ref_sql},?,?,?,?)",
+                    [*ref_args, act["borme_date"], act["act_code"], act["fields_json"], act["source_pdf_url"]]))
+    if company_acts:
+      stats["acts"] += len(company_acts)
+      evs = prior_events + [{"borme_date": a["borme_date"], "act_code": a["act_code"],
+                             "fields": json.loads(a["fields_json"] or "{}")} for a in company_acts]
+      prof = bsql.build_profile(evs)
+      cols = bsql.PROFILE_COLUMNS
+      stmts.append((
+        f"INSERT INTO company_profile (company_id, {', '.join(cols)}) VALUES ({ref_sql}, {','.join('?' * len(cols))}) "
+        f"ON CONFLICT(company_id) DO UPDATE SET {', '.join(f'{c} = excluded.{c}' for c in cols)}",
+        [*ref_args, *[prof.get(c) for c in cols]],
+      ))
 
   # person_summary refresh (+ FTS rows for people seen for the first time)
   persons = sorted(affected_persons)
@@ -567,18 +617,19 @@ def main() -> int:
     if args.max_days and days_done >= args.max_days:
       break
     ds = day.strftime("%Y%m%d")
-    rows = parse_day(ds, provinces, cache_dir, args.workers)
-    if rows is None:
+    parsed = parse_day(ds, provinces, cache_dir, args.workers)
+    if parsed is None:
       if day >= today:
         log(f"[INFO] {ds}: not published yet; stopping without advancing.")
         break
       log(f"[INFO] {ds}: no BORME published")
-      rows = []
+      parsed = ([], [])
+    rows, acts = parsed
 
-    if rows and archive_dir:
-      archive_rows(archive_dir, ds, rows)
+    if (rows or acts) and archive_dir:
+      archive_rows(archive_dir, ds, rows, acts)
 
-    stmts, stats = build_day_statements(db, ds, rows, matcher)
+    stmts, stats = build_day_statements(db, ds, rows, acts, matcher)
     stmts.append(("INSERT OR REPLACE INTO borme_meta (key, value) VALUES (?, ?)", [META_KEY, ds]))
     if rows:
       log(f"[INFO] {ds}: {stats} -> {len(stmts)} statements")
@@ -595,7 +646,7 @@ def main() -> int:
   gh_output = os.environ.get("GITHUB_OUTPUT")
   if gh_output:
     changed = (not args.dry_run) and any(
-      totals.get(k, 0) > 0 for k in ("companies_new", "companies_updated", "spans_new", "spans_closed", "persons_new")
+      totals.get(k, 0) > 0 for k in ("companies_new", "companies_updated", "spans_new", "spans_closed", "persons_new", "acts")
     )
     with open(gh_output, "a", encoding="utf-8") as fh:
       fh.write(f"changed={'true' if changed else 'false'}\n")
