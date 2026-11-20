@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { buildCompanyMetadata, CompanyDetail } from "./company-detail";
 
-export const revalidate = 21600;
+export const revalidate = 259200; // 3 days
 
 // Empty list + revalidate = on-demand ISR: each company page is rendered on
 // its first request and then served from the CDN cache.
