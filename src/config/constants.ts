@@ -11,7 +11,9 @@ export const CLEAN_AMOUNT_SENSE_FILTER =
   "import_adjudicacio_sense not like '%||%'";
 
 // Data source updates are typically daily; a 6h cache reduces load while staying fresh.
-export const REVALIDATE_SECONDS = 21600; // 6 hours cache
+// 3 days. Crawlers hit far more pages than people; every stale hit regenerates the
+// page and rewrites its Socrata queries (ISR writes were the top Vercel cost, Nov 2026).
+export const REVALIDATE_SECONDS = 259200;
 export const API_ROUTE_S_MAXAGE_SECONDS = 21600; // 6 hours CDN cache
 export const API_ROUTE_STALE_WHILE_REVALIDATE_SECONDS = 86400; // 24 hours
 
