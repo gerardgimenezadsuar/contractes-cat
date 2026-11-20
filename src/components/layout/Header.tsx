@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { navPrefetch } from "@/lib/nav-prefetch";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { SITE_NAME } from "@/config/constants";
@@ -40,7 +41,7 @@ export default function Header() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  prefetch
+                  prefetch={navPrefetch(item.href)}
                   className={`relative px-4 py-2 text-sm transition-colors ${
                     isActive
                       ? "text-accent font-semibold"
@@ -95,7 +96,7 @@ export default function Header() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  prefetch
+                  prefetch={navPrefetch(item.href)}
                   onClick={() => setMobileOpen(false)}
                   className={`block min-h-11 px-3 py-2.5 rounded-md text-sm ${
                     isActive

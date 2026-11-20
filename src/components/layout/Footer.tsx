@@ -17,27 +17,27 @@ export default function Footer() {
             <h3 className="font-semibold text-gray-900 mb-2">Navegació</h3>
             <ul className="space-y-1 text-sm">
               <li>
-                <Link href="/empreses" prefetch className="text-gray-600 hover:text-gray-900">
+                <Link href="/empreses" prefetch={false} className="text-gray-600 hover:text-gray-900">
                   Empreses
                 </Link>
               </li>
               <li>
-                <Link href="/persones" prefetch className="text-gray-600 hover:text-gray-900">
+                <Link href="/persones" prefetch={false} className="text-gray-600 hover:text-gray-900">
                   Persones
                 </Link>
               </li>
               <li>
-                <Link href="/contractes" prefetch className="text-gray-600 hover:text-gray-900">
+                <Link href="/contractes" prefetch={false} className="text-gray-600 hover:text-gray-900">
                   Contractes
                 </Link>
               </li>
               <li>
-                <Link href="/organismes" prefetch className="text-gray-600 hover:text-gray-900">
+                <Link href="/organismes" prefetch={false} className="text-gray-600 hover:text-gray-900">
                   Organismes
                 </Link>
               </li>
               <li>
-                <Link href="/grups" prefetch className="text-gray-600 hover:text-gray-900">
+                <Link href="/grups" prefetch={false} className="text-gray-600 hover:text-gray-900">
                   Grups empresarials
                 </Link>
               </li>

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { navPrefetch } from "@/lib/nav-prefetch";
 import { usePathname } from "next/navigation";
 import { trackEvent } from "@/lib/analytics";
 
@@ -63,7 +64,7 @@ export default function MobileBottomNav() {
             <li key={tab.href}>
               <Link
                 href={tab.href}
-                prefetch
+                prefetch={navPrefetch(tab.href)}
                 aria-current={isActive ? "page" : undefined}
                 onClick={() => trackEvent("nav_tap", { tab: tab.label, from: pathname })}
                 className={`flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition-colors ${

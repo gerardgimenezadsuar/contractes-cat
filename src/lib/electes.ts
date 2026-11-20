@@ -265,7 +265,7 @@ export async function fetchCurrentEnsOfficeHolders(
 ): Promise<CurrentEnsOfficePage> {
   const page = Number.isFinite(options?.page) && (options?.page || 0) > 0 ? Math.floor(options?.page || 1) : 1;
   const rawPageSize = Number.isFinite(options?.pageSize) && (options?.pageSize || 0) > 0 ? Math.floor(options?.pageSize || 20) : 20;
-  const pageSize = Math.max(5, Math.min(rawPageSize, 100));
+  const pageSize = Math.max(5, Math.min(rawPageSize, 1000));
 
   const selectFields =
     "codi_ens, nom_complert, ordre, nom_regidor, carrec, area, partit, municipi_representa, data_nomenament";

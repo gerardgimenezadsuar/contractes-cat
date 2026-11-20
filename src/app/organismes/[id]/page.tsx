@@ -48,20 +48,20 @@ import OrganThresholdBlock, { MIN_MINOR_CONTRACTS, organThresholdTotal } from "@
 
 export const revalidate = 259200; // 3 days
 const ELECTES_PAGE_SIZE = 10;
+const MAX_ELECTES_ROWS = 1000;
+
+// Empty list = render on first request, then serve from the ISR cache.
+export async function generateStaticParams() {
+  return [];
+}
 // Supplier concentration is measured from this year on (see /metodologia).
 const CONCENTRATION_SINCE_YEAR = 2023;
 
 interface Props {
   params: Promise<{ id: string }>;
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 const getOrganDetail = cache(async (id: string) => fetchOrganDetail(id));
-
-function readSingleQueryParam(value: string | string[] | undefined): string {
-  if (Array.isArray(value)) return value[0] || "";
-  return value || "";
-}
 
 function organKind(name: string): string {
   const n = name.toLowerCase();
@@ -102,12 +102,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function OrganDetailPage({ params, searchParams }: Props) {
-  const [{ id }, query] = await Promise.all([params, searchParams]);
+// No searchParams here: reading them makes the route dynamic and skips ISR.
+// The office-holder list is paginated client-side instead.
+export default async function OrganDetailPage({ params }: Props) {
+  const { id } = await params;
   const decodedId = decodeURIComponent(id);
-  const rawElectesPage = readSingleQueryParam(query.electes_page);
-  const parsedElectesPage = parseInt(rawElectesPage, 10);
-  const electesPage = Number.isFinite(parsedElectesPage) && parsedElectesPage > 0 ? parsedElectesPage : 1;
 
   const { organ, yearly } = await getOrganDetail(decodedId);
 
@@ -131,14 +130,14 @@ export default async function OrganDetailPage({ params, searchParams }: Props) {
     withFallback(fetchOrganCompetition(organName), null, "fetchOrganCompetition"),
     withFallback(fetchCataloniaCompetition(), null, "fetchCataloniaCompetition"),
     withFallback(
-      fetchCurrentEnsOfficeHolders(organName, { page: electesPage, pageSize: ELECTES_PAGE_SIZE }),
+      fetchCurrentEnsOfficeHolders(organName, { page: 1, pageSize: MAX_ELECTES_ROWS }),
       {
         codiEns: null,
         ensName: null,
         matchedEnsNames: [],
         totalCurrentRoles: 0,
-        page: electesPage,
-        pageSize: ELECTES_PAGE_SIZE,
+        page: 1,
+        pageSize: MAX_ELECTES_ROWS,
         rows: [],
       },
       "fetchCurrentEnsOfficeHolders"
@@ -201,23 +200,8 @@ export default async function OrganDetailPage({ params, searchParams }: Props) {
 
   const entityPath = `/organismes/${encodeURIComponent(organName)}`;
   const organDescription = `${formatCompactNumber(totalAmount)} adjudicats en ${formatNumber(numContracts)} contractes públics per ${organName}.`;
-  const electesTotalPages = Math.max(1, Math.ceil(electes.totalCurrentRoles / electes.pageSize));
   const hasElectes = electes.totalCurrentRoles > 0;
   const hasTopCompanies = topCompanies.length > 0;
-  const buildElectesPageHref = (targetPage: number): string => {
-    const qs = new URLSearchParams();
-    for (const [key, value] of Object.entries(query)) {
-      if (key === "electes_page") continue;
-      if (Array.isArray(value)) {
-        for (const v of value) if (v) qs.append(key, v);
-      } else if (value) {
-        qs.set(key, value);
-      }
-    }
-    if (targetPage > 1) qs.set("electes_page", String(targetPage));
-    const s = qs.toString();
-    return s ? `${entityPath}?${s}#carrecs` : `${entityPath}#carrecs`;
-  };
 
   const tabs = [
     { id: "resum", label: "Resum" },
@@ -313,11 +297,9 @@ export default async function OrganDetailPage({ params, searchParams }: Props) {
           <h2 className="mb-3 font-display text-xl font-semibold text-gray-900">Càrrecs electes actuals</h2>
           <div className="xl:max-w-3xl">
             <OrganElectesCard
-              rows={electes.rows}
+              rows={electes.rows.map(({ key, personName, carrec }) => ({ key, personName, carrec }))}
               totalCurrentRoles={electes.totalCurrentRoles}
-              page={electes.page}
-              totalPages={electesTotalPages}
-              buildPageHref={buildElectesPageHref}
+              pageSize={ELECTES_PAGE_SIZE}
             />
           </div>
         </TrackedLinks>

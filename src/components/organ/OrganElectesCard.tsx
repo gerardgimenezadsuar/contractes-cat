@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import { formatNumber } from "@/lib/utils";
 
@@ -10,17 +13,24 @@ export interface ElectesRow {
 interface Props {
   rows: ElectesRow[];
   totalCurrentRoles: number;
-  page: number;
-  totalPages: number;
-  buildPageHref: (page: number) => string;
+  pageSize: number;
 }
 
-export default function OrganElectesCard({ rows, totalCurrentRoles, page, totalPages, buildPageHref }: Props) {
-  const pagerLink = (target: number, label: string, enabled: boolean) =>
+// Paginated in the browser so the organ page needs no searchParams and stays ISR-cached.
+export default function OrganElectesCard({ rows, totalCurrentRoles, pageSize }: Props) {
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  const visible = rows.slice((page - 1) * pageSize, page * pageSize);
+
+  const pagerButton = (target: number, label: string, enabled: boolean) =>
     enabled ? (
-      <Link href={buildPageHref(target)} scroll={false} className="rounded border border-gray-300 px-2.5 py-1 hover:bg-gray-50">
+      <button
+        type="button"
+        onClick={() => setPage(target)}
+        className="rounded border border-gray-300 px-2.5 py-1 hover:bg-gray-50"
+      >
         {label}
-      </Link>
+      </button>
     ) : (
       <span className="rounded border border-gray-200 px-2.5 py-1 text-gray-400">{label}</span>
     );
@@ -32,10 +42,11 @@ export default function OrganElectesCard({ rows, totalCurrentRoles, page, totalP
         Catalunya, darrer nomenament conegut per plaça.
       </div>
       <ul className="divide-y divide-gray-100">
-        {rows.map((row) => (
+        {visible.map((row) => (
           <li key={row.key} className="flex flex-col gap-1.5 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
             <Link
               href={`/persones?search=${encodeURIComponent(row.personName)}`}
+              prefetch={false}
               className="text-sm font-medium text-gray-900 hover:underline"
             >
               {row.personName}
@@ -52,8 +63,8 @@ export default function OrganElectesCard({ rows, totalCurrentRoles, page, totalP
             Pàgina {formatNumber(page)} de {formatNumber(totalPages)}
           </p>
           <div className="flex items-center gap-1.5">
-            {pagerLink(page - 1, "Anterior", page > 1)}
-            {pagerLink(page + 1, "Següent", page < totalPages)}
+            {pagerButton(page - 1, "Anterior", page > 1)}
+            {pagerButton(page + 1, "Següent", page < totalPages)}
           </div>
         </div>
       ) : null}

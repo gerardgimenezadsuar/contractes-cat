@@ -7,6 +7,14 @@ import { formatNumber } from "@/lib/utils";
 export const size = OG_SIZE;
 export const contentType = OG_CONTENT_TYPE;
 
+// Cache rendered cards (ISR, same window as the page). Uncached, every crawler
+// fetch re-ran the image render plus its data queries.
+export const revalidate = 259200;
+
+export async function generateStaticParams() {
+  return [];
+}
+
 interface Props {
   params: Promise<{ id: string }>;
 }
